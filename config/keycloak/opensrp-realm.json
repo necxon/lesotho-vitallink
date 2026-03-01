@@ -1,0 +1,44 @@
+{
+  "id": "opensrp",
+  "realm": "opensrp",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "opensrp-web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "opensrp-secret",
+      "directAccessGrantsEnabled": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "clientAuthenticatorType": "client-secret"
+    },
+    {
+      "clientId": "bkm-mediator",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "mediator-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret"
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "OPENMRS",    "description": "OpenSRP REST API access" },
+      { "name": "ALL_EVENTS", "description": "OpenSRP event getAll access" }
+    ]
+  },
+  "users": [
+    {
+      "username": "opensrp-admin",
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "admin", "temporary": false }
+      ],
+      "realmRoles": ["OPENMRS", "ALL_EVENTS"]
+    }
+  ]
+}

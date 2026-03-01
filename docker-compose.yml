@@ -1,0 +1,353 @@
+services:
+  # --- SHARED DATABASE LAYER ---
+  db-postgres:
+    image: postgis/postgis:14-3.2
+    container_name: health-db-postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST_AUTH_METHOD=md5  # OpenLMIS JDBC drivers don't support SCRAM-SHA-256
+    networks:
+      - health-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./config/initdb:/docker-entrypoint-initdb.d:ro
+
+  db-mongo:
+    image: mongo:4.4
+    container_name: openhim-mongo
+    networks:
+      - health-net
+    volumes:
+      - mongo-data:/data/db
+
+  # --- INTEROPERABILITY LAYER (OpenHIM) ---
+  openhim-core:
+    image: jembi/openhim-core:latest
+    container_name: openhim-core
+    ports:
+      - "5000:5000"   # Client HTTPS channel
+      - "5001:5001"   # Client HTTP channel  ← Android app POSTs here (curl/test target)
+      - "8080:8080"   # Admin API            ← console default (https://localhost:8080)
+    environment:
+      - mongo_url=mongodb://db-mongo:27017/openhim
+    depends_on:
+      - db-mongo
+    networks:
+      - health-net
+
+  openhim-console:
+    image: jembi/openhim-console:latest
+    container_name: openhim-console
+    ports:
+      - "9000:80"
+    networks:
+      - health-net
+
+  # --- DHIS2 (National Health Dashboard) ---
+  # DHIS2 reads connection settings from dhis.conf, not from env vars.
+  dhis2-web:
+    image: dhis2/core:2.40
+    container_name: dhis2-web
+    ports:
+      - "8081:8080"   # Moved to 8081 — 8080 is reserved for OpenHIM admin API
+    volumes:
+      - ./config/dhis.conf:/opt/dhis2/dhis.conf:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+
+  # --- KEYCLOAK (Identity Provider for OpenSRP) ---
+  # Runs in dev mode (H2 in-memory) — no persistence between restarts.
+  # Imports the opensrp realm on startup via --import-realm.
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - ./config/keycloak/opensrp-realm.json:/opt/keycloak/data/import/opensrp-realm.json:ro
+    ports:
+      - "8083:8080"
+    networks:
+      - health-net
+
+  # --- BKM MEDIATOR (OpenHIM fan-out: OpenSRP + DHIS2 + OpenLMIS) ---
+  # OpenHIM routes POST /fhir/MedicationDispense here via a configured channel.
+  # The mediator stores to OpenSRP, aggregates to DHIS2, and adjusts stock in OpenLMIS.
+  bkm-mediator:
+    build: ./mediator
+    container_name: bkm-mediator
+    environment:
+      - OPENHIM_URL=https://openhim-core:8080
+      - OPENHIM_USER=root@openhim.org
+      - OPENHIM_PASS=openhim-password
+      - OPENSRP_URL=http://opensrp-server:8080
+      - KEYCLOAK_URL=http://keycloak:8080
+      - DHIS2_URL=http://dhis2-web:8080
+      - DHIS2_USER=admin
+      - DHIS2_PASS=district
+      - OPENLMIS_STOCKMGMT_URL=http://openlmis-stockmanagement:8080
+    depends_on:
+      - openhim-core
+      - opensrp-server
+      - keycloak
+      - openlmis-stockmanagement
+    networks:
+      - health-net
+
+  # --- OPENSRP 2 (Community Health Worker Mobile Hub) ---
+  # Uses JNDI for its DataSource — context.xml declares java:comp/env/jdbc/openSRPDB.
+  # keycloak.json is mounted into the classpath so the Keycloak adapter can initialize.
+  opensrp-server:
+    image: opensrp/opensrp-server-web:latest
+    container_name: opensrp-server
+    ports:
+      - "9900:8080"
+    volumes:
+      - ./config/opensrp/context.xml:/usr/local/tomcat/conf/context.xml:ro
+      - ./config/opensrp/keycloak.json:/usr/local/tomcat/webapps/opensrp/WEB-INF/keycloak.json:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - health-net
+
+  # --- OPENLMIS (Supply Chain / Warehouse Management) ---
+  # OpenLMIS microservice stack requires Consul (service registry) and
+  # an rsyslog container reachable as 'log' for centralized logging.
+
+  consul:
+    image: hashicorp/consul:1.9
+    container_name: consul
+    command: ["consul", "agent", "-dev", "-client", "0.0.0.0"]
+    networks:
+      - health-net
+
+  # Must be named 'log' — OpenLMIS services hardcode this hostname for syslog.
+  log:
+    image: openlmis/rsyslog:latest
+    container_name: openlmis-log
+    networks:
+      - health-net
+
+  openlmis-rabbitmq:
+    image: rabbitmq:3.8-management
+    container_name: openlmis-rabbitmq
+    networks:
+      - health-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  openlmis-auth:
+    image: openlmis/auth:latest
+    container_name: openlmis-auth
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_auth
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - BASE_URL=http://openlmis-nginx
+      - spring.rabbitmq.host=openlmis-rabbitmq
+      # Hibernate 5.0 auto-detects PostgreSQL81Dialect for PG14, which lacks pg-uuid.
+      # PostgreSQL94Dialect (extends 82Dialect) registers PostgresUUIDType as 'pg-uuid'.
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQL94Dialect
+      - JAVA_OPTS=-Xmx512m
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      openlmis-rabbitmq:
+        condition: service_healthy
+      consul:
+        condition: service_started
+      log:
+        condition: service_started
+    networks:
+      - health-net
+
+  openlmis-referencedata:
+    image: openlmis/referencedata:latest
+    container_name: openlmis-referencedata
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_referencedata
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - BASE_URL=http://openlmis-nginx
+      - spring.rabbitmq.host=openlmis-rabbitmq
+      - JAVA_OPTS=-Xmx512m
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      openlmis-rabbitmq:
+        condition: service_healthy
+      openlmis-auth:
+        condition: service_started
+      consul:
+        condition: service_started
+      log:
+        condition: service_started
+    networks:
+      - health-net
+
+  openlmis-requisition:
+    image: openlmis/requisition:latest
+    container_name: openlmis-requisition
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_requisition
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - BASE_URL=http://openlmis-nginx
+      - spring.rabbitmq.host=openlmis-rabbitmq
+      - JAVA_OPTS=-Xmx512m
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      openlmis-rabbitmq:
+        condition: service_healthy
+      openlmis-referencedata:
+        condition: service_started
+      consul:
+        condition: service_started
+      log:
+        condition: service_started
+    networks:
+      - health-net
+
+  openlmis-stockmanagement:
+    image: openlmis/stockmanagement:latest
+    container_name: openlmis-stockmanagement
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_stockmanagement
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - BASE_URL=http://openlmis-nginx
+      - spring.rabbitmq.host=openlmis-rabbitmq
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQL94Dialect
+      - JAVA_OPTS=-Xmx512m
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      openlmis-rabbitmq:
+        condition: service_healthy
+      openlmis-auth:
+        condition: service_started
+      openlmis-referencedata:
+        condition: service_started
+      consul:
+        condition: service_started
+      log:
+        condition: service_started
+    networks:
+      - health-net
+
+  # --- HAPI FHIR R4 SERVER (for OpenSRP FHIR Core mobile app) ---
+  # Exposed on port 8084 so the patched APK can reach it via 10.0.2.2:8084/fhir/
+  hapi-fhir:
+    image: hapiproject/hapi:v7.2.0
+    container_name: hapi-fhir
+    ports:
+      - "8079:8080"
+    environment:
+      - hapi.fhir.fhir_version=R4
+      - hapi.fhir.allow_multiple_delete=true
+      - hapi.fhir.allow_external_references=true
+      - hapi.fhir.reuse_cached_search_results_millis=-1
+    networks:
+      - health-net
+
+  # MailHog — local SMTP sink + web UI (http://localhost:8025) for sandbox email capture.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "8025:8025"   # Web UI — view caught emails
+    networks:
+      - health-net
+
+  openlmis-notification:
+    image: openlmis/notification:latest
+    container_name: openlmis-notification
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_notification
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - BASE_URL=http://openlmis-nginx
+      - spring.rabbitmq.host=openlmis-rabbitmq
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=
+      - MAIL_PASSWORD=
+      - JAVA_OPTS=-Xmx512m
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      openlmis-rabbitmq:
+        condition: service_healthy
+      openlmis-auth:
+        condition: service_started
+      openlmis-referencedata:
+        condition: service_started
+      consul:
+        condition: service_started
+      log:
+        condition: service_started
+      mailhog:
+        condition: service_started
+    networks:
+      - health-net
+
+  # OpenLMIS Reference UI — AngularJS SPA served by nginx.
+  # No external port needed: traffic flows through openlmis-nginx on :8082.
+  # UI_SERVICE_URL tells openlmis-nginx where to proxy static asset requests.
+  openlmis-ui:
+    image: openlmis/reference-ui:5.2.13
+    container_name: openlmis-ui
+    environment:
+      - BASE_URL=http://localhost:8082
+    networks:
+      - health-net
+
+  openlmis-nginx:
+    image: openlmis/nginx:latest
+    container_name: openlmis-nginx
+    ports:
+      - "8082:80"
+    environment:
+      - VIRTUAL_HOST=localhost
+      - AUTH_SERVICE_URL=http://openlmis-auth:8080
+      - REFERENCEDATA_SERVICE_URL=http://openlmis-referencedata:8080
+      - REQUISITION_SERVICE_URL=http://openlmis-requisition:8080
+      - STOCKMANAGEMENT_SERVICE_URL=http://openlmis-stockmanagement:8080
+      - NOTIFICATION_SERVICE_URL=http://openlmis-notification:8080
+      - UI_SERVICE_URL=http://openlmis-ui:80
+    depends_on:
+      - consul
+      - openlmis-auth
+      - openlmis-referencedata
+      - openlmis-requisition
+      - openlmis-stockmanagement
+      - openlmis-notification
+    networks:
+      - health-net
+
+networks:
+  health-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mongo-data:

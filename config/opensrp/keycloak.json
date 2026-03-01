@@ -1,0 +1,12 @@
+{
+  "realm": "opensrp",
+  "auth-server-url": "http://keycloak:8080",
+  "ssl-required": "none",
+  "resource": "opensrp-web",
+  "credentials": {
+    "secret": "opensrp-secret"
+  },
+  "use-resource-role-mappings": false,
+  "confidential-port": 0,
+  "principal-attribute": "preferred_username"
+}
