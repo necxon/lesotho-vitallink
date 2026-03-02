@@ -114,18 +114,26 @@ let _lmisToken = null, _lmisExpires = 0, refreshingLMIS = null;
 const TIMEOUT_MS = parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '10000', 10);
 
 async function getOpenLMISToken() {
-  if (_lmisToken && Date.now() < _lmisExpires) return _lmisToken;
-  if (refreshingLMIS) return refreshingLMIS;
+  if (_lmisToken && Date.now() < _lmisExpires) {
+    logger.debug(`OpenLMIS token cache hit (expires in ${Math.round((_lmisExpires - Date.now()) / 1000)}s)`);
+    return _lmisToken;
+  }
+  if (refreshingLMIS) {
+    logger.debug('OpenLMIS token refresh already in flight — awaiting');
+    return refreshingLMIS;
+  }
 
+  logger.debug(`Fetching fresh OpenLMIS token from ${CONFIG.lmis.authUrl}`);
   refreshingLMIS = (async () => {
     try {
-      const res = await axios.post(`${CONFIG.lmis.authUrl}/api/oauth/token`, 
+      const res = await axios.post(`${CONFIG.lmis.authUrl}/api/oauth/token`,
         `grant_type=password&username=${CONFIG.lmis.user}&password=${CONFIG.lmis.pass}`, {
         auth: { username: CONFIG.lmis.client, password: CONFIG.lmis.secret },
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       _lmisToken = res.data.access_token;
       _lmisExpires = Date.now() + (res.data.expires_in - 60) * 1000;
+      logger.debug(`OpenLMIS token acquired (expires_in=${res.data.expires_in}s)`);
       return _lmisToken;
     } finally { refreshingLMIS = null; }
   })();
@@ -136,6 +144,7 @@ async function getOpenLMISToken() {
 async function ensureStockCard(identity) {
   // Fire-and-forget: stock cards are auto-created on first stock event.
   // Never throw — a logging check must not block the fan-out.
+  logger.debug(`ensureStockCard: facility=${identity.facilityId} program=${identity.programId} orderable=${identity.orderableId}`);
   try {
     const token = await getOpenLMISToken();
     const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
@@ -143,8 +152,11 @@ async function ensureStockCard(identity) {
       headers: { Authorization: `Bearer ${token}` },
       timeout: TIMEOUT_MS
     });
-    if (res.data.content && res.data.content.length === 0) {
+    const content = res.data.content || [];
+    if (content.length === 0) {
       logger.info(`Stock card not yet provisioned for facility ${identity.facilityId} — first stock event will create it.`);
+    } else {
+      logger.debug(`Stock card found: SOH=${content[0].stockOnHand}, orderable=${content[0].orderable?.id}`);
     }
   } catch (err) {
     logger.warn(`ensureStockCard check failed (non-fatal): ${err.message}`);
@@ -161,7 +173,7 @@ async function pushToOpenLMIS(resource, identity, isReceipt = false) {
     ? (process.env.OPENLMIS_RECEIPT_REASON_ID || '313f2f5f-0c22-4626-8c49-3554ef763de3')
     : (process.env.OPENLMIS_REASON_ID         || 'b5c27da7-bdda-4790-925a-9484c5dfb594');
 
-  return axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, {
+  const body = {
     facilityId: identity.facilityId,
     programId: identity.programId,
     lineItems: [{
@@ -171,7 +183,12 @@ async function pushToOpenLMIS(resource, identity, isReceipt = false) {
       reasonId: reasonId,
       documentationNo: `BKM-${resource.id || Date.now()}`
     }]
-  }, { headers: { Authorization: `Bearer ${token}` }, timeout: TIMEOUT_MS });
+  };
+  logger.debug(`OpenLMIS stockEvents POST: ${JSON.stringify(body)}`);
+  const res = await axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, body,
+    { headers: { Authorization: `Bearer ${token}` }, timeout: TIMEOUT_MS });
+  logger.debug(`OpenLMIS stockEvents response: HTTP ${res.status} — ${JSON.stringify(res.data)}`);
+  return res;
 }
 
 // dataElement defaults to the dispensed DE; pass DHIS2_DE_STOCK_RECEIVED for receipts
@@ -185,10 +202,13 @@ async function pushToDHIS2(resource, dataElement) {
       value: String(resource.quantity?.value || 0)
     }]
   };
-  return axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, payload, {
+  logger.debug(`DHIS2 dataValueSets POST: de=${de} value=${payload.dataValues[0].value} period=${payload.dataValues[0].period}`);
+  const res = await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, payload, {
     auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass },
     timeout: TIMEOUT_MS
   });
+  logger.debug(`DHIS2 dataValueSets response: HTTP ${res.status} status=${res.data?.status}`);
+  return res;
 }
 
 // ---  STOCK RECEIPT POLLING (OpenLMIS → DHIS2) ---
@@ -201,8 +221,12 @@ async function pollStockLevels() {
   const facilityId  = process.env.OPENLMIS_FACILITY_ID;
   const programId   = process.env.OPENLMIS_PROGRAM_ID;
   const orderableId = process.env.OPENLMIS_ORDERABLE_ID;
-  if (!facilityId || !programId || !orderableId) return;
+  if (!facilityId || !programId || !orderableId) {
+    logger.debug('Stock poll skipped: OPENLMIS_FACILITY_ID/PROGRAM_ID/ORDERABLE_ID not set');
+    return;
+  }
 
+  logger.debug(`Stock poll: querying SOH (lastKnown=${_lastSoH})`);
   try {
     const token = await getOpenLMISToken();
     const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
@@ -212,8 +236,12 @@ async function pollStockLevels() {
     });
 
     const content = res.data.content || [];
-    if (content.length === 0) return;
+    if (content.length === 0) {
+      logger.debug('Stock poll: no stock card found yet');
+      return;
+    }
     const currentSoH = content[0].stockOnHand;
+    logger.debug(`Stock poll: currentSoH=${currentSoH} lastSoH=${_lastSoH}`);
 
     if (_lastSoH === null) {
       _lastSoH = currentSoH;
@@ -226,7 +254,8 @@ async function pollStockLevels() {
       logger.info(`Stock receipt detected via poll: SOH ${_lastSoH} → ${currentSoH} (+${delta})`);
       const deReceived = process.env.DHIS2_DE_STOCK_RECEIVED;
       if (deReceived) {
-        await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
+        logger.debug(`Stock poll: pushing ${delta} units to DHIS2 DE=${deReceived}`);
+        const dhisRes = await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
           dataValues: [{
             dataElement: deReceived,
             orgUnit: process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
@@ -238,13 +267,19 @@ async function pollStockLevels() {
           timeout: TIMEOUT_MS
         });
         logger.info(`Stock receipt synced to DHIS2: ${delta} units → ${deReceived}`);
+        logger.debug(`DHIS2 poll sync response: HTTP ${dhisRes.status} status=${dhisRes.data?.status}`);
+      } else {
+        logger.debug('Stock poll: DHIS2_DE_STOCK_RECEIVED not set — receipt logged only');
       }
     } else if (delta < 0) {
       logger.info(`Stock dispense detected via poll (not through mediator): SOH ${_lastSoH} → ${currentSoH} (${delta})`);
+    } else {
+      logger.debug(`Stock poll: SOH unchanged at ${currentSoH}`);
     }
     _lastSoH = currentSoH;
   } catch (err) {
     logger.warn(`Stock poll failed (non-fatal): ${err.message}`);
+    logger.debug(`Stock poll error detail: ${err.response?.status} ${JSON.stringify(err.response?.data)}`);
   }
 }
 
@@ -255,17 +290,21 @@ app.use(express.json({ type: ['application/json', 'application/fhir+json'] }));
 app.post('/fhir/MedicationDispense', async (req, res) => {
   const resource = req.body;
   const t0 = Date.now();
+  logger.debug(`MedicationDispense request: subject=${resource.subject?.reference} status=${resource.status} type=${JSON.stringify(resource.type)}`);
 
   try {
     //  Resolve Identity
     const performer = resource.performer?.[0]?.actor?.reference;
     const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code;
+    logger.debug(`Identity lookup: performer=${performer} medCode=${medCode}`);
 
-    const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'] || {
+    const fromMap = PERFORMER_MAP[performer] || PERFORMER_MAP['default'];
+    const identity = fromMap || {
       facilityId: process.env.OPENLMIS_FACILITY_ID,
       programId: process.env.OPENLMIS_PROGRAM_ID
     };
     identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'] || process.env.OPENLMIS_ORDERABLE_ID;
+    logger.debug(`Identity resolved (source=${fromMap ? 'CSV map' : 'env vars'}): facility=${identity.facilityId} program=${identity.programId} orderable=${identity.orderableId}`);
 
     if (!identity.facilityId || !identity.orderableId) {
       throw new Error(`Incomplete mapping for Performer: ${performer} or Med: ${medCode}`);
@@ -291,7 +330,9 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     // Keep polling baseline in sync — prevents poller double-counting app-posted events
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       const qty = resource.quantity?.value || 0;
+      const prev = _lastSoH;
       _lastSoH += isReceipt ? qty : -qty;
+      logger.debug(`Poll baseline adjusted: ${prev} → ${_lastSoH} (${isReceipt ? '+' : '-'}${qty})`);
     }
 
     const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
@@ -307,7 +348,7 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
       }
     });
 
-    logger.info(`Transaction processed in ${Date.now() - t0}ms`);
+    logger.info(`Transaction processed in ${Date.now() - t0}ms (eLMIS=${lmis.status} DHIS2=${dhis.status})`);
 
   } catch (err) {
     logger.error(`Orchestration Failed: ${err.message}`);
@@ -319,6 +360,7 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
 app.post('/fhir/QuestionnaireResponse', async (req, res) => {
   const qr = req.body;
   const t0 = Date.now();
+  logger.debug(`QuestionnaireResponse request: id=${qr.id} author=${qr.author?.reference} items=${qr.item?.length}`);
 
   try {
     // Extract answers by linkId
@@ -331,6 +373,7 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     const medCode  = answers['medication']?.valueCoding?.code || 'AL-20-120';
     const quantity = answers['quantity']?.valueInteger ?? 0;
     const performer = qr.author?.reference || 'Practitioner/opensrp-admin';
+    logger.debug(`QR extracted: medCode=${medCode} quantity=${quantity} performer=${performer}`);
 
     // Build synthetic MedicationDispense for identity resolution
     const resource = {
@@ -377,6 +420,22 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
 
 // ---  STARTUP ---
 loadMappings();
+logger.debug('Startup config: ' + JSON.stringify({
+  openhimUrl: CONFIG.openhim.apiURL,
+  opensrpUrl: CONFIG.opensrp.url,
+  dhis2Url: CONFIG.dhis2.url,
+  dhis2DE: CONFIG.dhis2.de,
+  dhis2DEReceived: process.env.DHIS2_DE_STOCK_RECEIVED,
+  lmisAuthUrl: CONFIG.lmis.authUrl,
+  lmisMgmtUrl: CONFIG.lmis.mgmtUrl,
+  lmisProgram: CONFIG.lmis.program,
+  facilityId: process.env.OPENLMIS_FACILITY_ID,
+  orderableId: process.env.OPENLMIS_ORDERABLE_ID,
+  pollIntervalMs: POLL_INTERVAL_MS,
+  timeoutMs: TIMEOUT_MS,
+  receiptTypeCode: process.env.RECEIPT_TYPE_CODE || 'RECEIPT',
+  logLevel: process.env.LOG_LEVEL || 'info'
+}));
 utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
   if (err) {
     logger.error('Failed to register with OpenHIM');
