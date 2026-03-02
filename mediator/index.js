@@ -9,17 +9,41 @@ const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 
 /**
- * VITAL-LINK MEDIATOR 
+ * VITAL-LINK MEDIATOR
  *  Plugin for Lesotho Health Department
- * Integrates OpenSRP 2 (BKM) -> OpenLMIS (eLMIS) -> DHIS2
+ *
+ * Sits behind OpenHIM and fans out stock movement events from the Android BKM
+ * app (OpenSRP 2) to two national systems simultaneously:
+ *
+ *   OpenSRP 2 (Android app)
+ *     └─▶ OpenHIM (intercept + audit)
+ *           └─▶ Vital-Link Mediator (this service, port 3000)
+ *                 ├─▶ OpenLMIS  — records stock events (DEBIT or CREDIT)
+ *                 └─▶ DHIS2     — writes aggregate data values for dashboards
+ *
+ * Two intake routes:
+ *   POST /fhir/MedicationDispense      — primary path used by the Android app
+ *   POST /fhir/QuestionnaireResponse   — alternative path via app form engine
+ *
+ * Both routes support dispense (stock out) and receipt (stock in) events.
+ * A background poller also watches OpenLMIS SOH for receipts entered directly
+ * in the eLMIS web UI and forwards the delta to DHIS2.
  */
 
-// ---  SECURE CONFIGURATION  ---
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+/**
+ * Reads a required environment variable; crashes at startup if missing.
+ * This ensures misconfigured deployments fail fast instead of silently
+ * producing bad data.
+ */
 function requiredEnv(name) {
   const value = process.env[name];
   if (!value) {
     console.error(`FATAL: Missing required environment variable: ${name}`);
-    process.exit(1); 
+    process.exit(1);
   }
   return value;
 }
@@ -43,6 +67,7 @@ const CONFIG = {
     url:  requiredEnv('DHIS2_URL'),
     user: requiredEnv('DHIS2_USER'),
     pass: requiredEnv('DHIS2_PASS'),
+    // Default data element for stock dispensed (AL 20/120mg); override via env
     de:   process.env.DHIS2_DE_STOCK_DISPENSED || 'ujPSJuS9pph'
   },
   lmis: {
@@ -56,22 +81,29 @@ const CONFIG = {
   }
 };
 
+// OpenHIM mediator registration descriptor — tells OpenHIM this mediator's
+// URN, version, and which HTTP endpoint to proxy inbound traffic to.
 const mediatorConfig = {
   urn: 'urn:mediator:lesotho-vital-link',
   version: '1.0.0',
   name: 'Vital-Link Lesotho Mediator',
   description: 'Hardened Medication Inventory Lifecycle Plugin',
-  endpoints: [{ 
-    name: 'Vital-Link Endpoint', 
-    host: 'vital-link', 
-    port: 3000, 
-    path: '/fhir/MedicationDispense', 
-    primary: true, 
-    type: 'http' 
+  endpoints: [{
+    name: 'Vital-Link Endpoint',
+    host: 'vital-link',
+    port: 3000,
+    path: '/fhir/MedicationDispense',
+    primary: true,
+    type: 'http'
   }]
 };
 
-// --- LOGGING  ---
+// =============================================================================
+// LOGGING
+// =============================================================================
+
+// Structured JSON logs to console + daily rotating files (30-day retention).
+// Set LOG_LEVEL=debug in docker-compose.yml to see full request/response bodies.
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
@@ -85,7 +117,17 @@ const logger = winston.createLogger({
   ],
 });
 
-// ---  DYNAMIC MAPPING and IDENTITY RESOLUTION ---
+// =============================================================================
+// DYNAMIC IDENTITY MAPPING
+// =============================================================================
+
+// PERFORMER_MAP  — maps a Practitioner reference (e.g. "Practitioner/opensrp-admin")
+//                  to an OpenLMIS { facilityId, programId } pair.
+// MEDICATION_MAP — maps a medication code (e.g. "AL-20-120") to an OpenLMIS orderableId UUID.
+//
+// Both are loaded at startup from mappings.csv (columns: type, source_id,
+// target_facility_id, target_program_id, target_orderable_id).
+// If the CSV is absent or a key is not found, env-var defaults are used instead.
 let PERFORMER_MAP = {};
 let MEDICATION_MAP = {};
 
@@ -98,9 +140,9 @@ function loadMappings() {
     .pipe(csv())
     .on('data', (row) => {
       if (row.type === 'performer' && row.source_id) {
-        PERFORMER_MAP[row.source_id.trim()] = { 
-          facilityId: row.target_facility_id.trim(), 
-          programId: row.target_program_id?.trim() || CONFIG.lmis.program 
+        PERFORMER_MAP[row.source_id.trim()] = {
+          facilityId: row.target_facility_id.trim(),
+          programId: row.target_program_id?.trim() || CONFIG.lmis.program
         };
       } else if (row.type === 'medication' && row.source_id) {
         MEDICATION_MAP[row.source_id.trim()] = row.target_orderable_id.trim();
@@ -109,10 +151,24 @@ function loadMappings() {
     .on('end', () => logger.info('Validated CSV Mappings Loaded.'));
 }
 
-// ---  AUTH and CONCURRENCY LOCKING ---
+// =============================================================================
+// OPENLMIS TOKEN CACHE
+// =============================================================================
+
+// OpenLMIS uses OAuth2 password-grant tokens with a finite lifetime.
+// We cache the token in memory and reuse it until 60 seconds before expiry.
+// The refreshingLMIS promise prevents concurrent requests from all triggering
+// a token refresh at the same time (thundering-herd protection).
 let _lmisToken = null, _lmisExpires = 0, refreshingLMIS = null;
+
+// Per-call timeout applied to every downstream HTTP request (OpenLMIS + DHIS2).
 const TIMEOUT_MS = parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '10000', 10);
 
+/**
+ * Returns a valid OpenLMIS Bearer token, fetching a new one when needed.
+ * Concurrent callers waiting on a refresh will all receive the same promise
+ * rather than each triggering their own token request.
+ */
 async function getOpenLMISToken() {
   if (_lmisToken && Date.now() < _lmisExpires) {
     logger.debug(`OpenLMIS token cache hit (expires in ${Math.round((_lmisExpires - Date.now()) / 1000)}s)`);
@@ -132,6 +188,8 @@ async function getOpenLMISToken() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       _lmisToken = res.data.access_token;
+      // Subtract 60s from the server-reported lifetime so we refresh before
+      // the token actually expires and never send a request with a stale token.
       _lmisExpires = Date.now() + (res.data.expires_in - 60) * 1000;
       logger.debug(`OpenLMIS token acquired (expires_in=${res.data.expires_in}s)`);
       return _lmisToken;
@@ -140,10 +198,19 @@ async function getOpenLMISToken() {
   return refreshingLMIS;
 }
 
-// ---  STOCK CARD MANAGEMENT  ---
+// =============================================================================
+// STOCK CARD PRE-CHECK
+// =============================================================================
+
+/**
+ * Queries OpenLMIS to confirm whether a stock card exists for the resolved
+ * identity (facility + program + orderable). Logs a notice if absent — the
+ * card will be auto-created by OpenLMIS on the first stock event.
+ *
+ * This is intentionally non-fatal: a failed check must never block the fan-out.
+ * Errors are swallowed and logged as warnings.
+ */
 async function ensureStockCard(identity) {
-  // Fire-and-forget: stock cards are auto-created on first stock event.
-  // Never throw — a logging check must not block the fan-out.
   logger.debug(`ensureStockCard: facility=${identity.facilityId} program=${identity.programId} orderable=${identity.orderableId}`);
   try {
     const token = await getOpenLMISToken();
@@ -163,8 +230,24 @@ async function ensureStockCard(identity) {
   }
 }
 
-// ---  DOWNSTREAM INTEGRATION METHODS ---
-// isReceipt=true → CREDIT (stock arriving); false → DEBIT (stock dispensed)
+// =============================================================================
+// DOWNSTREAM INTEGRATION: OPENLMIS
+// =============================================================================
+
+/**
+ * Posts a stock event to OpenLMIS stockmanagement.
+ *
+ * @param {object} resource  - FHIR MedicationDispense (or synthetic equivalent)
+ * @param {object} identity  - Resolved { facilityId, programId, orderableId }
+ * @param {boolean} isReceipt - true → CREDIT (Receipts reason); false → DEBIT (Consumed reason)
+ *
+ * OpenLMIS reason UUIDs:
+ *   CREDIT (receipt)  — OPENLMIS_RECEIPT_REASON_ID  (default: 313f2f5f-...)
+ *   DEBIT  (dispense) — OPENLMIS_REASON_ID           (default: b5c27da7-...)
+ *
+ * A user-scoped OAuth token is required because stockEvents.userid is NOT NULL
+ * in the DB — a service-account token has no userId and causes a constraint error.
+ */
 async function pushToOpenLMIS(resource, identity, isReceipt = false) {
   const token = await getOpenLMISToken();
   const quantity = resource.quantity?.value || 0;
@@ -191,7 +274,23 @@ async function pushToOpenLMIS(resource, identity, isReceipt = false) {
   return res;
 }
 
-// dataElement defaults to the dispensed DE; pass DHIS2_DE_STOCK_RECEIVED for receipts
+// =============================================================================
+// DOWNSTREAM INTEGRATION: DHIS2
+// =============================================================================
+
+/**
+ * Posts an aggregate data value to DHIS2 for the current month.
+ *
+ * @param {object} resource     - FHIR MedicationDispense (or synthetic equivalent)
+ * @param {string} [dataElement] - DHIS2 data element UID. Defaults to the
+ *                                 "Stock Dispensed" DE (DHIS2_DE_STOCK_DISPENSED).
+ *                                 Pass DHIS2_DE_STOCK_RECEIVED for receipt events.
+ *
+ * The period is always the current calendar month (YYYYMM). DHIS2 will
+ * accumulate multiple imports for the same period/orgUnit/DE by replacing
+ * the stored value — so the national dashboard shows the latest reported figure,
+ * not a running total.
+ */
 async function pushToDHIS2(resource, dataElement) {
   const de = dataElement || CONFIG.dhis2.de;
   const payload = {
@@ -211,12 +310,34 @@ async function pushToDHIS2(resource, dataElement) {
   return res;
 }
 
-// ---  STOCK RECEIPT POLLING (OpenLMIS → DHIS2) ---
-// Detects SOH increases (receipts entered directly in OpenLMIS) and forwards
-// the delta to DHIS2 so the national dashboard stays in sync.
+// =============================================================================
+// BACKGROUND STOCK RECEIPT POLLER
+// =============================================================================
+
+// Tracks the last known stock-on-hand figure so we can detect changes.
+// Initialised to null; first poll establishes the baseline without pushing.
+// Updated after every successful app-posted event so the poller doesn't
+// double-count quantities already forwarded through the mediator routes.
 let _lastSoH = null;
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '60000', 10);
 
+/**
+ * Polls OpenLMIS stockCardSummaries on a fixed interval and compares the
+ * current stock-on-hand against the last recorded value (_lastSoH).
+ *
+ * delta > 0  → SOH increased — stock was received directly in eLMIS (e.g. via
+ *              the OpenLMIS web UI, not through this mediator). Forward the
+ *              delta to DHIS2 so the national dashboard stays accurate.
+ *
+ * delta < 0  → SOH decreased — an out-of-band dispense was recorded in eLMIS.
+ *              Logged as an informational notice only; no DHIS2 push (we cannot
+ *              reliably distinguish which medication was dispensed).
+ *
+ * delta = 0  → No change; logged at debug level only.
+ *
+ * This function is non-fatal: any error (network, auth expiry, etc.) is caught,
+ * logged as a warning, and the next scheduled poll will retry.
+ */
 async function pollStockLevels() {
   const facilityId  = process.env.OPENLMIS_FACILITY_ID;
   const programId   = process.env.OPENLMIS_PROGRAM_ID;
@@ -244,6 +365,7 @@ async function pollStockLevels() {
     logger.debug(`Stock poll: currentSoH=${currentSoH} lastSoH=${_lastSoH}`);
 
     if (_lastSoH === null) {
+      // First successful poll — record baseline, do not push anything to DHIS2
       _lastSoH = currentSoH;
       logger.info(`Stock poll: baseline SOH = ${currentSoH}`);
       return;
@@ -283,17 +405,35 @@ async function pollStockLevels() {
   }
 }
 
-// ---  MAIN ORCHESTRATION ROUTE ---
+// =============================================================================
+// EXPRESS APP + ROUTES
+// =============================================================================
+
 const app = express();
+// Accept both generic JSON and FHIR JSON content types
 app.use(express.json({ type: ['application/json', 'application/fhir+json'] }));
 
+// -----------------------------------------------------------------------------
+// POST /fhir/MedicationDispense
+// Primary intake route. The Android BKM app (OpenSRP 2) POSTs a FHIR
+// MedicationDispense resource here after each medication transaction.
+//
+// Identity resolution:
+//   performer[0].actor.reference → PERFORMER_MAP → { facilityId, programId }
+//   medicationCodeableConcept.coding[0].code → MEDICATION_MAP → orderableId
+//   Falls back to OPENLMIS_* env vars when the CSV map has no matching entry.
+//
+// Receipt detection:
+//   type.coding[].code === RECEIPT_TYPE_CODE (default "RECEIPT") → credit event
+//   Absent or any other code → debit (dispense) event
+// -----------------------------------------------------------------------------
 app.post('/fhir/MedicationDispense', async (req, res) => {
   const resource = req.body;
   const t0 = Date.now();
   logger.debug(`MedicationDispense request: subject=${resource.subject?.reference} status=${resource.status} type=${JSON.stringify(resource.type)}`);
 
   try {
-    //  Resolve Identity
+    // Resolve facility + orderable from performer and medication code
     const performer = resource.performer?.[0]?.actor?.reference;
     const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code;
     logger.debug(`Identity lookup: performer=${performer} medCode=${medCode}`);
@@ -318,16 +458,18 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
 
     logger.info(`MedicationDispense: ${isReceipt ? 'RECEIPT (credit)' : 'DISPENSE (debit)'}, qty=${resource.quantity?.value}`);
 
-    //  Ensure Stock Card
+    // Pre-flight SOH check (non-fatal — stock card auto-created on first event)
     await ensureStockCard(identity);
 
-    //  Orchestrate Fan-Out (eLMIS and DHIS2)
+    // Fan out to both systems in parallel; use allSettled so a single failure
+    // does not cancel the other leg — we report both results independently
     const [lmis, dhis] = await Promise.allSettled([
       pushToOpenLMIS(resource, identity, isReceipt),
       pushToDHIS2(resource, dhis2DE)
     ]);
 
-    // Keep polling baseline in sync — prevents poller double-counting app-posted events
+    // Adjust the poller's baseline so it doesn't double-count this event on
+    // the next poll cycle (poller compares SOH to _lastSoH to detect receipts)
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       const qty = resource.quantity?.value || 0;
       const prev = _lastSoH;
@@ -338,7 +480,7 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
     const errDetail = (r) => r.reason?.response?.data ?? r.reason?.message ?? 'unknown error';
 
-    //  Return Detailed Multi-Status
+    // HTTP 200 when both legs succeed; 207 Multi-Status when one or both fail
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
       type: isReceipt ? 'receipt' : 'dispense',
@@ -356,14 +498,28 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
   }
 });
 
-// ---  QUESTIONNAIRERESPONSE ROUTE (Stock Management form → fan-out) ---
+// -----------------------------------------------------------------------------
+// POST /fhir/QuestionnaireResponse
+// Alternative intake route for the OpenSRP 2 form engine. The app can POST a
+// FHIR QuestionnaireResponse instead of a MedicationDispense when the stock
+// transaction is captured through a structured data-entry form.
+//
+// Expected answer linkIds:
+//   medication  (valueCoding.code) — medication code, e.g. "AL-20-120"
+//   quantity    (valueInteger)     — number of units
+//   type        (valueCoding.code) — omit for dispense; set to RECEIPT_TYPE_CODE
+//                                    (default "RECEIPT") for stock arrivals
+//
+// A synthetic MedicationDispense is built from the extracted answers so that
+// the same identity resolution and fan-out functions can be reused.
+// -----------------------------------------------------------------------------
 app.post('/fhir/QuestionnaireResponse', async (req, res) => {
   const qr = req.body;
   const t0 = Date.now();
   logger.debug(`QuestionnaireResponse request: id=${qr.id} author=${qr.author?.reference} items=${qr.item?.length}`);
 
   try {
-    // Extract answers by linkId
+    // Flatten the QR item array into a linkId → first-answer map for easy lookup
     const answers = {};
     for (const item of (qr.item || [])) {
       const ans = item.answer?.[0];
@@ -383,7 +539,8 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     logger.debug(`QR extracted: medCode=${medCode} quantity=${quantity} performer=${performer} isReceipt=${isReceipt}`);
     logger.info(`QuestionnaireResponse: ${isReceipt ? 'RECEIPT (credit)' : 'DISPENSE (debit)'}, qty=${quantity}`);
 
-    // Build synthetic MedicationDispense for identity resolution
+    // Build a synthetic MedicationDispense so we can reuse the identity
+    // resolution functions (PERFORMER_MAP, MEDICATION_MAP) unchanged
     const resource = {
       id: qr.id || `qr-${Date.now()}`,
       status: 'completed',
@@ -392,6 +549,7 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
       quantity: { value: quantity }
     };
 
+    // Identity resolution — same lookup order as the MedicationDispense route
     const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'] || {
       facilityId: process.env.OPENLMIS_FACILITY_ID,
       programId: process.env.OPENLMIS_PROGRAM_ID
@@ -434,7 +592,10 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
   }
 });
 
-// ---  STARTUP ---
+// =============================================================================
+// STARTUP
+// =============================================================================
+
 loadMappings();
 logger.debug('Startup config: ' + JSON.stringify({
   openhimUrl: CONFIG.openhim.apiURL,
@@ -452,6 +613,9 @@ logger.debug('Startup config: ' + JSON.stringify({
   receiptTypeCode: process.env.RECEIPT_TYPE_CODE || 'RECEIPT',
   logLevel: process.env.LOG_LEVEL || 'info'
 }));
+
+// Register with OpenHIM so it appears in the mediator dashboard and its
+// channel configuration is managed centrally.
 utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
   if (err) {
     logger.error('Failed to register with OpenHIM');
@@ -459,7 +623,8 @@ utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
   }
   app.listen(3000, () => {
     logger.info('Vital-Link Lesotho v1.0.0 Active on port 3000');
-    // Establish SOH baseline after services are ready, then poll on interval
+    // Wait 10s for downstream services to be ready before the first SOH poll,
+    // then poll on the configured interval thereafter.
     setTimeout(pollStockLevels, 10000);
     setInterval(pollStockLevels, POLL_INTERVAL_MS);
   });
