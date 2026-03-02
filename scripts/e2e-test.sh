@@ -20,6 +20,7 @@ PROGRAM_ID="31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c"
 ORDERABLE_ID="3be1d20f-6aa9-4e52-864f-4fa04aa02056"
 DHIS2_ORG_UNIT="dwx1Yz4BwNX"
 DHIS2_DATA_ELEMENT="ujPSJuS9pph"
+DHIS2_DE_RECEIVED="StckRcvdAL1"
 
 # ─── Counters ─────────────────────────────────────────────────────────────────
 PASS=0; FAIL=0
@@ -220,6 +221,111 @@ for stub in "${STUBS[@]}"; do
     fail "Stub ${stub} → HTTP ${code} (expected 200)"
   fi
 done
+
+# ─── 8. QuestionnaireResponse route (direct mediator port 3000) ───────────────
+header "8. QuestionnaireResponse route — dispense + receipt fan-out"
+
+# Snapshot SOH before QR tests
+QR_STOCK_BEFORE=$(curl -sf \
+  -H "Authorization: Bearer $LMIS_TOKEN" \
+  "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+
+if [[ "$QR_STOCK_BEFORE" =~ ^[0-9]+$ ]]; then
+  pass "QR baseline SOH: ${QR_STOCK_BEFORE} tablets"
+else
+  fail "Could not read QR baseline SOH (got: ${QR_STOCK_BEFORE})"
+  QR_STOCK_BEFORE="-1"
+fi
+
+# 8a. QR dispense (no type item → defaults to DEBIT)
+QR_DISPENSE_QTY=3
+QR_DISP_RESP=$(docker exec bkm-mediator node -e "
+const axios = require('axios');
+axios.post('http://localhost:3000/fhir/QuestionnaireResponse', {
+  resourceType: 'QuestionnaireResponse',
+  id: 'qr-e2e-disp-\$\$',
+  author: { reference: 'Practitioner/opensrp-admin' },
+  item: [
+    { linkId: 'medication', answer: [{ valueCoding: { code: 'AL-20-120' } }] },
+    { linkId: 'quantity',   answer: [{ valueInteger: ${QR_DISPENSE_QTY} }] }
+  ]
+}, { headers: { 'Content-Type': 'application/fhir+json' } })
+.then(r => process.stdout.write(JSON.stringify(r.data)))
+.catch(e => process.stdout.write(JSON.stringify({ status: 'Error', message: e.message })));
+" 2>/dev/null)
+
+if [[ $VERBOSE -eq 1 ]]; then echo "    QR dispense response: $QR_DISP_RESP"; fi
+
+QR_DISP_STATUS=$(echo "$QR_DISP_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null)
+QR_DISP_TYPE=$(echo "$QR_DISP_RESP"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('type',''))" 2>/dev/null)
+QR_DISP_ELMIS=$(echo "$QR_DISP_RESP"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',{}).get('eLMIS',''))" 2>/dev/null)
+QR_DISP_DHIS2=$(echo "$QR_DISP_RESP"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',{}).get('DHIS2',''))" 2>/dev/null)
+
+[[ "$QR_DISP_STATUS" == "Successful" ]] && pass "QR dispense overall: Successful"   || fail "QR dispense overall: '$QR_DISP_STATUS' (expected Successful)"
+[[ "$QR_DISP_TYPE"   == "dispense"   ]] && pass "QR dispense type: dispense"         || fail "QR dispense type: '$QR_DISP_TYPE' (expected dispense)"
+[[ "$QR_DISP_ELMIS"  == "OK"         ]] && pass "QR dispense OpenLMIS leg: OK"       || fail "QR dispense OpenLMIS leg: '$QR_DISP_ELMIS' (expected OK)"
+[[ "$QR_DISP_DHIS2"  == "OK"         ]] && pass "QR dispense DHIS2 leg: OK"          || fail "QR dispense DHIS2 leg: '$QR_DISP_DHIS2' (expected OK)"
+
+# 8b. QR receipt (type item = RECEIPT → CREDIT)
+QR_RECEIPT_QTY=20
+QR_RCPT_RESP=$(docker exec bkm-mediator node -e "
+const axios = require('axios');
+axios.post('http://localhost:3000/fhir/QuestionnaireResponse', {
+  resourceType: 'QuestionnaireResponse',
+  id: 'qr-e2e-rcpt-\$\$',
+  author: { reference: 'Practitioner/opensrp-admin' },
+  item: [
+    { linkId: 'medication', answer: [{ valueCoding: { code: 'AL-20-120' } }] },
+    { linkId: 'quantity',   answer: [{ valueInteger: ${QR_RECEIPT_QTY} }] },
+    { linkId: 'type',       answer: [{ valueCoding: { code: 'RECEIPT' } }] }
+  ]
+}, { headers: { 'Content-Type': 'application/fhir+json' } })
+.then(r => process.stdout.write(JSON.stringify(r.data)))
+.catch(e => process.stdout.write(JSON.stringify({ status: 'Error', message: e.message })));
+" 2>/dev/null)
+
+if [[ $VERBOSE -eq 1 ]]; then echo "    QR receipt response: $QR_RCPT_RESP"; fi
+
+QR_RCPT_STATUS=$(echo "$QR_RCPT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null)
+QR_RCPT_TYPE=$(echo "$QR_RCPT_RESP"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('type',''))" 2>/dev/null)
+QR_RCPT_ELMIS=$(echo "$QR_RCPT_RESP"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',{}).get('eLMIS',''))" 2>/dev/null)
+QR_RCPT_DHIS2=$(echo "$QR_RCPT_RESP"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',{}).get('DHIS2',''))" 2>/dev/null)
+
+[[ "$QR_RCPT_STATUS" == "Successful" ]] && pass "QR receipt overall: Successful"    || fail "QR receipt overall: '$QR_RCPT_STATUS' (expected Successful)"
+[[ "$QR_RCPT_TYPE"   == "receipt"    ]] && pass "QR receipt type: receipt"           || fail "QR receipt type: '$QR_RCPT_TYPE' (expected receipt)"
+[[ "$QR_RCPT_ELMIS"  == "OK"         ]] && pass "QR receipt OpenLMIS leg: OK"        || fail "QR receipt OpenLMIS leg: '$QR_RCPT_ELMIS' (expected OK)"
+[[ "$QR_RCPT_DHIS2"  == "OK"         ]] && pass "QR receipt DHIS2 leg: OK"           || fail "QR receipt DHIS2 leg: '$QR_RCPT_DHIS2' (expected OK)"
+
+# 8c. Verify net stock movement in OpenLMIS: +20 receipt − 3 dispense = +17
+sleep 1
+QR_STOCK_AFTER=$(curl -sf \
+  -H "Authorization: Bearer $LMIS_TOKEN" \
+  "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+
+QR_EXPECTED=$(( QR_STOCK_BEFORE - QR_DISPENSE_QTY + QR_RECEIPT_QTY ))
+if [[ "$QR_STOCK_AFTER" =~ ^[0-9]+$ ]]; then
+  pass "QR SOH after (dispense −${QR_DISPENSE_QTY}, receipt +${QR_RECEIPT_QTY}): ${QR_STOCK_AFTER} tablets"
+  if [[ "$QR_STOCK_AFTER" -eq "$QR_EXPECTED" ]]; then
+    pass "QR net stock correct: ${QR_STOCK_BEFORE} − ${QR_DISPENSE_QTY} + ${QR_RECEIPT_QTY} = ${QR_STOCK_AFTER}"
+  else
+    fail "QR stock mismatch: expected ${QR_EXPECTED}, got ${QR_STOCK_AFTER}"
+  fi
+else
+  fail "Could not read QR post-test SOH (got: ${QR_STOCK_AFTER})"
+fi
+
+# 8d. Verify DHIS2 Stock Received data element was written
+DV_RCVD=$(curl -sf --max-time 5 -u admin:district \
+  "http://localhost:8081/api/dataValues?ou=${DHIS2_ORG_UNIT}&de=${DHIS2_DE_RECEIVED}&pe=${PERIOD}" \
+  2>/dev/null || echo "")
+if [[ -n "$DV_RCVD" && "$DV_RCVD" != "[]" ]]; then
+  DV_RCVD_VAL=$(echo "$DV_RCVD" | python3 -c "import sys,json; v=json.load(sys.stdin); print(v[0] if v else 'none')" 2>/dev/null || echo "?")
+  pass "DHIS2 Stock Received DE (${DHIS2_DE_RECEIVED}) for period ${PERIOD}: ${DV_RCVD_VAL}"
+else
+  fail "DHIS2 Stock Received DE (${DHIS2_DE_RECEIVED}) not found for period ${PERIOD}"
+fi
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
 echo ""
