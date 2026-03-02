@@ -111,7 +111,7 @@ function loadMappings() {
 
 // ---  AUTH and CONCURRENCY LOCKING ---
 let _lmisToken = null, _lmisExpires = 0, refreshingLMIS = null;
-//let _kcToken = null, _kcExpires = 0, refreshingKC = null;
+const TIMEOUT_MS = parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '10000', 10);
 
 async function getOpenLMISToken() {
   if (_lmisToken && Date.now() < _lmisExpires) return _lmisToken;
@@ -134,16 +134,20 @@ async function getOpenLMISToken() {
 
 // ---  STOCK CARD MANAGEMENT  ---
 async function ensureStockCard(identity) {
-  const token = await getOpenLMISToken();
-  
-  // Stock cards are auto-created on first stock event — just check existence for logging.
-  // /api/stockCards returns 500; use stockCardSummaries (facility/program/orderable params).
-  const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
-    params: { facility: identity.facilityId, program: identity.programId, orderable: identity.orderableId },
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (res.data.content && res.data.content.length === 0) {
-    logger.info(`Stock card not yet provisioned for facility ${identity.facilityId} — first stock event will create it.`);
+  // Fire-and-forget: stock cards are auto-created on first stock event.
+  // Never throw — a logging check must not block the fan-out.
+  try {
+    const token = await getOpenLMISToken();
+    const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
+      params: { facility: identity.facilityId, program: identity.programId, orderable: identity.orderableId },
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: TIMEOUT_MS
+    });
+    if (res.data.content && res.data.content.length === 0) {
+      logger.info(`Stock card not yet provisioned for facility ${identity.facilityId} — first stock event will create it.`);
+    }
+  } catch (err) {
+    logger.warn(`ensureStockCard check failed (non-fatal): ${err.message}`);
   }
 }
 
@@ -165,7 +169,7 @@ async function pushToOpenLMIS(resource, identity) {
       reasonId: reasonId,
       documentationNo: `BKM-${resource.id || Date.now()}`
     }]
-  }, { headers: { Authorization: `Bearer ${token}` } });
+  }, { headers: { Authorization: `Bearer ${token}` }, timeout: TIMEOUT_MS });
 }
 
 async function pushToDHIS2(resource) {
@@ -177,8 +181,9 @@ async function pushToDHIS2(resource) {
       value: String(resource.quantity?.value || 0)
     }]
   };
-  return axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, payload, { 
-    auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass } 
+  return axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, payload, {
+    auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass },
+    timeout: TIMEOUT_MS
   });
 }
 
@@ -216,12 +221,14 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
 
     const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
 
+    const errDetail = (r) => r.reason?.response?.data ?? r.reason?.message ?? 'unknown error';
+
     //  Return Detailed Multi-Status
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
       results: {
-        eLMIS: lmis.status === 'fulfilled' ? 'OK' : lmis.reason?.message,
-        DHIS2: dhis.status === 'fulfilled' ? 'OK' : dhis.reason?.message
+        eLMIS: lmis.status === 'fulfilled' ? 'OK' : errDetail(lmis),
+        DHIS2: dhis.status === 'fulfilled' ? 'OK' : errDetail(dhis)
       }
     });
 
@@ -259,8 +266,11 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
       quantity: { value: quantity }
     };
 
-    const identity = { ...(PERFORMER_MAP[performer] || PERFORMER_MAP['default']) };
-    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'];
+    const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'] || {
+      facilityId: process.env.OPENLMIS_FACILITY_ID,
+      programId: process.env.OPENLMIS_PROGRAM_ID
+    };
+    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'] || process.env.OPENLMIS_ORDERABLE_ID;
 
     if (!identity.facilityId || !identity.orderableId) {
       throw new Error(`No mapping for performer: ${performer} or medication: ${medCode}`);
@@ -274,13 +284,14 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     ]);
 
     const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
+    const errDetail = (r) => r.reason?.response?.data ?? r.reason?.message ?? 'unknown error';
     logger.info(`QR fan-out in ${Date.now() - t0}ms — eLMIS: ${lmis.status}, DHIS2: ${dhis.status}`);
 
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
       results: {
-        eLMIS: lmis.status === 'fulfilled' ? 'OK' : lmis.reason?.message,
-        DHIS2: dhis.status === 'fulfilled' ? 'OK' : dhis.reason?.message
+        eLMIS: lmis.status === 'fulfilled' ? 'OK' : errDetail(lmis),
+        DHIS2: dhis.status === 'fulfilled' ? 'OK' : errDetail(dhis)
       }
     });
   } catch (err) {
