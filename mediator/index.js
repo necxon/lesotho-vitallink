@@ -187,6 +187,63 @@ async function pushToDHIS2(resource) {
   });
 }
 
+// ---  STOCK RECEIPT POLLING (OpenLMIS → DHIS2) ---
+// Detects SOH increases (receipts entered directly in OpenLMIS) and forwards
+// the delta to DHIS2 so the national dashboard stays in sync.
+let _lastSoH = null;
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '60000', 10);
+
+async function pollStockLevels() {
+  const facilityId  = process.env.OPENLMIS_FACILITY_ID;
+  const programId   = process.env.OPENLMIS_PROGRAM_ID;
+  const orderableId = process.env.OPENLMIS_ORDERABLE_ID;
+  if (!facilityId || !programId || !orderableId) return;
+
+  try {
+    const token = await getOpenLMISToken();
+    const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
+      params: { facility: facilityId, program: programId, orderable: orderableId },
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: TIMEOUT_MS
+    });
+
+    const content = res.data.content || [];
+    if (content.length === 0) return;
+    const currentSoH = content[0].stockOnHand;
+
+    if (_lastSoH === null) {
+      _lastSoH = currentSoH;
+      logger.info(`Stock poll: baseline SOH = ${currentSoH}`);
+      return;
+    }
+
+    const delta = currentSoH - _lastSoH;
+    if (delta > 0) {
+      logger.info(`Stock receipt detected via poll: SOH ${_lastSoH} → ${currentSoH} (+${delta})`);
+      const deReceived = process.env.DHIS2_DE_STOCK_RECEIVED;
+      if (deReceived) {
+        await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
+          dataValues: [{
+            dataElement: deReceived,
+            orgUnit: process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
+            period: new Date().toISOString().slice(0, 7).replace('-', ''),
+            value: String(delta)
+          }]
+        }, {
+          auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass },
+          timeout: TIMEOUT_MS
+        });
+        logger.info(`Stock receipt synced to DHIS2: ${delta} units → ${deReceived}`);
+      }
+    } else if (delta < 0) {
+      logger.info(`Stock dispense detected via poll (not through mediator): SOH ${_lastSoH} → ${currentSoH} (${delta})`);
+    }
+    _lastSoH = currentSoH;
+  } catch (err) {
+    logger.warn(`Stock poll failed (non-fatal): ${err.message}`);
+  }
+}
+
 // ---  MAIN ORCHESTRATION ROUTE ---
 const app = express();
 app.use(express.json({ type: ['application/json', 'application/fhir+json'] }));
@@ -307,5 +364,10 @@ utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
     logger.error('Failed to register with OpenHIM');
     process.exit(1);
   }
-  app.listen(3000, () => logger.info('Vital-Link Lesotho v1.0.0 Active on port 3000'));
+  app.listen(3000, () => {
+    logger.info('Vital-Link Lesotho v1.0.0 Active on port 3000');
+    // Establish SOH baseline after services are ready, then poll on interval
+    setTimeout(pollStockLevels, 10000);
+    setInterval(pollStockLevels, POLL_INTERVAL_MS);
+  });
 });

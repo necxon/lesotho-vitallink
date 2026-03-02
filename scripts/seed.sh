@@ -42,6 +42,7 @@ FACILITY_TYPE_HOSPITAL_ID="f1d6b3e2-ead9-4f6d-ab4c-9d3f8e2f4b05"
 # DHIS2 UIDs (seeded once; persist in postgres-data volume across restarts)
 DHIS2_ORG_UNIT="dwx1Yz4BwNX"
 DHIS2_DATA_ELEMENT="ujPSJuS9pph"
+DHIS2_DE_STOCK_RECEIVED="StckRcvdAL1"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 log() { echo "[seed] $*"; }
@@ -312,14 +313,24 @@ DHIS2_RESULT=$(curl -sf -u admin:district -X POST \
       \"shortName\": \"Maseru Clinic A\",
       \"openingDate\": \"2000-01-01\"
     }],
-    \"dataElements\": [{
-      \"id\": \"${DHIS2_DATA_ELEMENT}\",
-      \"name\": \"Stock Dispensed - AL 20/120mg\",
-      \"shortName\": \"AL 20/120mg Dispensed\",
-      \"aggregationType\": \"SUM\",
-      \"domainType\": \"AGGREGATE\",
-      \"valueType\": \"INTEGER_ZERO_OR_POSITIVE\"
-    }]
+    \"dataElements\": [
+      {
+        \"id\": \"${DHIS2_DATA_ELEMENT}\",
+        \"name\": \"Stock Dispensed - AL 20/120mg\",
+        \"shortName\": \"AL 20/120mg Dispensed\",
+        \"aggregationType\": \"SUM\",
+        \"domainType\": \"AGGREGATE\",
+        \"valueType\": \"INTEGER_ZERO_OR_POSITIVE\"
+      },
+      {
+        \"id\": \"${DHIS2_DE_STOCK_RECEIVED}\",
+        \"name\": \"Stock Received - AL 20/120mg\",
+        \"shortName\": \"AL 20/120mg Received\",
+        \"aggregationType\": \"SUM\",
+        \"domainType\": \"AGGREGATE\",
+        \"valueType\": \"INTEGER_ZERO_OR_POSITIVE\"
+      }
+    ]
   }")
 log "DHIS2 seed result: $(echo "$DHIS2_RESULT" | grep -o '"status":"[^"]*"' | head -2 | tr '\n' ' ')"
 
