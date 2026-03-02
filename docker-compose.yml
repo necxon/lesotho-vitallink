@@ -310,7 +310,10 @@ services:
       # localhost:8079 (HAPI FHIR) and localhost:8083 (Keycloak) with 'self' connect-src
       - EXPRESS_CONTENT_SECURITY_POLICY_CONFIG=false
       # ── React frontend (browser-side; uses host-accessible localhost URLs) ──
-      - REACT_APP_AUTHZ_STRATEGY=keycloak
+      # opensrp strategy: pure Express OAuth proxy (no browser-side Keycloak.js).
+      # keycloak strategy causes a SSO loop — Keycloak.js re-auths silently but the
+      # token never reaches the Express callback, so /oauth/state stays "Not authorized".
+      - REACT_APP_AUTHZ_STRATEGY=opensrp
       - REACT_APP_KEYCLOAK_API_BASE_URL=http://localhost:8083/admin/realms/opensrp
       - REACT_APP_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
       - REACT_APP_OPENSRP_CLIENT_ID=opensrp-web
@@ -334,6 +337,10 @@ services:
       - REACT_APP_ENABLE_FHIR_USER_MANAGEMENT=true
       - REACT_APP_ENABLE_FHIR_PATIENTS=true
       - REACT_APP_ENABLE_QUEST=true
+    volumes:
+      # Mount patched appconfig.toml that adds /react/app/authz/strategy (and others)
+      # to confd's watched keys list — without this, confd ignores REACT_APP_AUTHZ_STRATEGY.
+      - ./config/opensrp-web/appconfig.toml:/etc/confd/conf.d/appconfig.toml:ro
     depends_on:
       - keycloak
       - hapi-fhir
