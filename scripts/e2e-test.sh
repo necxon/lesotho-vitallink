@@ -14,7 +14,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERBOSE=0
 [[ "${1:-}" == "--verbose" ]] && VERBOSE=1
 
-# ─── Fixed IDs (must match mediator/index.js and seed.sh) ─────────────────────
+# ─── IDs (must match mediator/index.js and seed.sh ─────────────────────
 FACILITY_ID="28de536f-b826-4eeb-a3c4-d65221a1120d"
 PROGRAM_ID="31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c"
 ORDERABLE_ID="3be1d20f-6aa9-4e52-864f-4fa04aa02056"
@@ -24,8 +24,8 @@ DHIS2_DATA_ELEMENT="ujPSJuS9pph"
 # ─── Counters ─────────────────────────────────────────────────────────────────
 PASS=0; FAIL=0
 
-pass() { echo "  ✓ $*"; PASS=$((PASS+1)); }
-fail() { echo "  ✗ $*"; FAIL=$((FAIL+1)); }
+pass() { echo "   $*"; PASS=$((PASS+1)); }
+fail() { echo "  $*"; FAIL=$((FAIL+1)); }
 header() { echo ""; echo "── $* ──────────────────────────────────────────"; }
 
 # ─── 1. Health checks ─────────────────────────────────────────────────────────
@@ -230,9 +230,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 TOTAL=$(( PASS + FAIL ))
 echo "Results: ${PASS}/${TOTAL} passed"
 if [[ $FAIL -eq 0 ]]; then
-  echo "All tests passed ✓"
+  echo "All tests passed "
   exit 0
 else
-  echo "${FAIL} test(s) failed ✗"
+  echo "${FAIL} test(s) failed "
   exit 1
 fi

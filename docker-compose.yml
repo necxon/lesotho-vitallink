@@ -97,7 +97,14 @@ services:
       - DHIS2_URL=http://dhis2-web:8080
       - DHIS2_USER=admin
       - DHIS2_PASS=district
-      - OPENLMIS_STOCKMGMT_URL=http://openlmis-stockmanagement:8080
+      - OPENLMIS_AUTH_URL=http://openlmis-auth:8080
+      - OPENLMIS_MGMT_URL=http://openlmis-stockmanagement:8080
+      - OPENLMIS_USER=admin
+      - OPENLMIS_PASS=password
+      - OPENLMIS_CLIENT_ID=user-client
+      - OPENLMIS_CLIENT_SECRET=changeme
+      - OPENLMIS_PROGRAM_ID=31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c
+      - OPENLMIS_REASON_ID=b5c27da7-bdda-4790-925a-9484c5dfb594
     depends_on:
       - openhim-core
       - opensrp-server

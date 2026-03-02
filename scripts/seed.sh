@@ -328,8 +328,24 @@ log "DHIS2 seed result: $(echo "$DHIS2_RESULT" | grep -o '"status":"[^"]*"' | he
 # when the logged-in user is inactive. Fix it every time referencedata restarts.
 log "Activating OpenLMIS admin user ..."
 docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c \
-  "UPDATE referencedata.users SET active = true, verified = true WHERE username = 'admin';" 2>/dev/null
-log "Admin user activated."
+  "UPDATE referencedata.users SET active = true, verified = true, homefacilityid = '${FACILITY_ID}' WHERE username = 'admin';" 2>/dev/null
+log "Admin user activated (home facility: ${FACILITY_ID})."
+
+# ─── 5b. Pre-seed unscoped right_assignments ──────────────────────────────────
+# PROGRAMS_MANAGE (and others) are absent from right_assignments after every
+# referencedata restart.  Step 6 calls the /api/programs, /api/facilities, etc.
+# endpoints which require these rights — so they must be in place BEFORE step 6.
+ADMIN_UUID=$(docker exec health-db-postgres psql -U admin -d openlmis_referencedata -t -c \
+  "SELECT id FROM referencedata.users WHERE username = 'admin';" | tr -d '[:space:]')
+[[ -z "$ADMIN_UUID" ]] && { log "ERROR: admin user not found in referencedata DB"; exit 1; }
+log "Patching unscoped right_assignments for admin (${ADMIN_UUID}) ..."
+for rightname in PROGRAMS_MANAGE SYSTEM_IDEAL_STOCK_AMOUNTS_MANAGE SERVICE_ACCOUNTS_MANAGE STOCK_CARDS_VIEW; do
+  docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+    INSERT INTO referencedata.right_assignments (id, userid, rightname)
+    VALUES (gen_random_uuid(), '${ADMIN_UUID}', '${rightname}')
+    ON CONFLICT DO NOTHING;" 2>/dev/null
+done
+log "Unscoped rights pre-seeded."
 
 # ─── 6. Seed OpenLMIS referencedata ───────────────────────────────────────────
 log "Seeding OpenLMIS geographic levels ..."
@@ -344,29 +360,52 @@ lmis_put "/api/geographicZones/${GEO_ZONE_COUNTRY_ID}" \
 lmis_put "/api/geographicZones/${GEO_ZONE_DISTRICT_ID}" \
   "{\"id\":\"${GEO_ZONE_DISTRICT_ID}\",\"code\":\"MSD\",\"name\":\"Maseru District\",\"level\":{\"id\":\"${GEO_LEVEL_DISTRICT_ID}\"},\"parent\":{\"id\":\"${GEO_ZONE_COUNTRY_ID}\"}}"
 
-log "Seeding OpenLMIS facility type ..."
-lmis_put "/api/facilityTypes/${FACILITY_TYPE_ID}" \
-  "{\"id\":\"${FACILITY_TYPE_ID}\",\"code\":\"health_center\",\"name\":\"Health Center\",\"displayOrder\":1,\"active\":true}"
-
-log "Seeding OpenLMIS program ..."
-lmis_put "/api/programs/${PROGRAM_ID}" \
-  "{\"id\":\"${PROGRAM_ID}\",\"code\":\"EM\",\"name\":\"Essential Medicines\",\"active\":true,\"periodsSkippable\":false,\"skipAuthorization\":false,\"showNonFullSupplyTab\":true,\"enableDatePhysicalStockCountCompleted\":false}"
+log "Seeding OpenLMIS program (direct DB — API PUT is update-only, POST ignores supplied UUID) ..."
+# Delete any existing EM program with a wrong UUID, then upsert ours
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  DELETE FROM referencedata.programs WHERE code='EM' AND id != '${PROGRAM_ID}';
+  INSERT INTO referencedata.programs
+    (id, active, code, name, periodsskippable, shownonfullsupplytab, enabledatephysicalstockcountcompleted, skipauthorization)
+  VALUES ('${PROGRAM_ID}', true, 'EM', 'Essential Medicines', false, true, false, false)
+  ON CONFLICT (id) DO UPDATE SET active=true, name='Essential Medicines';" 2>/dev/null
 
 log "Seeding OpenLMIS facility (with supported program) ..."
+# Flyway seeds health_center with its own UUID — query it rather than hardcoding ours
+FLYWAY_HC_TYPE_EARLY=$(curl -sf -H "Authorization: Bearer ${LMIS_TOKEN}" \
+  "http://localhost:8082/api/facilityTypes" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); tt=d.get('content',d) if isinstance(d,dict) else d; print(next(t['id'] for t in tt if t['code']=='health_center'))")
 lmis_put "/api/facilities/${FACILITY_ID}" \
   "{\"id\":\"${FACILITY_ID}\",\"code\":\"MDA\",\"name\":\"Maseru District Clinic A\",\
 \"geographicZone\":{\"id\":\"${GEO_ZONE_DISTRICT_ID}\"},\
-\"type\":{\"id\":\"${FACILITY_TYPE_ID}\"},\
+\"type\":{\"id\":\"${FLYWAY_HC_TYPE_EARLY}\"},\
 \"active\":true,\"enabled\":true,\
 \"supportedPrograms\":[{\"id\":\"${PROGRAM_ID}\",\"supportActive\":true,\"supportLocallyFulfilled\":false}]}"
 
-log "Seeding OpenLMIS orderable (AL 20/120mg) ..."
-lmis_put "/api/orderables/${ORDERABLE_ID}" \
-  "{\"id\":\"${ORDERABLE_ID}\",\"productCode\":\"AL20120\",\
-\"fullProductName\":\"AL 20/120mg\",\"netContent\":1,\
-\"packRoundingThreshold\":0,\"roundToZero\":false,\
-\"programs\":[{\"programId\":\"${PROGRAM_ID}\",\"fullSupply\":true,\"displayOrder\":1,\"active\":true,\"pricesPerPack\":[]}],\
-\"identifiers\":{}}"
+log "Seeding OpenLMIS orderable (AL 20/120mg, direct DB — API PUT ignores supplied UUID) ..."
+# Fixed UUIDs for the dispensable and orderable display category (sandbox-only, stable)
+DISPENSABLE_ID="aaaaaaaa-0000-0000-0000-000000000001"
+ODC_ID="a1b2c3d4-e5f6-4a7b-8c9d-000000000001"
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.dispensables (id, type) VALUES ('${DISPENSABLE_ID}', 'default')
+    ON CONFLICT (id) DO NOTHING;
+  INSERT INTO referencedata.orderable_display_categories (id, code, displayname, displayorder)
+    VALUES ('${ODC_ID}', 'DEFAULT', 'Default', 1)
+    ON CONFLICT (id) DO NOTHING;
+  DELETE FROM referencedata.orderables WHERE code='AL20120' AND id != '${ORDERABLE_ID}';
+  INSERT INTO referencedata.orderables (id, fullproductname, packroundingthreshold, netcontent, code, roundtozero, dispensableid)
+    VALUES ('${ORDERABLE_ID}', 'AL 20/120mg', 0, 1, 'AL20120', false, '${DISPENSABLE_ID}')
+    ON CONFLICT (id) DO UPDATE SET fullproductname='AL 20/120mg', netcontent=1;
+  INSERT INTO referencedata.program_orderables
+    (id, active, displayorder, fullsupply, orderabledisplaycategoryid, orderableid, programid)
+    VALUES (gen_random_uuid(), true, 1, true, '${ODC_ID}', '${ORDERABLE_ID}', '${PROGRAM_ID}')
+    ON CONFLICT DO NOTHING;" 2>/dev/null
+
+# Ensure hospital facility type exists (Flyway only seeds warehouse + health_center)
+# Use WHERE NOT EXISTS because the unique index is on lower(code) — not an ON CONFLICT target
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.facility_types (id, active, code, name, displayorder)
+  SELECT '${FACILITY_TYPE_HOSPITAL_ID}', true, 'hospital', 'Hospital', 2
+  WHERE NOT EXISTS (SELECT 1 FROM referencedata.facility_types WHERE lower(code) = 'hospital');" 2>/dev/null
 
 # ─── 6b. Seed Lesotho district facilities ─────────────────────────────────────
 # 30 facilities across 3 districts (Leribe, Berea, Maseru).
@@ -485,6 +524,28 @@ for rightname in PROGRAMS_MANAGE SYSTEM_IDEAL_STOCK_AMOUNTS_MANAGE SERVICE_ACCOU
 done
 log "right_assignments patched for admin user (UUID: ${ADMIN_UUID})."
 
+# ─── 7b. Seed initial stock receipt (so dispense events don't underflow) ───────
+# AL 20/120mg starts at 10,000 tablets at Maseru District Clinic A.
+# Idempotent: uses ON CONFLICT-style check via documentationNo in the stockmanagement DB.
+log "Seeding initial stock receipt for AL 20/120mg ..."
+RECEIPT_REASON_ID=$(docker exec health-db-postgres psql -U admin -d openlmis_stockmanagement -t -c \
+  "SELECT id FROM stockmanagement.stock_card_line_item_reasons WHERE name='Receipts' LIMIT 1;" 2>/dev/null | tr -d '[:space:]')
+EXISTING_RECEIPT=$(docker exec health-db-postgres psql -U admin -d openlmis_stockmanagement -t -c \
+  "SELECT count(*) FROM stockmanagement.stock_card_line_items WHERE documentnumber='SEED-INITIAL-RECEIPT';" 2>/dev/null | tr -d '[:space:]')
+if [[ "$EXISTING_RECEIPT" == "0" && -n "$RECEIPT_REASON_ID" ]]; then
+  LMIS_TOKEN_STOCK=$(curl -sf -u user-client:changeme \
+    -d "grant_type=password&username=admin&password=password" \
+    http://localhost:8082/api/oauth/token \
+    | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('access_token',''))")
+  curl -sf -o /dev/null -X POST \
+    -H "Authorization: Bearer ${LMIS_TOKEN_STOCK}" -H "Content-Type: application/json" \
+    "http://localhost:8082/api/stockEvents" \
+    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[{\"orderableId\":\"${ORDERABLE_ID}\",\"quantity\":10000,\"occurredDate\":\"$(date +%Y-%m-%d)\",\"reasonId\":\"${RECEIPT_REASON_ID}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT\"}]}"
+  log "Initial stock receipt created (10,000 tablets)."
+else
+  log "Initial stock receipt already exists — skipping."
+fi
+
 # ─── 8. Seed OpenSRP practitioner ─────────────────────────────────────────────
 # OpenSRP requires a team.practitioner row whose user_id matches the Keycloak UUID.
 # Keycloak uses H2 in dev mode (persists in the opensrp-realm.json import), so the
@@ -503,8 +564,9 @@ KC_USER_ID=$(curl -sf \
 if [[ -n "$KC_USER_ID" ]]; then
   docker exec health-db-postgres psql -U admin -d opensrp -q -c "
     INSERT INTO team.practitioner (identifier, active, name, user_id, username)
-    VALUES ('opensrp-admin-001', true, 'OpenSRP Admin', '${KC_USER_ID}', 'opensrp-admin')
-    ON CONFLICT (identifier) DO UPDATE SET user_id = EXCLUDED.user_id;" 2>/dev/null
+    SELECT 'opensrp-admin-001', true, 'OpenSRP Admin', '${KC_USER_ID}', 'opensrp-admin'
+    WHERE NOT EXISTS (SELECT 1 FROM team.practitioner WHERE username = 'opensrp-admin');
+    UPDATE team.practitioner SET user_id = '${KC_USER_ID}' WHERE username = 'opensrp-admin';" 2>/dev/null
   log "OpenSRP practitioner upserted (Keycloak UUID: ${KC_USER_ID})."
 else
   log "WARNING: opensrp-admin not found in Keycloak — OpenSRP practitioner not seeded."

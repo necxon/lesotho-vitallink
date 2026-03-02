@@ -8,6 +8,12 @@ const utils   = require('openhim-mediator-utils');
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 
+/**
+ * VITAL-LINK MEDIATOR 
+ *  Plugin for Lesotho Health Department
+ * Integrates OpenSRP 2 (BKM) -> OpenLMIS (eLMIS) -> DHIS2
+ */
+
 // ---  SECURE CONFIGURATION  ---
 function requiredEnv(name) {
   const value = process.env[name];
@@ -27,8 +33,8 @@ const CONFIG = {
   },
   opensrp: {
     url: requiredEnv('OPENSRP_URL'),
-    clientId: requiredEnv('OPENSRP_CLIENT_ID'),
-    clientSecret: requiredEnv('OPENSRP_CLIENT_SECRET')
+    clientId: process.env.OPENSRP_CLIENT_ID || '',
+    clientSecret: process.env.OPENSRP_CLIENT_SECRET || ''
   },
   keycloak: {
     url: requiredEnv('KEYCLOAK_URL'),
@@ -37,8 +43,7 @@ const CONFIG = {
     url:  requiredEnv('DHIS2_URL'),
     user: requiredEnv('DHIS2_USER'),
     pass: requiredEnv('DHIS2_PASS'),
-    de:   process.env.DHIS2_DE_STOCK_DISPENSED || 'ujPSJuS9pph',
-    ou:   process.env.DHIS2_ORG_UNIT           || 'dwx1Yz4BwNX'
+    de:   process.env.DHIS2_DE_STOCK_DISPENSED || 'ujPSJuS9pph'
   },
   lmis: {
     authUrl: requiredEnv('OPENLMIS_AUTH_URL'),
@@ -47,19 +52,26 @@ const CONFIG = {
     pass:    requiredEnv('OPENLMIS_PASS'),
     client:  requiredEnv('OPENLMIS_CLIENT_ID'),
     secret:  requiredEnv('OPENLMIS_CLIENT_SECRET'),
-    reason:  process.env.OPENLMIS_REASON_ID || 'd159376d-a95f-4a26-9af9-0541e444a927'
+    program: requiredEnv('OPENLMIS_PROGRAM_ID')
   }
 };
 
 const mediatorConfig = {
-  urn: 'urn:mediator:bkm-stock-mediator',
-  version: '1.2.0',
-  name: 'BKM Stock Mediator',
-  description: 'Orchestrator for BKM Stock Management',
-  endpoints: [{ name: 'BKM Mediator', host: 'bkm-mediator', port: 3000, path: '/fhir/MedicationDispense', primary: true, type: 'http' }]
+  urn: 'urn:mediator:lesotho-vital-link',
+  version: '1.0.0',
+  name: 'Vital-Link Lesotho Mediator',
+  description: 'Hardened Medication Inventory Lifecycle Plugin',
+  endpoints: [{ 
+    name: 'Vital-Link Endpoint', 
+    host: 'vital-link', 
+    port: 3000, 
+    path: '/fhir/MedicationDispense', 
+    primary: true, 
+    type: 'http' 
+  }]
 };
 
-// LOGGER (30 Day Rotation) ---
+// --- LOGGING  ---
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
@@ -68,20 +80,18 @@ const logger = winston.createLogger({
     new DailyRotateFile({
       filename: 'logs/vital-link-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
       maxFiles: '30d'
     })
   ],
 });
 
-//  DYNAMIC MAPPING and  IDENTITY RESOLUTION ---
+// ---  DYNAMIC MAPPING and IDENTITY RESOLUTION ---
 let PERFORMER_MAP = {};
 let MEDICATION_MAP = {};
 
 function loadMappings() {
   if (!fs.existsSync('mappings.csv')) {
-    logger.error('CRITICAL: mappings.csv not found.');
+    logger.error('CRITICAL: mappings.csv missing. Use default mappings.');
     return;
   }
   fs.createReadStream('mappings.csv')
@@ -90,7 +100,7 @@ function loadMappings() {
       if (row.type === 'performer' && row.source_id) {
         PERFORMER_MAP[row.source_id.trim()] = { 
           facilityId: row.target_facility_id.trim(), 
-          programId: row.target_program_id.trim() 
+          programId: row.target_program_id?.trim() || CONFIG.lmis.program 
         };
       } else if (row.type === 'medication' && row.source_id) {
         MEDICATION_MAP[row.source_id.trim()] = row.target_orderable_id.trim();
@@ -99,24 +109,9 @@ function loadMappings() {
     .on('end', () => logger.info('Validated CSV Mappings Loaded.'));
 }
 
-function resolveIdentity(resource) {
-  const performerRef = resource.performer?.[0]?.actor?.reference;
-  const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code ?? 
-                  resource.medicationCodeableConcept?.coding?.[0]?.display ?? 
-                  resource.medicationCodeableConcept?.text;
-
-  const identity = PERFORMER_MAP[performerRef] || PERFORMER_MAP['default'];
-  if (!identity) throw new Error(`Mapping failed: No facility for performer ${performerRef}`);
-
-  const orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'];
-  if (!orderableId) throw new Error(`Mapping failed: No orderable for medication ${medCode}`);
-
-  return { ...identity, orderableId };
-}
-
-// ---  CONCURRENCY SAFE AUTH ---
+// ---  AUTH and CONCURRENCY LOCKING ---
 let _lmisToken = null, _lmisExpires = 0, refreshingLMIS = null;
-let _kcToken = null, _kcExpires = 0, refreshingKC = null;
+//let _kcToken = null, _kcExpires = 0, refreshingKC = null;
 
 async function getOpenLMISToken() {
   if (_lmisToken && Date.now() < _lmisExpires) return _lmisToken;
@@ -137,112 +132,166 @@ async function getOpenLMISToken() {
   return refreshingLMIS;
 }
 
-async function getKeycloakToken() {
-  if (_kcToken && Date.now() < _kcExpires) return _kcToken;
-  if (refreshingKC) return refreshingKC;
-
-  refreshingKC = (async () => {
-    try {
-      const res = await axios.post(`${CONFIG.keycloak.url}/realms/opensrp/protocol/openid-connect/token`,
-        `grant_type=password&client_id=${CONFIG.opensrp.clientId}&client_secret=${CONFIG.opensrp.clientSecret}&username=opensrp-admin&password=admin`,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-      _kcToken = res.data.access_token;
-      _kcExpires = Date.now() + (res.data.expires_in - 60) * 1000;
-      return _kcToken;
-    } finally { refreshingKC = null; }
-  })();
-  return refreshingKC;
+// ---  STOCK CARD MANAGEMENT  ---
+async function ensureStockCard(identity) {
+  const token = await getOpenLMISToken();
+  
+  // Stock cards are auto-created on first stock event — just check existence for logging.
+  // /api/stockCards returns 500; use stockCardSummaries (facility/program/orderable params).
+  const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
+    params: { facility: identity.facilityId, program: identity.programId, orderable: identity.orderableId },
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (res.data.content && res.data.content.length === 0) {
+    logger.info(`Stock card not yet provisioned for facility ${identity.facilityId} — first stock event will create it.`);
+  }
 }
 
-// --- DOWNSTREAM INTEGRATIONS ---
+// ---  DOWNSTREAM INTEGRATION METHODS ---
+async function pushToOpenLMIS(resource, identity) {
+  const token = await getOpenLMISToken();
+  const quantity = resource.quantity?.value || 0;
+  
+  // OpenLMIS stockEvents requires a reason UUID (seeded by stockmanagement Flyway — "Consumed"/DEBIT)
+  const reasonId = process.env.OPENLMIS_REASON_ID || 'b5c27da7-bdda-4790-925a-9484c5dfb594';
 
-async function forwardToOpenSRP(resource) {
-  const token = await getKeycloakToken();
-  const event = {
-    events: [{
-      baseEntityId: resource.subject?.reference?.split('/')[1] || 'unknown',
-      eventType: 'MedicationDispense',
-      eventDate: (resource.whenHandedOver || new Date().toISOString()).split('T')[0],
-      obs: [{ fieldCode: 'quantity', values: [String(resource.quantity?.value || 0)] }]
+  return axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, {
+    facilityId: identity.facilityId,
+    programId: identity.programId,
+    lineItems: [{
+      orderableId: identity.orderableId,
+      quantity: quantity,
+      occurredDate: new Date().toISOString().split('T')[0],
+      reasonId: reasonId,
+      documentationNo: `BKM-${resource.id || Date.now()}`
     }]
-  };
-  return axios.post(`${CONFIG.opensrp.url}/opensrp/rest/event/add`, event, { headers: { Authorization: `Bearer ${token}` } });
+  }, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 async function pushToDHIS2(resource) {
   const payload = {
     dataValues: [{
       dataElement: CONFIG.dhis2.de,
-      orgUnit: CONFIG.dhis2.ou,
+      orgUnit: process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
       period: new Date().toISOString().slice(0, 7).replace('-', ''), 
       value: String(resource.quantity?.value || 0)
     }]
   };
-  return axios.post(`${CONFIG.dhis2.url}/dataValueSets`, payload, { auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass } });
+  return axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, payload, { 
+    auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass } 
+  });
 }
 
-async function pushToOpenLMIS(resource, identity) {
-  const token = await getOpenLMISToken();
-  return axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, {
-    facilityId: identity.facilityId,
-    programId: identity.programId,
-    lineItems: [{
-      orderableId: identity.orderableId,
-      quantity: resource.quantity.value,
-      occurredDate: (resource.whenHandedOver || new Date().toISOString()).split('T')[0],
-      reasonId: CONFIG.lmis.reason,
-      documentationNo: `VITAL-${Date.now()}`
-    }]
-  }, { headers: { Authorization: `Bearer ${token}` } });
-}
-
-// --- MAIN ROUTE ---
+// ---  MAIN ORCHESTRATION ROUTE ---
 const app = express();
 app.use(express.json({ type: ['application/json', 'application/fhir+json'] }));
 
 app.post('/fhir/MedicationDispense', async (req, res) => {
   const resource = req.body;
   const t0 = Date.now();
-  
+
   try {
-    const quantity = resource.quantity?.value || 0;
-    if (quantity <= 0) return res.status(422).json({ status: 'Rejected', reason: 'invalid-quantity' });
+    //  Resolve Identity
+    const performer = resource.performer?.[0]?.actor?.reference;
+    const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code;
+    
+    const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'];
+    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'];
 
-    const identity = resolveIdentity(resource);
+    if (!identity.facilityId || !identity.orderableId) {
+      throw new Error(`Incomplete mapping for Performer: ${performer} or Med: ${medCode}`);
+    }
 
-    const [opensrp, dhis2, openlmis] = await Promise.allSettled([
-      forwardToOpenSRP(resource),
-      pushToDHIS2(resource),
-      pushToOpenLMIS(resource, identity)
+    //  Ensure Stock Card 
+    await ensureStockCard(identity);
+
+    //  Orchestrate Fan-Out (eLMIS and  DHIS2)
+    const [lmis, dhis] = await Promise.allSettled([
+      pushToOpenLMIS(resource, identity),
+      pushToDHIS2(resource)
     ]);
 
-    const allOk = [opensrp, dhis2, openlmis].every(r => r.status === 'fulfilled');
-    
-    logger.info({ 
-      msg: 'Fan-out complete', 
-      opensrp: opensrp.status, 
-      dhis2: dhis2.status, 
-      openlmis: openlmis.status,
-      duration: Date.now() - t0 
-    });
+    const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
 
+    //  Return Detailed Multi-Status
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
       results: {
-        openSRP:  opensrp.status === 'fulfilled' ? 'OK' : opensrp.reason?.message,
-        dhis2:    dhis2.status   === 'fulfilled' ? 'OK' : dhis2.reason?.message,
-        openLMIS: openlmis.status === 'fulfilled' ? 'OK' : openlmis.reason?.message,
+        eLMIS: lmis.status === 'fulfilled' ? 'OK' : lmis.reason?.message,
+        DHIS2: dhis.status === 'fulfilled' ? 'OK' : dhis.reason?.message
       }
     });
 
+    logger.info(`Transaction processed in ${Date.now() - t0}ms`);
+
   } catch (err) {
-    logger.error({ msg: 'Mediator Error', error: err.message });
+    logger.error(`Orchestration Failed: ${err.message}`);
     res.status(500).json({ status: 'Error', message: err.message });
   }
 });
 
-// - BOOT  Me---
+// ---  QUESTIONNAIRERESPONSE ROUTE (Stock Management form → fan-out) ---
+app.post('/fhir/QuestionnaireResponse', async (req, res) => {
+  const qr = req.body;
+  const t0 = Date.now();
+
+  try {
+    // Extract answers by linkId
+    const answers = {};
+    for (const item of (qr.item || [])) {
+      const ans = item.answer?.[0];
+      if (ans) answers[item.linkId] = ans;
+    }
+
+    const medCode  = answers['medication']?.valueCoding?.code || 'AL-20-120';
+    const quantity = answers['quantity']?.valueInteger ?? 0;
+    const performer = qr.author?.reference || 'Practitioner/opensrp-admin';
+
+    // Build synthetic MedicationDispense for identity resolution
+    const resource = {
+      id: qr.id || `qr-${Date.now()}`,
+      status: 'completed',
+      performer: [{ actor: { reference: performer } }],
+      medicationCodeableConcept: { coding: [{ code: medCode }] },
+      quantity: { value: quantity }
+    };
+
+    const identity = { ...(PERFORMER_MAP[performer] || PERFORMER_MAP['default']) };
+    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'];
+
+    if (!identity.facilityId || !identity.orderableId) {
+      throw new Error(`No mapping for performer: ${performer} or medication: ${medCode}`);
+    }
+
+    await ensureStockCard(identity);
+
+    const [lmis, dhis] = await Promise.allSettled([
+      pushToOpenLMIS(resource, identity),
+      pushToDHIS2(resource)
+    ]);
+
+    const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
+    logger.info(`QR fan-out in ${Date.now() - t0}ms — eLMIS: ${lmis.status}, DHIS2: ${dhis.status}`);
+
+    res.status(allOk ? 200 : 207).json({
+      status: allOk ? 'Successful' : 'PartialSuccess',
+      results: {
+        eLMIS: lmis.status === 'fulfilled' ? 'OK' : lmis.reason?.message,
+        DHIS2: dhis.status === 'fulfilled' ? 'OK' : dhis.reason?.message
+      }
+    });
+  } catch (err) {
+    logger.error(`QR fan-out failed: ${err.message}`);
+    res.status(500).json({ status: 'Error', message: err.message });
+  }
+});
+
+// ---  STARTUP ---
 loadMappings();
 utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
-  if (!err) app.listen(3000, () => logger.info('Vital-Link 1.2.0 Plugin Active.'));
+  if (err) {
+    logger.error('Failed to register with OpenHIM');
+    process.exit(1);
+  }
+  app.listen(3000, () => logger.info('Vital-Link Lesotho v1.0.0 Active on port 3000'));
 });
