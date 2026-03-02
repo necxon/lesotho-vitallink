@@ -310,10 +310,10 @@ services:
       # localhost:8079 (HAPI FHIR) and localhost:8083 (Keycloak) with 'self' connect-src
       - EXPRESS_CONTENT_SECURITY_POLICY_CONFIG=false
       # ── React frontend (browser-side; uses host-accessible localhost URLs) ──
-      # opensrp strategy: pure Express OAuth proxy (no browser-side Keycloak.js).
-      # keycloak strategy causes a SSO loop — Keycloak.js re-auths silently but the
-      # token never reaches the Express callback, so /oauth/state stays "Not authorized".
-      - REACT_APP_AUTHZ_STRATEGY=opensrp
+      # Must be "keycloak" — the RbacProvider only supports d={keycloak: adapter}.
+      # "opensrp" would call d["opensrp"](r) → undefined() → TypeError → error boundary.
+      # Keycloak.js is NOT used browser-side; "keycloak" here only picks the RBAC adapter.
+      - REACT_APP_AUTHZ_STRATEGY=keycloak
       - REACT_APP_KEYCLOAK_API_BASE_URL=http://localhost:8083/admin/realms/opensrp
       - REACT_APP_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
       - REACT_APP_OPENSRP_CLIENT_ID=opensrp-web
