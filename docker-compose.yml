@@ -111,6 +111,7 @@ services:
       - POLL_INTERVAL_MS=60000
       - OPENLMIS_RECEIPT_REASON_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
       - RECEIPT_TYPE_CODE=RECEIPT
+      - LOG_LEVEL=debug
     depends_on:
       - openhim-core
       - opensrp-server
