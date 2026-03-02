@@ -7,12 +7,10 @@
     {
       "clientId": "opensrp-web",
       "enabled": true,
-      "publicClient": false,
-      "secret": "opensrp-secret",
+      "publicClient": true,
       "directAccessGrantsEnabled": true,
       "bearerOnly": false,
       "standardFlowEnabled": true,
-      "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "http://localhost:9901/*"
       ],
