@@ -373,7 +373,15 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     const medCode  = answers['medication']?.valueCoding?.code || 'AL-20-120';
     const quantity = answers['quantity']?.valueInteger ?? 0;
     const performer = qr.author?.reference || 'Practitioner/opensrp-admin';
-    logger.debug(`QR extracted: medCode=${medCode} quantity=${quantity} performer=${performer}`);
+
+    // Detect receipt vs dispense via a QR answer with linkId "type"
+    // App form sets type.valueCoding.code = RECEIPT_TYPE_CODE for stock arrivals
+    const receiptCode = process.env.RECEIPT_TYPE_CODE || 'RECEIPT';
+    const isReceipt = answers['type']?.valueCoding?.code === receiptCode;
+    const dhis2DE = isReceipt ? process.env.DHIS2_DE_STOCK_RECEIVED : undefined;
+
+    logger.debug(`QR extracted: medCode=${medCode} quantity=${quantity} performer=${performer} isReceipt=${isReceipt}`);
+    logger.info(`QuestionnaireResponse: ${isReceipt ? 'RECEIPT (credit)' : 'DISPENSE (debit)'}, qty=${quantity}`);
 
     // Build synthetic MedicationDispense for identity resolution
     const resource = {
@@ -397,9 +405,16 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     await ensureStockCard(identity);
 
     const [lmis, dhis] = await Promise.allSettled([
-      pushToOpenLMIS(resource, identity),
-      pushToDHIS2(resource)
+      pushToOpenLMIS(resource, identity, isReceipt),
+      pushToDHIS2(resource, dhis2DE)
     ]);
+
+    // Keep polling baseline in sync — prevents poller double-counting app-posted events
+    if (lmis.status === 'fulfilled' && _lastSoH !== null) {
+      const prev = _lastSoH;
+      _lastSoH += isReceipt ? quantity : -quantity;
+      logger.debug(`Poll baseline adjusted: ${prev} → ${_lastSoH} (${isReceipt ? '+' : '-'}${quantity})`);
+    }
 
     const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
     const errDetail = (r) => r.reason?.response?.data ?? r.reason?.message ?? 'unknown error';
@@ -407,6 +422,7 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
 
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
+      type: isReceipt ? 'receipt' : 'dispense',
       results: {
         eLMIS: lmis.status === 'fulfilled' ? 'OK' : errDetail(lmis),
         DHIS2: dhis.status === 'fulfilled' ? 'OK' : errDetail(dhis)
