@@ -323,6 +323,10 @@ services:
       - REACT_APP_EXPRESS_OAUTH_LOGOUT_URL=http://localhost:9901/logout
       - REACT_APP_FHIR_API_BASE_URL=http://localhost:8079/fhir
       - REACT_APP_OPENSRP_WEB_VERSION=latest
+      # Provide empty-but-valid Sentry config — confd maps REACT_APP_OPENSRP_SENTRY_CONFIG_JSON
+      # to /react/app/opensrp/sentry/config/json; leaving it "" causes JSON.parse("") to throw
+      # during React module initialization (SyntaxError: Unexpected end of JSON input).
+      - REACT_APP_OPENSRP_SENTRY_CONFIG_JSON={}
       # ── Module toggles ──
       - REACT_APP_ENABLE_FHIR_LOCATIONS=true
       - REACT_APP_ENABLE_FHIR_CARE_TEAM=true
