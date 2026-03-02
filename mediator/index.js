@@ -152,12 +152,14 @@ async function ensureStockCard(identity) {
 }
 
 // ---  DOWNSTREAM INTEGRATION METHODS ---
-async function pushToOpenLMIS(resource, identity) {
+// isReceipt=true → CREDIT (stock arriving); false → DEBIT (stock dispensed)
+async function pushToOpenLMIS(resource, identity, isReceipt = false) {
   const token = await getOpenLMISToken();
   const quantity = resource.quantity?.value || 0;
-  
-  // OpenLMIS stockEvents requires a reason UUID (seeded by stockmanagement Flyway — "Consumed"/DEBIT)
-  const reasonId = process.env.OPENLMIS_REASON_ID || 'b5c27da7-bdda-4790-925a-9484c5dfb594';
+
+  const reasonId = isReceipt
+    ? (process.env.OPENLMIS_RECEIPT_REASON_ID || '313f2f5f-0c22-4626-8c49-3554ef763de3')
+    : (process.env.OPENLMIS_REASON_ID         || 'b5c27da7-bdda-4790-925a-9484c5dfb594');
 
   return axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, {
     facilityId: identity.facilityId,
@@ -172,12 +174,14 @@ async function pushToOpenLMIS(resource, identity) {
   }, { headers: { Authorization: `Bearer ${token}` }, timeout: TIMEOUT_MS });
 }
 
-async function pushToDHIS2(resource) {
+// dataElement defaults to the dispensed DE; pass DHIS2_DE_STOCK_RECEIVED for receipts
+async function pushToDHIS2(resource, dataElement) {
+  const de = dataElement || CONFIG.dhis2.de;
   const payload = {
     dataValues: [{
-      dataElement: CONFIG.dhis2.de,
+      dataElement: de,
       orgUnit: process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
-      period: new Date().toISOString().slice(0, 7).replace('-', ''), 
+      period: new Date().toISOString().slice(0, 7).replace('-', ''),
       value: String(resource.quantity?.value || 0)
     }]
   };
@@ -256,7 +260,7 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     //  Resolve Identity
     const performer = resource.performer?.[0]?.actor?.reference;
     const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code;
-    
+
     const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'] || {
       facilityId: process.env.OPENLMIS_FACILITY_ID,
       programId: process.env.OPENLMIS_PROGRAM_ID
@@ -267,22 +271,36 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
       throw new Error(`Incomplete mapping for Performer: ${performer} or Med: ${medCode}`);
     }
 
-    //  Ensure Stock Card 
+    // Detect receipt vs dispense via MedicationDispense.type coding
+    // App POSTs type.coding[0].code = RECEIPT_TYPE_CODE (default "RECEIPT") for stock arrivals
+    const receiptCode = process.env.RECEIPT_TYPE_CODE || 'RECEIPT';
+    const isReceipt = resource.type?.coding?.some(c => c.code === receiptCode) ?? false;
+    const dhis2DE = isReceipt ? process.env.DHIS2_DE_STOCK_RECEIVED : undefined;
+
+    logger.info(`MedicationDispense: ${isReceipt ? 'RECEIPT (credit)' : 'DISPENSE (debit)'}, qty=${resource.quantity?.value}`);
+
+    //  Ensure Stock Card
     await ensureStockCard(identity);
 
-    //  Orchestrate Fan-Out (eLMIS and  DHIS2)
+    //  Orchestrate Fan-Out (eLMIS and DHIS2)
     const [lmis, dhis] = await Promise.allSettled([
-      pushToOpenLMIS(resource, identity),
-      pushToDHIS2(resource)
+      pushToOpenLMIS(resource, identity, isReceipt),
+      pushToDHIS2(resource, dhis2DE)
     ]);
 
-    const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
+    // Keep polling baseline in sync — prevents poller double-counting app-posted events
+    if (lmis.status === 'fulfilled' && _lastSoH !== null) {
+      const qty = resource.quantity?.value || 0;
+      _lastSoH += isReceipt ? qty : -qty;
+    }
 
+    const allOk = [lmis, dhis].every(r => r.status === 'fulfilled');
     const errDetail = (r) => r.reason?.response?.data ?? r.reason?.message ?? 'unknown error';
 
     //  Return Detailed Multi-Status
     res.status(allOk ? 200 : 207).json({
       status: allOk ? 'Successful' : 'PartialSuccess',
+      type: isReceipt ? 'receipt' : 'dispense',
       results: {
         eLMIS: lmis.status === 'fulfilled' ? 'OK' : errDetail(lmis),
         DHIS2: dhis.status === 'fulfilled' ? 'OK' : errDetail(dhis)

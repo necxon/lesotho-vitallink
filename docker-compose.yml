@@ -109,6 +109,8 @@ services:
       - OPENLMIS_ORDERABLE_ID=3be1d20f-6aa9-4e52-864f-4fa04aa02056
       - DHIS2_DE_STOCK_RECEIVED=StckRcvdAL1
       - POLL_INTERVAL_MS=60000
+      - OPENLMIS_RECEIPT_REASON_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
+      - RECEIPT_TYPE_CODE=RECEIPT
     depends_on:
       - openhim-core
       - opensrp-server
