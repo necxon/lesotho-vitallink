@@ -105,6 +105,8 @@ services:
       - OPENLMIS_CLIENT_SECRET=changeme
       - OPENLMIS_PROGRAM_ID=31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c
       - OPENLMIS_REASON_ID=b5c27da7-bdda-4790-925a-9484c5dfb594
+      - OPENLMIS_FACILITY_ID=28de536f-b826-4eeb-a3c4-d65221a1120d
+      - OPENLMIS_ORDERABLE_ID=3be1d20f-6aa9-4e52-864f-4fa04aa02056
     depends_on:
       - openhim-core
       - opensrp-server

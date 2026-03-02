@@ -195,8 +195,11 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     const performer = resource.performer?.[0]?.actor?.reference;
     const medCode = resource.medicationCodeableConcept?.coding?.[0]?.code;
     
-    const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'];
-    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'];
+    const identity = PERFORMER_MAP[performer] || PERFORMER_MAP['default'] || {
+      facilityId: process.env.OPENLMIS_FACILITY_ID,
+      programId: process.env.OPENLMIS_PROGRAM_ID
+    };
+    identity.orderableId = MEDICATION_MAP[medCode] || MEDICATION_MAP['default'] || process.env.OPENLMIS_ORDERABLE_ID;
 
     if (!identity.facilityId || !identity.orderableId) {
       throw new Error(`Incomplete mapping for Performer: ${performer} or Med: ${medCode}`);
