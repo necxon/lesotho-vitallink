@@ -283,6 +283,56 @@ services:
     networks:
       - health-net
 
+  # --- OPENSRP FHIR WEB UI (fhir-web) ---
+  # React SPA + Express OAuth proxy for managing FHIR resources via browser.
+  # Auth flow: browser → Express (port 9901) → Keycloak (port 8083) → JWT → HAPI FHIR (port 8079)
+  # Login: http://localhost:9901  |  credentials: opensrp-admin / admin
+  opensrp-web:
+    image: opensrp/web:latest
+    container_name: opensrp-web
+    ports:
+      - "9901:3000"
+    environment:
+      # ── Express OAuth proxy (server-side; uses Docker-internal Keycloak URL) ──
+      - EXPRESS_OPENSRP_CLIENT_ID=opensrp-web
+      - EXPRESS_OPENSRP_CLIENT_SECRET=opensrp-secret
+      - EXPRESS_OPENSRP_ACCESS_TOKEN_URL=http://keycloak:8080/realms/opensrp/protocol/openid-connect/token
+      - EXPRESS_OPENSRP_AUTHORIZATION_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/auth
+      - EXPRESS_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
+      - EXPRESS_OPENSRP_USER_URL=http://keycloak:8080/realms/opensrp/protocol/openid-connect/userinfo
+      - EXPRESS_OPENSRP_CALLBACK_URL=http://localhost:9901/oauth/callback/OpenSRP/
+      - EXPRESS_SERVER_LOGOUT_URL=http://localhost:9901/logout
+      - EXPRESS_SESSION_SECRET=lesotho-sandbox-fhir-web-session-secret
+      - EXPRESS_ALLOW_TOKEN_RENEWAL=true
+      - EXPRESS_OPENSRP_SCOPES=openid profile email
+      - NODE_ENV=development
+      # ── React frontend (browser-side; uses host-accessible localhost URLs) ──
+      - REACT_APP_AUTHZ_STRATEGY=keycloak
+      - REACT_APP_KEYCLOAK_API_BASE_URL=http://localhost:8083/admin/realms/opensrp
+      - REACT_APP_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
+      - REACT_APP_OPENSRP_CLIENT_ID=opensrp-web
+      - REACT_APP_OPENSRP_ACCESS_TOKEN_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/token
+      - REACT_APP_OPENSRP_AUTHORIZATION_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/auth
+      - REACT_APP_OPENSRP_USER_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/userinfo
+      - REACT_APP_DOMAIN_NAME=http://localhost:9901
+      - REACT_APP_WEBSITE_NAME=Lesotho Health — FHIR Web
+      - REACT_APP_EXPRESS_OAUTH_GET_STATE_URL=http://localhost:9901/oauth/state
+      - REACT_APP_EXPRESS_OAUTH_LOGOUT_URL=http://localhost:9901/logout
+      - REACT_APP_FHIR_API_BASE_URL=http://localhost:8079/fhir
+      - REACT_APP_OPENSRP_WEB_VERSION=latest
+      # ── Module toggles ──
+      - REACT_APP_ENABLE_FHIR_LOCATIONS=true
+      - REACT_APP_ENABLE_FHIR_CARE_TEAM=true
+      - REACT_APP_ENABLE_FHIR_TEAMS=true
+      - REACT_APP_ENABLE_FHIR_USER_MANAGEMENT=true
+      - REACT_APP_ENABLE_FHIR_PATIENTS=true
+      - REACT_APP_ENABLE_QUEST=true
+    depends_on:
+      - keycloak
+      - hapi-fhir
+    networks:
+      - health-net
+
   # MailHog — local SMTP sink + web UI (http://localhost:8025) for sandbox email capture.
   mailhog:
     image: mailhog/mailhog:latest

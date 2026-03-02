@@ -12,7 +12,13 @@
       "directAccessGrantsEnabled": true,
       "bearerOnly": false,
       "standardFlowEnabled": true,
-      "clientAuthenticatorType": "client-secret"
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "http://localhost:9901/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9901"
+      ]
     },
     {
       "clientId": "bkm-mediator",
