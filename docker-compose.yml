@@ -306,6 +306,9 @@ services:
       - EXPRESS_ALLOW_TOKEN_RENEWAL=true
       - EXPRESS_OPENSRP_SCOPES=openid profile email
       - NODE_ENV=development
+      # Disable CSP for sandbox — default policy blocks cross-origin fetches to
+      # localhost:8079 (HAPI FHIR) and localhost:8083 (Keycloak) with 'self' connect-src
+      - EXPRESS_CONTENT_SECURITY_POLICY_CONFIG=false
       # ── React frontend (browser-side; uses host-accessible localhost URLs) ──
       - REACT_APP_AUTHZ_STRATEGY=keycloak
       - REACT_APP_KEYCLOAK_API_BASE_URL=http://localhost:8083/admin/realms/opensrp
