@@ -341,6 +341,9 @@ services:
       # Mount patched appconfig.toml that adds /react/app/authz/strategy (and others)
       # to confd's watched keys list — without this, confd ignores REACT_APP_AUTHZ_STRATEGY.
       - ./config/opensrp-web/appconfig.toml:/etc/confd/conf.d/appconfig.toml:ro
+      # Persist sessions across container restarts — without this, the session files are
+      # wiped on restart but the browser still sends the old cookie → ENOENT error loop.
+      - opensrp-web-sessions:/tmp/express-sessions
     depends_on:
       - keycloak
       - hapi-fhir
@@ -429,3 +432,4 @@ networks:
 volumes:
   postgres-data:
   mongo-data:
+  opensrp-web-sessions:
