@@ -39,6 +39,10 @@ GEO_ZONE_LITJOTJELA_ID="c3b6d3ff-21ca-9fef-a12f-0f8f9f5f7368"
 GEO_ZONE_RAMAPEPE_ID="d4c7e400-32db-a0ff-a230-1f9faf6f8479"
 FACILITY_TYPE_HOSPITAL_ID="f1d6b3e2-ead9-4f6d-ab4c-9d3f8e2f4b05"
 
+# Timestamps (python3 avoids `date` not being on PATH in non-interactive Git Bash on Windows)
+TODAY=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).strftime('%Y-%m-%d'))")
+NOW=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+
 # DHIS2 UIDs (seeded once; persist in postgres-data volume across restarts)
 DHIS2_ORG_UNIT="dwx1Yz4BwNX"
 DHIS2_DATA_ELEMENT="ujPSJuS9pph"
@@ -552,7 +556,7 @@ if [[ "$EXISTING_RECEIPT" == "0" && -n "$RECEIPT_REASON_ID" ]]; then
   curl -sf -o /dev/null -X POST \
     -H "Authorization: Bearer ${LMIS_TOKEN_STOCK}" -H "Content-Type: application/json" \
     "http://localhost:8082/api/stockEvents" \
-    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[{\"orderableId\":\"${ORDERABLE_ID}\",\"quantity\":10000,\"occurredDate\":\"$(date +%Y-%m-%d)\",\"reasonId\":\"${RECEIPT_REASON_ID}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT\"}]}"
+    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[{\"orderableId\":\"${ORDERABLE_ID}\",\"quantity\":10000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT\"}]}"
   log "Initial stock receipt created (10,000 tablets)."
 else
   log "Initial stock receipt already exists — skipping."
@@ -813,7 +817,7 @@ log "    -H 'Content-Type: application/fhir+json' \\"
 log "    -d '{\"resourceType\":\"MedicationDispense\",\"status\":\"completed\","
 log "         \"subject\":{\"reference\":\"Patient/patient-001\"},"
 log "         \"performer\":[{\"actor\":{\"reference\":\"Practitioner/opensrp-admin\"}}],"
-log "         \"whenHandedOver\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+log "         \"whenHandedOver\":\"${NOW}\","
 log "         \"quantity\":{\"value\":6,\"unit\":\"tablet\"}}'"
 log ""
 log "Expected: HTTP 200, status: Successful"

@@ -87,7 +87,7 @@ header "3. Fan-out — POST MedicationDispense via OpenHIM (port 5001)"
 
 DISPENSE_QTY=6
 PATIENT_ID="patient-e2e-$$"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+TIMESTAMP=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
 
 RESPONSE=$(curl -sf -X POST http://localhost:5001/fhir/MedicationDispense \
   -H "Content-Type: application/fhir+json" \
@@ -159,7 +159,7 @@ else
 fi
 
 # Verify a data value exists for this period (the fan-out already posted one)
-PERIOD=$(date -u +%Y%m)
+PERIOD=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).strftime('%Y%m'))")
 DV_RESP=$(curl -sf --max-time 5 -u admin:district \
   "http://localhost:8081/api/dataValues?ou=${DHIS2_ORG_UNIT}&de=${DHIS2_DATA_ELEMENT}&pe=${PERIOD}" \
   2>/dev/null || echo "")
