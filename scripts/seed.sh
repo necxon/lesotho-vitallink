@@ -139,6 +139,64 @@ log "OpenHIM password hash updated — restarting mediator to re-register ..."
 docker compose restart bkm-mediator
 sleep 5
 
+# ─── 1b. Seed OpenHIM visualizer ──────────────────────────────────────────────
+log "Seeding OpenHIM visualizer ..."
+docker exec bkm-mediator node -e "
+const https = require('https');
+const crypto = require('crypto');
+const agent = new https.Agent({rejectUnauthorized:false});
+
+function openhimReq(salt, method, path, body, cb) {
+  const now = new Date().toISOString();
+  const passhash = crypto.createHash('sha512').update(salt+'openhim-password').digest('hex');
+  const token    = crypto.createHash('sha512').update(passhash+salt+now).digest('hex');
+  const payload  = body ? JSON.stringify(body) : null;
+  const headers  = {'auth-username':'root@openhim.org','auth-ts':now,'auth-salt':salt,'auth-token':token,'Content-Type':'application/json'};
+  if(payload) headers['Content-Length'] = Buffer.byteLength(payload);
+  const r = https.request({hostname:'openhim-core',port:8080,path,method,agent,headers}, (res) => {
+    let d=''; res.on('data',c=>d+=c); res.on('end',()=>cb(res.statusCode,d));
+  });
+  if(payload) r.write(payload);
+  r.end();
+}
+
+const req = https.request({hostname:'openhim-core',port:8080,path:'/authenticate/root@openhim.org',method:'GET',agent}, (res) => {
+  let d=''; res.on('data',c=>d+=c); res.on('end',()=>{
+    const {salt} = JSON.parse(d);
+    // Delete existing visualizer with same name (idempotent)
+    openhimReq(salt, 'GET', '/visualizers', null, (s, b) => {
+      const list = JSON.parse(b);
+      const existing = list.find(v => v.name === 'BKM Fan-Out \u2014 Lesotho');
+      const createViz = () => {
+        const viz = {
+          name: 'BKM Fan-Out \u2014 Lesotho',
+          components: [
+            {eventType:'channel',  eventName:'BKM MedicationDispense',     display:'BKM Channel'},
+            {eventType:'primary',  eventName:'Vital-Link Lesotho Mediator', display:'Vital-Link Mediator'},
+            {eventType:'route',    eventName:'eLMIS',                       display:'OpenLMIS / eLMIS'},
+            {eventType:'route',    eventName:'DHIS2',                       display:'DHIS2'}
+          ],
+          channels:  [{eventType:'channel', eventName:'BKM MedicationDispense', display:'BKM MedicationDispense'}],
+          mediators: [{mediator:'urn:mediator:lesotho-vital-link', name:'Vital-Link Lesotho Mediator', display:'Vital-Link'}],
+          color: {inactive:'#c8c8c8', active:'#4cae4c', error:'#d43f3a', text:'#3a3a3a'},
+          size:  {responsive:true, width:1200, height:500, padding:40},
+          time:  {updatePeriod:200, minDisplayPeriod:600, maxSpeed:5, maxTimeout:5000}
+        };
+        openhimReq(salt, 'POST', '/visualizers', viz, (s2, b2) => {
+          console.log('Visualizer', s2 === 201 ? 'created' : 'error: '+b2.substring(0,100));
+        });
+      };
+      if(existing) {
+        openhimReq(salt, 'DELETE', '/visualizers/'+existing._id, null, () => createViz());
+      } else {
+        createViz();
+      }
+    });
+  });
+});
+req.end();
+" 2>/dev/null || log "Warning: visualizer seed failed (non-fatal)"
+
 # ─── 2. Get OpenLMIS admin token ──────────────────────────────────────────────
 log "Obtaining OpenLMIS admin token ..."
 LMIS_TOKEN=$(curl -sf -u user-client:changeme \
