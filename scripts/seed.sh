@@ -26,7 +26,7 @@ GEO_LEVEL_COUNTRY_ID="a7ef5f2b-0a40-4cbb-a050-da84ab3aef72"
 GEO_LEVEL_DISTRICT_ID="2b01de8b-cc0f-4e2f-9fa3-2a7e0d1d9876"
 GEO_ZONE_COUNTRY_ID="c1e921a6-f37f-4a4c-89e3-f3e25f2b3a01"
 GEO_ZONE_DISTRICT_ID="d7b0f7a9-65c4-4e8f-bb8a-4b2a3b9c1d02"
-FACILITY_TYPE_ID="e3f5a2c1-d9b8-4f5c-aa3b-8c2e7d1f3a04"
+FACILITY_TYPE_ID="e3f5a2c1-d9b8-4f5c-aa3b-8c2e7d1f3a04"        # health_center
 
 # Additional geographic structure (Leribe + Berea districts; Leribe council zones)
 GEO_LEVEL_COUNCIL_ID="3c02ef9c-dd10-4f3f-af94-3b8e1e2ea987"
@@ -339,8 +339,8 @@ log "DHIS2 seed result: $(echo "$DHIS2_RESULT" | grep -o '"status":"[^"]*"' | he
 # when the logged-in user is inactive. Fix it every time referencedata restarts.
 log "Activating OpenLMIS admin user ..."
 docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c \
-  "UPDATE referencedata.users SET active = true, verified = true, homefacilityid = '${FACILITY_ID}' WHERE username = 'admin';" 2>/dev/null
-log "Admin user activated (home facility: ${FACILITY_ID})."
+  "UPDATE referencedata.users SET active = true, verified = true WHERE username = 'admin';" 2>/dev/null
+log "Admin user activated."
 
 # ─── 5b. Pre-seed unscoped right_assignments ──────────────────────────────────
 # PROGRAMS_MANAGE (and others) are absent from right_assignments after every
@@ -380,17 +380,26 @@ docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
   VALUES ('${PROGRAM_ID}', true, 'EM', 'Essential Medicines', false, true, false, false)
   ON CONFLICT (id) DO UPDATE SET active=true, name='Essential Medicines';" 2>/dev/null
 
+# Flyway only seeds warehouse; seed health_center and hospital ourselves (stable UUIDs)
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.facility_types (id, active, code, name, displayorder)
+  SELECT '${FACILITY_TYPE_ID}', true, 'health_center', 'Health Center', 1
+  WHERE NOT EXISTS (SELECT 1 FROM referencedata.facility_types WHERE lower(code) = 'health_center');
+  INSERT INTO referencedata.facility_types (id, active, code, name, displayorder)
+  SELECT '${FACILITY_TYPE_HOSPITAL_ID}', true, 'hospital', 'Hospital', 2
+  WHERE NOT EXISTS (SELECT 1 FROM referencedata.facility_types WHERE lower(code) = 'hospital');" 2>/dev/null
+
 log "Seeding OpenLMIS facility (with supported program) ..."
-# Flyway seeds health_center with its own UUID — query it rather than hardcoding ours
-FLYWAY_HC_TYPE_EARLY=$(curl -sf -H "Authorization: Bearer ${LMIS_TOKEN}" \
-  "http://localhost:8082/api/facilityTypes" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); tt=d.get('content',d) if isinstance(d,dict) else d; print(next(t['id'] for t in tt if t['code']=='health_center'))")
 lmis_put "/api/facilities/${FACILITY_ID}" \
   "{\"id\":\"${FACILITY_ID}\",\"code\":\"MDA\",\"name\":\"Maseru District Clinic A\",\
 \"geographicZone\":{\"id\":\"${GEO_ZONE_DISTRICT_ID}\"},\
-\"type\":{\"id\":\"${FLYWAY_HC_TYPE_EARLY}\"},\
+\"type\":{\"id\":\"${FACILITY_TYPE_ID}\"},\
 \"active\":true,\"enabled\":true,\
 \"supportedPrograms\":[{\"id\":\"${PROGRAM_ID}\",\"supportActive\":true,\"supportLocallyFulfilled\":false}]}"
+
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c \
+  "UPDATE referencedata.users SET homefacilityid = '${FACILITY_ID}' WHERE username = 'admin';" 2>/dev/null
+log "Admin user home facility set (${FACILITY_ID})."
 
 log "Seeding OpenLMIS orderable (AL 20/120mg, direct DB — API PUT ignores supplied UUID) ..."
 # Fixed UUIDs for the dispensable and orderable display category (sandbox-only, stable)
@@ -410,13 +419,6 @@ docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
     (id, active, displayorder, fullsupply, orderabledisplaycategoryid, orderableid, programid)
     VALUES (gen_random_uuid(), true, 1, true, '${ODC_ID}', '${ORDERABLE_ID}', '${PROGRAM_ID}')
     ON CONFLICT DO NOTHING;" 2>/dev/null
-
-# Ensure hospital facility type exists (Flyway only seeds warehouse + health_center)
-# Use WHERE NOT EXISTS because the unique index is on lower(code) — not an ON CONFLICT target
-docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
-  INSERT INTO referencedata.facility_types (id, active, code, name, displayorder)
-  SELECT '${FACILITY_TYPE_HOSPITAL_ID}', true, 'hospital', 'Hospital', 2
-  WHERE NOT EXISTS (SELECT 1 FROM referencedata.facility_types WHERE lower(code) = 'hospital');" 2>/dev/null
 
 # ─── 6b. Seed Lesotho district facilities ─────────────────────────────────────
 # 30 facilities across 3 districts (Leribe, Berea, Maseru).
@@ -438,9 +440,8 @@ FLYWAY_LESOTHO_ZONE_ID=$(curl -sf -H "Authorization: Bearer ${LMIS_TOKEN}" \
 FLYWAY_MASERU_ZONE_ID=$(curl -sf -H "Authorization: Bearer ${LMIS_TOKEN}" \
   "http://localhost:8082/api/geographicZones?size=200" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); zz=d.get('content',d) if isinstance(d,dict) else d; hits=[z for z in zz if z.get('code') in ('MAS','Maseru') or z.get('name')=='Maseru']; print(hits[0]['id'] if hits else next(z['id'] for z in zz if z.get('level',{}).get('levelNumber')==2))")
-TYPES_JSON=$(curl -sf -H "Authorization: Bearer ${LMIS_TOKEN}" "http://localhost:8082/api/facilityTypes")
-FLYWAY_HC_TYPE_ID=$(echo "$TYPES_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); tt=d.get('content',d) if isinstance(d,dict) else d; print(next(t['id'] for t in tt if t['code']=='health_center'))")
-FLYWAY_HOSP_TYPE_ID=$(echo "$TYPES_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); tt=d.get('content',d) if isinstance(d,dict) else d; print(next(t['id'] for t in tt if t['code']=='hospital'))")
+FLYWAY_HC_TYPE_ID="${FACILITY_TYPE_ID}"
+FLYWAY_HOSP_TYPE_ID="${FACILITY_TYPE_HOSPITAL_ID}"
 log "Using district level=${FLYWAY_DISTRICT_LEVEL_ID} Lesotho=${FLYWAY_LESOTHO_ZONE_ID} Maseru=${FLYWAY_MASERU_ZONE_ID}"
 
 # District zones: Leribe and Berea
@@ -582,6 +583,225 @@ if [[ -n "$KC_USER_ID" ]]; then
 else
   log "WARNING: opensrp-admin not found in Keycloak — OpenSRP practitioner not seeded."
 fi
+
+# ─── 9. Seed HAPI FHIR resources for opensrp-web ─────────────────────────────
+# opensrp-web (port 9901) uses HAPI FHIR (port 8079) as its backend for all
+# resource management pages (Locations, Teams, Users, Patients, Questionnaires).
+# Seeds: Organization, Location hierarchy, VHW Practitioners, PractitionerRoles,
+#        Patients, Groups (catchment), CareTeam.
+log "Seeding HAPI FHIR resources for opensrp-web ..."
+HAPI="http://localhost:8079/fhir"
+
+# Helper: idempotent PUT; logs HTTP status code (does not fail on 4xx/5xx)
+fhir_put() {
+  local rt="$1" id="$2" body="$3"
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/fhir+json" \
+    -d "$body" "${HAPI}/${rt}/${id}")
+  [[ "$code" =~ ^2 ]] || log "  WARNING: ${rt}/${id} → ${code}"
+}
+
+# Remove stale placeholder data created by previous partial seeds
+curl -s -X DELETE "${HAPI}/Organization?name=necxon&_cascade=delete" -o /dev/null 2>/dev/null || true
+curl -s -X DELETE "${HAPI}/CareTeam?name=necxon"                     -o /dev/null 2>/dev/null || true
+curl -s -X DELETE "${HAPI}/Group?name=opensrp-admin"                 -o /dev/null 2>/dev/null || true
+
+# 9a. Organization
+fhir_put Organization maseru-clinic-a \
+  '{"resourceType":"Organization","id":"maseru-clinic-a","active":true,
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/organization-type","code":"prov","display":"Healthcare Provider"}]}],
+    "name":"Maseru District Clinic A",
+    "address":[{"district":"Maseru","country":"LS"}]}'
+
+# 9b. Location hierarchy: Lesotho → Maseru District → Clinic A → 3 villages
+fhir_put Location loc-lesotho \
+  '{"resourceType":"Location","id":"loc-lesotho","status":"active","name":"Lesotho","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"COUNTRY","display":"Country"}]}]}'
+
+fhir_put Location loc-maseru-district \
+  '{"resourceType":"Location","id":"loc-maseru-district","status":"active","name":"Maseru District","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"DIST","display":"District"}]}],
+    "partOf":{"reference":"Location/loc-lesotho"}}'
+
+fhir_put Location loc-maseru-clinic-a \
+  '{"resourceType":"Location","id":"loc-maseru-clinic-a","status":"active","name":"Maseru District Clinic A","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"HC","display":"Health Care"}]}],
+    "physicalType":{"coding":[{"code":"bu","display":"Building"}]},
+    "partOf":{"reference":"Location/loc-maseru-district"},
+    "position":{"longitude":27.483,"latitude":-29.317},
+    "address":{"district":"Maseru","country":"LS"}}'
+
+fhir_put Location loc-ha-mokoena \
+  '{"resourceType":"Location","id":"loc-ha-mokoena","status":"active","name":"Ha Mokoena Village","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"COMM","display":"Community"}]}],
+    "physicalType":{"coding":[{"code":"area","display":"Area"}]},
+    "partOf":{"reference":"Location/loc-maseru-clinic-a"},
+    "position":{"longitude":27.491,"latitude":-29.321}}'
+
+fhir_put Location loc-ha-sehlabane \
+  '{"resourceType":"Location","id":"loc-ha-sehlabane","status":"active","name":"Ha Sehlabane Village","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"COMM","display":"Community"}]}],
+    "physicalType":{"coding":[{"code":"area","display":"Area"}]},
+    "partOf":{"reference":"Location/loc-maseru-clinic-a"},
+    "position":{"longitude":27.478,"latitude":-29.309}}'
+
+fhir_put Location loc-matsieng \
+  '{"resourceType":"Location","id":"loc-matsieng","status":"active","name":"Matsieng Village","mode":"instance",
+    "type":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/v3-RoleCode","code":"COMM","display":"Community"}]}],
+    "physicalType":{"coding":[{"code":"area","display":"Area"}]},
+    "partOf":{"reference":"Location/loc-maseru-clinic-a"},
+    "position":{"longitude":27.463,"latitude":-29.298}}'
+
+# 9c. VHW Practitioners (3 community health workers)
+fhir_put Practitioner prac-thabo-mokoena \
+  '{"resourceType":"Practitioner","id":"prac-thabo-mokoena","active":true,
+    "name":[{"use":"official","family":"Mokoena","given":["Thabo"]}],
+    "telecom":[{"system":"phone","value":"+26650111001","use":"mobile"}],
+    "address":[{"district":"Maseru","country":"LS"}]}'
+
+fhir_put Practitioner prac-lineo-nthabi \
+  '{"resourceType":"Practitioner","id":"prac-lineo-nthabi","active":true,
+    "name":[{"use":"official","family":"Nthabi","given":["Lineo"]}],
+    "telecom":[{"system":"phone","value":"+26650111002","use":"mobile"}],
+    "address":[{"district":"Maseru","country":"LS"}]}'
+
+fhir_put Practitioner prac-mpho-lerotholi \
+  '{"resourceType":"Practitioner","id":"prac-mpho-lerotholi","active":true,
+    "name":[{"use":"official","family":"Lerotholi","given":["Mpho"]}],
+    "telecom":[{"system":"phone","value":"+26650111003","use":"mobile"}],
+    "address":[{"district":"Maseru","country":"LS"}]}'
+
+# 9d. PractitionerRoles
+# Update opensrp-admin's existing role to proper org + location
+fhir_put PractitionerRole 21904d68-4f2a-4a34-96af-0a2f3eac5c5b \
+  '{"resourceType":"PractitionerRole","id":"21904d68-4f2a-4a34-96af-0a2f3eac5c5b","active":true,
+    "practitioner":{"reference":"Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47"},
+    "organization":{"reference":"Organization/maseru-clinic-a"},
+    "location":[{"reference":"Location/loc-maseru-clinic-a"}],
+    "code":[{"coding":[{"system":"http://snomed.info/sct","code":"SUPERVISOR","display":"Supervisor"}]}],
+    "period":{"start":"2024-01-01"}}'
+
+fhir_put PractitionerRole role-thabo-mokoena \
+  '{"resourceType":"PractitionerRole","id":"role-thabo-mokoena","active":true,
+    "practitioner":{"reference":"Practitioner/prac-thabo-mokoena"},
+    "organization":{"reference":"Organization/maseru-clinic-a"},
+    "location":[{"reference":"Location/loc-ha-mokoena"}],
+    "code":[{"coding":[{"system":"http://snomed.info/sct","code":"CHW","display":"Community Health Worker"}]}],
+    "period":{"start":"2024-01-01"}}'
+
+fhir_put PractitionerRole role-lineo-nthabi \
+  '{"resourceType":"PractitionerRole","id":"role-lineo-nthabi","active":true,
+    "practitioner":{"reference":"Practitioner/prac-lineo-nthabi"},
+    "organization":{"reference":"Organization/maseru-clinic-a"},
+    "location":[{"reference":"Location/loc-ha-sehlabane"}],
+    "code":[{"coding":[{"system":"http://snomed.info/sct","code":"CHW","display":"Community Health Worker"}]}],
+    "period":{"start":"2024-01-01"}}'
+
+fhir_put PractitionerRole role-mpho-lerotholi \
+  '{"resourceType":"PractitionerRole","id":"role-mpho-lerotholi","active":true,
+    "practitioner":{"reference":"Practitioner/prac-mpho-lerotholi"},
+    "organization":{"reference":"Organization/maseru-clinic-a"},
+    "location":[{"reference":"Location/loc-matsieng"}],
+    "code":[{"coding":[{"system":"http://snomed.info/sct","code":"CHW","display":"Community Health Worker"}]}],
+    "period":{"start":"2024-01-01"}}'
+
+# 9e. Patients (10 test patients across 3 catchment villages)
+fhir_put Patient patient-001 \
+  '{"resourceType":"Patient","id":"patient-001","active":true,
+    "name":[{"use":"official","family":"Mokoena","given":["Katleho"]}],
+    "gender":"male","birthDate":"2005-03-14",
+    "address":[{"text":"Ha Mokoena Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-002 \
+  '{"resourceType":"Patient","id":"patient-002","active":true,
+    "name":[{"use":"official","family":"Mokoena","given":["Palesa"]}],
+    "gender":"female","birthDate":"2010-07-22",
+    "address":[{"text":"Ha Mokoena Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-003 \
+  '{"resourceType":"Patient","id":"patient-003","active":true,
+    "name":[{"use":"official","family":"Mokoena","given":["Teboho"]}],
+    "gender":"male","birthDate":"2018-11-05",
+    "address":[{"text":"Ha Mokoena Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-004 \
+  '{"resourceType":"Patient","id":"patient-004","active":true,
+    "name":[{"use":"official","family":"Sehlabane","given":["Mahlomola"]}],
+    "gender":"male","birthDate":"1985-01-30",
+    "address":[{"text":"Ha Sehlabane Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-005 \
+  '{"resourceType":"Patient","id":"patient-005","active":true,
+    "name":[{"use":"official","family":"Sehlabane","given":["Nthabiseng"]}],
+    "gender":"female","birthDate":"1988-06-18",
+    "address":[{"text":"Ha Sehlabane Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-006 \
+  '{"resourceType":"Patient","id":"patient-006","active":true,
+    "name":[{"use":"official","family":"Sehlabane","given":["Lehlohonolo"]}],
+    "gender":"male","birthDate":"2015-09-03",
+    "address":[{"text":"Ha Sehlabane Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-007 \
+  '{"resourceType":"Patient","id":"patient-007","active":true,
+    "name":[{"use":"official","family":"Matsieng","given":["Mamello"]}],
+    "gender":"female","birthDate":"1975-04-12",
+    "address":[{"text":"Matsieng Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-008 \
+  '{"resourceType":"Patient","id":"patient-008","active":true,
+    "name":[{"use":"official","family":"Matsieng","given":["Lebohang"]}],
+    "gender":"male","birthDate":"2002-12-27",
+    "address":[{"text":"Matsieng Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-009 \
+  '{"resourceType":"Patient","id":"patient-009","active":true,
+    "name":[{"use":"official","family":"Matsieng","given":["Thato"]}],
+    "gender":"female","birthDate":"2020-02-09",
+    "address":[{"text":"Matsieng Village","district":"Maseru","country":"LS"}]}'
+fhir_put Patient patient-010 \
+  '{"resourceType":"Patient","id":"patient-010","active":true,
+    "name":[{"use":"official","family":"Matsieng","given":["Motlatsi"]}],
+    "gender":"male","birthDate":"1960-08-15",
+    "address":[{"text":"Matsieng Village","district":"Maseru","country":"LS"}]}'
+
+# 9f. Groups (catchment populations per VHW)
+fhir_put Group group-ha-mokoena \
+  '{"resourceType":"Group","id":"group-ha-mokoena","type":"person","actual":true,
+    "name":"Ha Mokoena — Thabo Mokoena catchment",
+    "managingEntity":{"reference":"Practitioner/prac-thabo-mokoena"},
+    "member":[
+      {"entity":{"reference":"Patient/patient-001"}},
+      {"entity":{"reference":"Patient/patient-002"}},
+      {"entity":{"reference":"Patient/patient-003"}}]}'
+
+fhir_put Group group-ha-sehlabane \
+  '{"resourceType":"Group","id":"group-ha-sehlabane","type":"person","actual":true,
+    "name":"Ha Sehlabane — Lineo Nthabi catchment",
+    "managingEntity":{"reference":"Practitioner/prac-lineo-nthabi"},
+    "member":[
+      {"entity":{"reference":"Patient/patient-004"}},
+      {"entity":{"reference":"Patient/patient-005"}},
+      {"entity":{"reference":"Patient/patient-006"}}]}'
+
+fhir_put Group group-matsieng \
+  '{"resourceType":"Group","id":"group-matsieng","type":"person","actual":true,
+    "name":"Matsieng — Mpho Lerotholi catchment",
+    "managingEntity":{"reference":"Practitioner/prac-mpho-lerotholi"},
+    "member":[
+      {"entity":{"reference":"Patient/patient-007"}},
+      {"entity":{"reference":"Patient/patient-008"}},
+      {"entity":{"reference":"Patient/patient-009"}},
+      {"entity":{"reference":"Patient/patient-010"}}]}'
+
+# 9g. CareTeam
+fhir_put CareTeam team-maseru-north \
+  '{"resourceType":"CareTeam","id":"team-maseru-north","status":"active",
+    "name":"Maseru North VHW Team",
+    "participant":[
+      {"role":[{"coding":[{"code":"supervisor","display":"Supervisor"}]}],
+       "member":{"reference":"Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47"}},
+      {"role":[{"coding":[{"code":"CHW","display":"Community Health Worker"}]}],
+       "member":{"reference":"Practitioner/prac-thabo-mokoena"}},
+      {"role":[{"coding":[{"code":"CHW","display":"Community Health Worker"}]}],
+       "member":{"reference":"Practitioner/prac-lineo-nthabi"}},
+      {"role":[{"coding":[{"code":"CHW","display":"Community Health Worker"}]}],
+       "member":{"reference":"Practitioner/prac-mpho-lerotholi"}}]}'
+
+log "HAPI FHIR seeded: 1 org, 6 locations, 3 VHWs, 4 roles, 10 patients, 3 groups, 1 care team."
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 log ""
