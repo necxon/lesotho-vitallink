@@ -11,6 +11,10 @@
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# When launched non-interactively from PowerShell on Windows, Git Bash does not
+# source its profile, so /usr/bin is missing from PATH (sleep, date, wc, etc.).
+export PATH="/usr/bin:/bin:$PATH"
+
 VERBOSE=0
 [[ "${1:-}" == "--verbose" ]] && VERBOSE=1
 

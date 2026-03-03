@@ -14,6 +14,10 @@ set -euo pipefail
 # Move to repo root so docker compose and relative paths work
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# When launched non-interactively from PowerShell on Windows, Git Bash does not
+# source its profile, so /usr/bin is missing from PATH (sleep, curl, wc, etc.).
+export PATH="/usr/bin:/bin:$PATH"
+
 # ─── Fixed UUIDs ──────────────────────────────────────────────────────────────
 # CRITICAL: these must stay in sync with mediator/index.js constants.
 FACILITY_ID="28de536f-b826-4eeb-a3c4-d65221a1120d"
