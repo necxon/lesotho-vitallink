@@ -19,6 +19,10 @@ test:
 e2e:
 	bash scripts/e2e-test.sh
 
+## Same as e2e — PowerShell alias (Git Bash path for user-level Git install on Windows)
+e2e-win:
+	"$(LOCALAPPDATA)/Programs/Git/usr/bin/bash.exe" scripts/e2e-test.sh
+
 ## Stop all containers (data volumes preserved)
 down:
 	docker compose down
