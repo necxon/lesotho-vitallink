@@ -154,6 +154,8 @@ services:
   log:
     image: openlmis/rsyslog:latest
     container_name: openlmis-log
+    volumes:
+      - ./config/rsyslog/stdout.conf:/etc/rsyslog.d/stdout.conf:ro
     networks:
       - health-net
 
