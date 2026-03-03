@@ -342,6 +342,52 @@ DHIS2_RESULT=$(curl -sf -u admin:district -X POST \
   }")
 log "DHIS2 seed result: $(echo "$DHIS2_RESULT" | grep -o '"status":"[^"]*"' | head -2 | tr '\n' ' ')"
 
+# ─── 4b. Seed DHIS2 visualizations + dashboard ───────────────────────────────
+log "Seeding DHIS2 dashboard ..."
+# Stable UIDs — PUT is idempotent (create or update)
+DHIS2_VIZ_CHART="BKMBarChart1"
+DHIS2_VIZ_PIVOT="BKMPivotTbl1"
+DHIS2_DASHBOARD="BKMDashbrd01"
+
+curl -s -u admin:district -X PUT "http://localhost:8081/api/visualizations/${DHIS2_VIZ_CHART}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"${DHIS2_VIZ_CHART}\",
+    \"name\": \"AL 20/120mg Dispensing - Bar Chart\",
+    \"type\": \"COLUMN\",
+    \"columns\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
+    \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\":\"202501\"},{\"id\":\"202502\"},{\"id\":\"202503\"},{\"id\":\"202601\"},{\"id\":\"202602\"},{\"id\":\"202603\"},{\"id\":\"202604\"},{\"id\":\"202605\"},{\"id\":\"202606\"}]}],
+    \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+    \"aggregationType\": \"SUM\",
+    \"domainAxisLabel\": \"Month\",
+    \"rangeAxisLabel\": \"Tablets Dispensed\"
+  }" > /dev/null
+
+curl -s -u admin:district -X PUT "http://localhost:8081/api/visualizations/${DHIS2_VIZ_PIVOT}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"${DHIS2_VIZ_PIVOT}\",
+    \"name\": \"AL 20/120mg Dispensing - Monthly Pivot\",
+    \"type\": \"PIVOT_TABLE\",
+    \"columns\": [{\"dimension\": \"pe\", \"items\": [{\"id\":\"202501\"},{\"id\":\"202502\"},{\"id\":\"202503\"},{\"id\":\"202601\"},{\"id\":\"202602\"},{\"id\":\"202603\"},{\"id\":\"202604\"},{\"id\":\"202605\"},{\"id\":\"202606\"}]}],
+    \"rows\":    [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+    \"filters\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
+    \"aggregationType\": \"SUM\",
+    \"showData\": true
+  }" > /dev/null
+
+curl -s -u admin:district -X PUT "http://localhost:8081/api/dashboards/${DHIS2_DASHBOARD}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"${DHIS2_DASHBOARD}\",
+    \"name\": \"BKM Stock Dispensing - Lesotho\",
+    \"dashboardItems\": [
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_CHART}\"}, \"width\": 40, \"height\": 20, \"x\": 0, \"y\": 0},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_PIVOT}\"}, \"width\": 40, \"height\": 20, \"x\": 0, \"y\": 20}
+    ]
+  }" > /dev/null
+log "DHIS2 dashboard ready: http://localhost:8081/dhis-web-dashboard/index.html#/${DHIS2_DASHBOARD}"
+
 # ─── 5. Activate OpenLMIS admin user ─────────────────────────────────────────
 # Flyway seeds admin with active=false; the SPA throws "Internal application error"
 # when the logged-in user is inactive. Fix it every time referencedata restarts.
@@ -810,6 +856,25 @@ fhir_put CareTeam team-maseru-north \
        "member":{"reference":"Practitioner/prac-mpho-lerotholi"}}]}'
 
 log "HAPI FHIR seeded: 1 org, 6 locations, 3 VHWs, 4 roles, 10 patients, 3 groups, 1 care team."
+
+# ─── 10. Generate DHIS2 analytics tables ──────────────────────────────────────
+log "Step 10: Generating DHIS2 analytics tables..."
+JOB_ID=$(curl -s -u admin:district -X POST "http://localhost:8081/api/resourceTables/analytics" \
+  -H "Content-Type: application/json" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('response',{}).get('id',''))" 2>/dev/null)
+if [ -n "$JOB_ID" ]; then
+  log "  Analytics job started: $JOB_ID — waiting up to 60s..."
+  for i in $(seq 1 12); do
+    sleep 5
+    DONE=$(curl -s -u admin:district "http://localhost:8081/api/system/tasks/ANALYTICS_TABLE/${JOB_ID}" \
+      | python3 -c "import sys,json;d=json.load(sys.stdin);print(d[-1].get('completed',False) if d else False)" 2>/dev/null)
+    if [ "$DONE" = "True" ]; then
+      log "  Analytics tables ready."
+      break
+    fi
+  done
+else
+  log "  Warning: could not start analytics job — run manually after seeding."
+fi
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 log ""
