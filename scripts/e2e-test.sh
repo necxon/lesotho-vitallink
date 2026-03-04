@@ -9,11 +9,10 @@
 #   bash scripts/e2e-test.sh --verbose   # show full API responses
 # =============================================================================
 set -euo pipefail
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
 # When launched non-interactively from PowerShell on Windows, Git Bash does not
-# source its profile, so /usr/bin is missing from PATH (sleep, date, wc, etc.).
+# source its profile, so /usr/bin is missing from PATH (dirname, sleep, etc.).
 export PATH="/usr/bin:/bin:$PATH"
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 VERBOSE=0
 [[ "${1:-}" == "--verbose" ]] && VERBOSE=1
@@ -77,7 +76,7 @@ fi
 STOCK_BEFORE=$(curl -sf \
   -H "Authorization: Bearer $LMIS_TOKEN" \
   "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null) || true
 
 if [[ "$STOCK_BEFORE" =~ ^[0-9]+$ ]]; then
   pass "Stock on hand before dispense: ${STOCK_BEFORE} tablets (AL 20/120mg @ Maseru District Clinic A)"
@@ -93,7 +92,7 @@ DISPENSE_QTY=6
 PATIENT_ID="patient-e2e-$$"
 TIMESTAMP=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")
 
-RESPONSE=$(curl -sf -X POST http://localhost:5001/fhir/MedicationDispense \
+RESPONSE=$(curl -s -X POST http://localhost:5001/fhir/MedicationDispense \
   -H "Content-Type: application/fhir+json" \
   -d "{
     \"resourceType\": \"MedicationDispense\",
@@ -102,7 +101,7 @@ RESPONSE=$(curl -sf -X POST http://localhost:5001/fhir/MedicationDispense \
     \"performer\": [{\"actor\": {\"reference\": \"Practitioner/opensrp-admin\"}}],
     \"whenHandedOver\": \"${TIMESTAMP}\",
     \"quantity\": {\"value\": ${DISPENSE_QTY}, \"unit\": \"tablet\"}
-  }" 2>/dev/null)
+  }" 2>/dev/null) || true
 
 if [[ $VERBOSE -eq 1 ]]; then
   echo "    Response: $RESPONSE"
@@ -124,7 +123,7 @@ sleep 1  # let stockmanagement commit
 STOCK_AFTER=$(curl -sf \
   -H "Authorization: Bearer $LMIS_TOKEN" \
   "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null) || true
 
 EXPECTED_AFTER=$(( STOCK_BEFORE - DISPENSE_QTY ))
 
@@ -233,7 +232,7 @@ header "8. QuestionnaireResponse route — dispense + receipt fan-out"
 QR_STOCK_BEFORE=$(curl -sf \
   -H "Authorization: Bearer $LMIS_TOKEN" \
   "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null) || true
 
 if [[ "$QR_STOCK_BEFORE" =~ ^[0-9]+$ ]]; then
   pass "QR baseline SOH: ${QR_STOCK_BEFORE} tablets"
@@ -306,7 +305,7 @@ sleep 1
 QR_STOCK_AFTER=$(curl -sf \
   -H "Authorization: Bearer $LMIS_TOKEN" \
   "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null)
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['content'][0]['stockOnHand'] if d.get('content') else 'NONE')" 2>/dev/null) || true
 
 QR_EXPECTED=$(( QR_STOCK_BEFORE - QR_DISPENSE_QTY + QR_RECEIPT_QTY ))
 if [[ "$QR_STOCK_AFTER" =~ ^[0-9]+$ ]]; then
