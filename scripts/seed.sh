@@ -288,6 +288,9 @@ def make_stubs(loc_indent, dir_indent):
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{}}\';\n'
         f'{L}}}\n'
+        f'{L}location ~ "^/\\{{\\{{" {{\n'
+        f'{D}return 200 \'\';\n'
+        f'{L}}}\n'
     )
 
 # ── 1. Patch consul-template template (durable — survives consul-template re-renders) ──
@@ -317,6 +320,12 @@ if tmpl:
     if 'userContactDetails' not in tmpl and TMPL_ANCHOR in tmpl:
         tmpl = tmpl.replace(TMPL_ANCHOR, make_stubs('  ', '    ') + TMPL_ANCHOR, 1)
         changed = True; print('template: stubs inserted')
+
+    # C) Catch unrendered AngularJS template URLs (nginx decodes %7B%7B → {{ before matching)
+    if '\\{\\{' not in tmpl and TMPL_ANCHOR in tmpl:
+        tmpl = tmpl.replace(TMPL_ANCHOR,
+            '  location ~ "^/\\{\\{" {\n    return 200 \'\';\n  }\n' + TMPL_ANCHOR, 1)
+        changed = True; print('template: angular template URL stub inserted')
 
     if changed:
         write_file(TMPL_PATH, tmpl)
@@ -354,6 +363,12 @@ CONF_ANCHOR = 'location ~ /api/notification/?'
 if 'userContactDetails' not in c and CONF_ANCHOR in c:
     c = c.replace(CONF_ANCHOR, make_stubs('      ', '        ') + CONF_ANCHOR, 1)
     changed = True; print('rendered: stubs inserted')
+
+# C) Catch unrendered AngularJS template URLs (nginx decodes %7B%7B → {{ before matching)
+if '\\{\\{' not in c and CONF_ANCHOR in c:
+    c = c.replace(CONF_ANCHOR,
+        '  location ~ "^/\\{\\{" {\n    return 200 \'\';\n  }\n' + CONF_ANCHOR, 1)
+    changed = True; print('rendered: angular template URL stub inserted')
 
 if changed:
     write_file(CONF_PATH, c)
@@ -532,6 +547,37 @@ docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
     VALUES (gen_random_uuid(), true, 1, true, '${ODC_ID}', '${ORDERABLE_ID}', '${PROGRAM_ID}')
     ON CONFLICT DO NOTHING;" 2>/dev/null
 
+# Trade item + lot: required for OpenLMIS v2 stockCardSummaries API (used by the SPA).
+# The SPA calls /api/v2/stockCardSummaries which queries approvedProducts first and
+# then returns only lot-tracked cards. Without a lot the stock card is invisible in the UI.
+TRADE_ITEM_ID="eeeeeeee-0000-0000-0000-000000000001"
+LOT_ID="ffffffff-0000-0000-0000-000000000001"
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.trade_items (id, manufactureroftradeitem)
+    VALUES ('${TRADE_ITEM_ID}', 'Novartis')
+    ON CONFLICT (id) DO NOTHING;
+  INSERT INTO referencedata.orderable_identifiers (key, value, orderableid)
+    VALUES ('tradeItem', '${TRADE_ITEM_ID}', '${ORDERABLE_ID}')
+    ON CONFLICT DO NOTHING;" 2>/dev/null
+# lot must go in after trade item exists
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.lots (id, lotcode, expirationdate, manufacturedate, tradeitemid, active)
+    VALUES ('${LOT_ID}', 'AL-LOT-2026', '2028-12-31', '2026-01-01', '${TRADE_ITEM_ID}', true)
+    ON CONFLICT (id) DO NOTHING;" 2>/dev/null
+# facility_type_approved_products: v2 API queries approvedProducts for the facility type;
+# without this entry the v2 endpoint returns an empty page even if stock cards exist.
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.facility_type_approved_products
+    (id, emergencyorderpoint, maxperiodsofstock, minperiodsofstock, facilitytypeid, orderableid, programid)
+    SELECT gen_random_uuid(), 0, 3, 0, f.typeid, '${ORDERABLE_ID}', '${PROGRAM_ID}'
+    FROM referencedata.facilities f
+    WHERE f.id='${FACILITY_ID}'
+    AND NOT EXISTS (
+      SELECT 1 FROM referencedata.facility_type_approved_products
+      WHERE facilitytypeid=f.typeid AND orderableid='${ORDERABLE_ID}' AND programid='${PROGRAM_ID}'
+    );" 2>/dev/null
+log "Trade item, lot (AL-LOT-2026), and approved product entry seeded."
+
 # ─── 6b. Seed Lesotho district facilities ─────────────────────────────────────
 # 30 facilities across 3 districts (Leribe, Berea, Maseru).
 # Flyway-seeded geographic level, zone, and facility type IDs are queried dynamically
@@ -661,11 +707,12 @@ if [[ "$EXISTING_RECEIPT" == "0" && -n "$RECEIPT_REASON_ID" ]]; then
     -d "grant_type=password&username=admin&password=password" \
     http://localhost:8082/api/oauth/token \
     | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('access_token',''))")
+  # Post lot-tracked receipt so the stock card appears in the v2 API used by the SPA.
   curl -sf -o /dev/null -X POST \
     -H "Authorization: Bearer ${LMIS_TOKEN_STOCK}" -H "Content-Type: application/json" \
     "http://localhost:8082/api/stockEvents" \
-    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[{\"orderableId\":\"${ORDERABLE_ID}\",\"quantity\":10000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT\"}]}"
-  log "Initial stock receipt created (10,000 tablets)."
+    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[{\"orderableId\":\"${ORDERABLE_ID}\",\"lotId\":\"${LOT_ID}\",\"quantity\":10000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT\"}]}"
+  log "Initial stock receipt created (10,000 tablets, lot AL-LOT-2026)."
 else
   log "Initial stock receipt already exists — skipping."
 fi
