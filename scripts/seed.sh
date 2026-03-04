@@ -915,330 +915,199 @@ fhir_put CareTeam team-maseru-north \
 
 log "HAPI FHIR seeded: 1 org, 6 locations, 3 VHWs, 4 roles, 10 patients, 3 groups, 1 care team."
 
-# ─── 9h. OpenSRP app config: IG + Composition + Binaries + Questionnaires ─────
+# ─── 9h. OpenSRP app config: IG + Composition + Binaries ─────────────────────
 # The OpenSRP FHIR Core Android app downloads its navigation/form configuration
 # from a chain: ImplementationGuide → Composition → Binary (base64-encoded JSON).
-# This step seeds:
-#   - IG (ig-lesotho-vhw)
-#   - Composition (app-composition) with sections for each Binary
-#   - Binary: application config (navigation with Households + Stock menus)
-#   - Binary: sync config
-#   - Binary: household register config
-#   - Binary: stock register config
-#   - Binary: stock dispense questionnaire config
-#   - Questionnaire: AL 20/120mg stock dispense form
-#   - Questionnaire: stock count form
-#   - Group resources for stock commodity tracking
-log "Seeding OpenSRP app configuration (navigation + stock menu) ..."
+#
+# Config files are in config/fhir/ (extracted from the reference APK build).
+# The Composition mirrors the APK's composition_config.json structure, using
+# focus.identifier.value in each section so ConfigurationRegistry can key the
+# downloaded Binary content correctly.  inventoryRegister and inventoryProfile
+# sections are added to expose the Stock Inventory menu that is already wired
+# into the APK's navigation_config.json staticMenu.
+log "Seeding OpenSRP app configuration (23 Binaries + Composition + IG) ..."
+FHIR_CONFIGS_DIR="$(pwd)/config/fhir"
+export FHIR_CONFIGS_DIR PYTHONIOENCODING=utf-8
 python3 << 'PYEOF'
-import base64, json, urllib.request, urllib.error
+import base64, json, os, urllib.request, urllib.error
 
-HAPI = "http://localhost:8079/fhir"
+HAPI    = "http://localhost:8079/fhir"
+CONFIGS = os.environ["FHIR_CONFIGS_DIR"]
 
 def fhir_put(resource_type, resource_id, body):
-    url = f"{HAPI}/{resource_type}/{resource_id}"
+    url  = f"{HAPI}/{resource_type}/{resource_id}"
     data = json.dumps(body).encode()
-    req = urllib.request.Request(url, data=data, method="PUT",
-          headers={"Content-Type": "application/fhir+json"})
+    req  = urllib.request.Request(url, data=data, method="PUT",
+           headers={"Content-Type": "application/fhir+json"})
     try:
         with urllib.request.urlopen(req) as r:
-            code = r.getcode()
+            print(f"  {resource_type}/{resource_id} → {r.getcode()}")
     except urllib.error.HTTPError as e:
-        code = e.code
-        print(f"  WARNING: {resource_type}/{resource_id} → {code} {e.read().decode()[:120]}")
-        return
-    if not str(code).startswith("2"):
-        print(f"  WARNING: {resource_type}/{resource_id} → {code}")
+        print(f"  WARNING: {resource_type}/{resource_id} → {e.code} {e.read().decode()[:200]}")
 
-def b64(obj):
-    return base64.b64encode(json.dumps(obj).encode()).decode()
+def read_b64(rel_path):
+    with open(os.path.join(CONFIGS, rel_path), "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
-# ── Binary: application config ──────────────────────────────────────────────
-app_config = {
-    "appId": "app",
-    "configType": "application",
-    "theme": "DEFAULT",
-    "appTitle": "Lesotho VHW",
-    "remoteSyncPageSize": 100,
-    "languages": ["en"],
-    "defaultLanguage": "en",
-    "navigationStartDestination": "households",
-    "navigation": [
-        {
-            "id": "households",
-            "visible": True,
-            "display": "Households",
-            "icon": "ic_home",
-            "register": "household-register"
-        },
-        {
-            "id": "stock",
-            "visible": True,
-            "display": "Stock",
-            "icon": "ic_inventory_2",
-            "register": "stock-register"
-        }
-    ],
-    "syncStrategy": ["RELATED_ENTITY_LEVEL", "LOCATION"]
-}
-fhir_put("Binary", "bin-app-config",
-    {"resourceType": "Binary", "id": "bin-app-config",
-     "contentType": "application/json", "data": b64(app_config)})
+def ctype(rel_path):
+    return "text/x-java-properties" if rel_path.endswith(".properties") else "application/json"
 
-# ── Binary: sync config ──────────────────────────────────────────────────────
-sync_config = {
-    "appId": "app",
-    "configType": "sync",
-    "fhirResourcesToSync": [
-        "Patient", "Practitioner", "PractitionerRole",
-        "Group", "Location", "Organization",
-        "Questionnaire", "QuestionnaireResponse",
-        "MedicationDispense"
-    ],
-    "resourceSyncLimit": 100
-}
-fhir_put("Binary", "bin-sync-config",
-    {"resourceType": "Binary", "id": "bin-sync-config",
-     "contentType": "application/json", "data": b64(sync_config)})
+def upload_binary(binary_id, rel_path):
+    fhir_put("Binary", binary_id, {
+        "resourceType": "Binary",
+        "id":           binary_id,
+        "contentType":  ctype(rel_path),
+        "data":         read_b64(rel_path),
+    })
 
-# ── Binary: household register ────────────────────────────────────────────────
-household_register = {
-    "appId": "app",
-    "configType": "register",
-    "id": "household-register",
-    "fhirResource": {
-        "baseResource": {"resource": "Group", "dataQueries": []},
-        "relatedResources": [{"resource": "Patient", "searchParameter": "member-of"}]
-    },
-    "pageSize": 20,
-    "showSearchBar": True,
-    "searchBar": {
-        "visible": True,
-        "label": "Search households",
-        "computedRules": ["householdName"]
-    },
-    "registerCard": {
-        "rules": [
-            {"name": "householdName", "condition": "true",
-             "actions": ["data.put('householdName', fhirPath.extractValue(Group, 'name'))"]}
-        ],
-        "views": [{"viewType": "COLUMN", "children": [
-            {"viewType": "COMPOUND_TEXT", "primaryText": "@{householdName}", "fontSize": 16}
-        ]}]
-    }
-}
-fhir_put("Binary", "bin-household-register",
-    {"resourceType": "Binary", "id": "bin-household-register",
-     "contentType": "application/json", "data": b64(household_register)})
+# ── Binaries: IDs match the APK's composition_config.json references ──────────
+# These are the exact IDs the Composition sections point to. ConfigurationRegistry
+# keys each Binary by focus.identifier.value from the Composition section.
+binaries = [
+    # id                                         rel_path
+    ("4755546c-e61f-43bb-b599-5cad230a3d529e",  "application_config.json"),
+    ("a982504f-8d8b-4151-abc6-0063793500d4e",   "sync_config.json"),
+    ("d7ce0167-ee6a-4f8f-b644-50b0242513239e",  "navigation_config.json"),
+    # registers
+    ("7ebbbf4e-c783-42f2-998d-3c6bdde5c0c6e",   "registers/household_register_config.json"),
+    ("e64815e6-56c1-4200-b2a6-6ec13eedfec3e",   "registers/anc_register_config.json"),
+    ("7a68f458-9402-4c07-be62-feb85d341c17e",   "registers/child_register_config.json"),
+    ("bbf28ade-5bc5-11ed-9b6a-0242ac120090e",   "registers/task_register_config.json"),
+    ("d90ae75b-b180-45c0-ab57-24dc6c885cc1e",   "registers/cmntd_register_config.json"),
+    ("7d0ce69f-22c2-4829-90b4-c0aadebdffbae",   "registers/fp_register_config.json"),
+    ("faa1688d-98fa-4954-9889-6c2bdf4d4e57e",   "registers/hiv_register_config.json"),
+    ("ba22490f-d24b-43d0-b6f4-f5af474bbf05e",   "registers/mental_health_register_config.json"),
+    ("9aa6bbb6-df76-42a4-bdbe-72dc197378cae",   "registers/pnc_register_config.json"),
+    ("079a2120-e802-4445-95ac-59511751a4c0e",   "registers/sick_child_register_config.json"),
+    ("2ac6ec4f-1a29-4d85-a015-06db9c1b82d9e",   "registers/tb_register_config.json"),
+    ("inv-register-config-001",                  "registers/inventory_register_config.json"),
+    # profiles
+    ("bbb3c2b0-51c9-44e9-9674-7d311ad5f859e",   "profiles/household_profile_config.json"),
+    ("34b709f3-e8a1-44e9-867a-714b68bb1367e",   "profiles/default_profile_config.json"),
+    ("a6d69650-4806-4bb1-bd2b-a60fa18418a0e",   "profiles/other_registers_profile_config.json"),
+    ("inv-profile-config-001",                   "profiles/inventory_profile_config.json"),
+    # translations
+    ("c6757818-25c8-4e51-ba51-0c9dd882cbbbe",   "translations/strings_config.properties"),
+    ("eee5f9c1-49f6-4b18-b088-8a52689a79d8e",   "translations/strings_sw_config.properties"),
+    ("43e6c036-bb83-481e-8ffd-f8fdb7ee54a0e",   "translations/strings_fr_config.properties"),
+]
+for bid, rel in binaries:
+    upload_binary(bid, rel)
 
-# ── Binary: stock register ────────────────────────────────────────────────────
-stock_register = {
-    "appId": "app",
-    "configType": "register",
-    "id": "stock-register",
-    "fhirResource": {
-        "baseResource": {
-            "resource": "Group",
-            "dataQueries": [
-                {"paramName": "type",
-                 "filterCriteria": [{"dataType": "STRING", "value": "substance"}]}
-            ]
-        }
-    },
-    "pageSize": 20,
-    "showSearchBar": False,
-    "registerCard": {
-        "rules": [
-            {"name": "commodityName", "condition": "true",
-             "actions": ["data.put('commodityName', fhirPath.extractValue(Group, 'name'))"]},
-            {"name": "stockQty", "condition": "true",
-             "actions": ["data.put('stockQty', fhirPath.extractValue(Group, 'quantity'))"]}
-        ],
-        "views": [{"viewType": "COLUMN", "children": [
-            {"viewType": "COMPOUND_TEXT",
-             "primaryText": "@{commodityName}",
-             "secondaryText": "Available: @{stockQty} tablets",
-             "fontSize": 16}
-        ]}]
-    },
-    "fab": {
-        "visible": True,
-        "icon": "ic_add",
-        "text": "Dispense",
-        "actions": [{
-            "trigger": "ON_CLICK",
-            "workflow": "LAUNCH_QUESTIONNAIRE",
-            "questionnaire": {
-                "id": "qn-stock-dispense",
-                "title": "Dispense AL 20/120mg",
-                "saveButtonText": "Submit Dispense"
-            }
-        }]
-    }
-}
-fhir_put("Binary", "bin-stock-register",
-    {"resourceType": "Binary", "id": "bin-stock-register",
-     "contentType": "application/json", "data": b64(stock_register)})
-
-# ── Binary: stock questionnaire launcher config ───────────────────────────────
-qn_config = {
-    "appId": "app",
-    "configType": "questionnaireConfig",
-    "id": "stock-dispense-config",
-    "questionnaireId": "qn-stock-dispense"
-}
-fhir_put("Binary", "bin-stock-qn-config",
-    {"resourceType": "Binary", "id": "bin-stock-qn-config",
-     "contentType": "application/json", "data": b64(qn_config)})
+# ── Group: AL 20/120mg commodity ──────────────────────────────────────────────
+# inventoryRegister queries Group?code=http://snomed.info/sct|386452003
+fhir_put("Group", "commodity-al-20-120", {
+    "resourceType": "Group",
+    "id":           "commodity-al-20-120",
+    "type":         "medication",
+    "actual":       True,
+    "name":         "AL 20/120mg",
+    "code": {"coding": [{"system": "http://snomed.info/sct",
+                         "code": "386452003",
+                         "display": "Supply inventory item"}]},
+})
 
 # ── Questionnaire: stock dispense ─────────────────────────────────────────────
 fhir_put("Questionnaire", "qn-stock-dispense", {
     "resourceType": "Questionnaire",
-    "id": "qn-stock-dispense",
-    "title": "Dispense AL 20/120mg",
+    "id":     "qn-stock-dispense",
+    "title":  "Dispense AL 20/120mg",
     "status": "active",
     "subjectType": ["Patient"],
     "item": [
-        {
-            "linkId": "patient",
-            "text": "Patient",
-            "type": "reference",
-            "required": True,
-            "extension": [{"url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerExpression",
-                           "valueExpression": {"language": "application/x-fhir-query",
-                                               "expression": "Patient"}}]
-        },
-        {
-            "linkId": "commodity",
-            "text": "Commodity",
-            "type": "choice",
-            "required": True,
-            "answerOption": [
-                {"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg (6 tablets)"}}
-            ]
-        },
-        {
-            "linkId": "quantity",
-            "text": "Quantity dispensed (tablets)",
-            "type": "integer",
-            "required": True,
-            "initial": [{"valueInteger": 6}]
-        },
-        {
-            "linkId": "date",
-            "text": "Date dispensed",
-            "type": "date",
-            "required": True
-        }
+        {"linkId": "patient",   "text": "Patient",
+         "type": "reference",   "required": True},
+        {"linkId": "commodity", "text": "Commodity",
+         "type": "choice",      "required": True,
+         "answerOption": [{"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg (6 tablets)"}}]},
+        {"linkId": "quantity",  "text": "Quantity dispensed (tablets)",
+         "type": "integer",     "required": True,
+         "initial": [{"valueInteger": 6}]},
+        {"linkId": "date",      "text": "Date dispensed",
+         "type": "date",        "required": True},
     ]
 })
 
 # ── Questionnaire: stock count ────────────────────────────────────────────────
 fhir_put("Questionnaire", "qn-stock-count", {
     "resourceType": "Questionnaire",
-    "id": "qn-stock-count",
-    "title": "Stock Count",
+    "id":     "qn-stock-count",
+    "title":  "Stock Count",
     "status": "active",
     "subjectType": ["Organization"],
     "item": [
-        {
-            "linkId": "commodity",
-            "text": "Commodity",
-            "type": "choice",
-            "required": True,
-            "answerOption": [
-                {"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg"}}
-            ]
-        },
-        {
-            "linkId": "balance",
-            "text": "Physical stock count (tablets)",
-            "type": "integer",
-            "required": True
-        },
-        {
-            "linkId": "date",
-            "text": "Count date",
-            "type": "date",
-            "required": True
-        },
-        {
-            "linkId": "notes",
-            "text": "Notes (optional)",
-            "type": "string",
-            "required": False
-        }
+        {"linkId": "commodity", "text": "Commodity",
+         "type": "choice",      "required": True,
+         "answerOption": [{"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg"}}]},
+        {"linkId": "balance",   "text": "Physical stock count (tablets)",
+         "type": "integer",     "required": True},
+        {"linkId": "date",      "text": "Count date",
+         "type": "date",        "required": True},
+        {"linkId": "notes",     "text": "Notes (optional)",
+         "type": "string",      "required": False},
     ]
 })
 
-# ── Group: AL 20/120mg commodity (type=substance for stock register) ───────────
-fhir_put("Group", "commodity-al-20-120", {
-    "resourceType": "Group",
-    "id": "commodity-al-20-120",
-    "type": "substance",
-    "actual": True,
-    "name": "AL 20/120mg",
-    "quantity": 10000,
-    "characteristic": [
-        {"code": {"coding": [{"code": "commodity-code"}]},
-         "valueCodeableConcept": {"coding": [{"code": "AL-20-120", "display": "Artemether-Lumefantrine 20/120mg"}]},
-         "exclude": False},
-        {"code": {"coding": [{"code": "unit"}]},
-         "valueCodeableConcept": {"coding": [{"code": "tablet", "display": "Tablet"}]},
-         "exclude": False},
-        {"code": {"coding": [{"code": "facility"}]},
-         "valueReference": {"reference": "Organization/maseru-clinic-a"},
-         "exclude": False}
-    ]
-})
+# ── Composition: mirrors the APK's composition_config.json ────────────────────
+# Load the bundled composition and modify it for HAPI FHIR:
+#   - id "214558" → "app-composition" (HAPI rejects purely numeric IDs)
+#   - strip meta (version conflicts on re-seed)
+#   - add inventoryRegister + inventoryProfile sections
+comp_path = os.path.join(CONFIGS, "composition_config.json")
+with open(comp_path) as f:
+    comp = json.load(f)
 
-# ── Composition: app-composition (app manifest) ───────────────────────────────
-fhir_put("Composition", "app-composition", {
-    "resourceType": "Composition",
-    "id": "app-composition",
-    "status": "final",
-    "type": {"coding": [{"system": "http://snomed.info/sct",
-                         "code": "1156600005", "display": "Application configuration"}]},
-    "title": "Lesotho VHW App Configuration",
-    "date": "2026-03-03",
-    "author": [{"display": "Lesotho MoH"}],
-    "section": [
-        {"title": "Application Config",   "focus": {"reference": "Binary/bin-app-config"},
-         "entry": [{"reference": "Binary/bin-app-config"}]},
-        {"title": "Sync Config",          "focus": {"reference": "Binary/bin-sync-config"},
-         "entry": [{"reference": "Binary/bin-sync-config"}]},
-        {"title": "Household Register",   "focus": {"reference": "Binary/bin-household-register"},
-         "entry": [{"reference": "Binary/bin-household-register"}]},
-        {"title": "Stock Register",       "focus": {"reference": "Binary/bin-stock-register"},
-         "entry": [{"reference": "Binary/bin-stock-register"}]},
-        {"title": "Stock Questionnaire",  "focus": {"reference": "Binary/bin-stock-qn-config"},
-         "entry": [{"reference": "Binary/bin-stock-qn-config"}]}
-    ]
-})
+comp["id"] = "app-composition"
+comp.pop("meta", None)
+
+# Add inventoryRegister to the "Register configurations" nested section
+for s in comp["section"]:
+    if s.get("title") == "Register configurations":
+        s.setdefault("section", []).append({
+            "title": "Inventory register configuration",
+            "focus": {
+                "reference": "Binary/inv-register-config-001",
+                "identifier": {"value": "inventoryRegister"},
+            },
+        })
+        break
+
+# Add inventoryProfile to the "Profile configurations" nested section
+for s in comp["section"]:
+    if s.get("title") == "Profile configurations":
+        s.setdefault("section", []).append({
+            "title": "Inventory profile configuration",
+            "focus": {
+                "reference": "Binary/inv-profile-config-001",
+                "identifier": {"value": "inventoryProfile"},
+            },
+        })
+        break
+
+fhir_put("Composition", "app-composition", comp)
 
 # ── ImplementationGuide ────────────────────────────────────────────────────────
 fhir_put("ImplementationGuide", "ig-lesotho-vhw", {
-    "resourceType": "ImplementationGuide",
-    "id": "ig-lesotho-vhw",
-    "url": "http://lesotho.gov.ls/fhir/ImplementationGuide/ig-lesotho-vhw",
-    "version": "1.0.0",
-    "name": "LesothoVHW",
-    "title": "Lesotho VHW Implementation Guide",
-    "status": "active",
-    "packageId": "ls.gov.moh.vhw",
-    "fhirVersion": ["4.0.1"],
+    "resourceType":  "ImplementationGuide",
+    "id":            "ig-lesotho-vhw",
+    "url":           "http://lesotho.gov.ls/fhir/ImplementationGuide/ig-lesotho-vhw",
+    "version":       "1.0.0",
+    "name":          "app",
+    "title":         "Lesotho VHW Implementation Guide",
+    "status":        "active",
+    "packageId":     "ls.gov.moh.vhw",
+    "fhirVersion":   ["4.0.1"],
+    "useContext":    [{"code": {"code": "program"}, "valueQuantity": {"value": 1}}],
     "definition": {
-        "resource": [
-            {
-                "reference": {"reference": "Composition/app-composition"},
-                "name": "App Composition",
-                "exampleBoolean": False
-            }
-        ]
-    }
+        "resource": [{
+            "reference":     {"reference": "Composition/app-composition"},
+            "name":          "App Composition",
+            "exampleBoolean": False,
+        }]
+    },
 })
 
-print("OpenSRP app config seeded: IG, Composition, 5 Binaries, 2 Questionnaires, 1 commodity Group.")
+print(f"OpenSRP app config seeded: IG, Composition, {len(binaries)} Binaries, 2 Questionnaires, 1 commodity Group.")
 PYEOF
 
 # ─── 10. Generate DHIS2 analytics tables ──────────────────────────────────────

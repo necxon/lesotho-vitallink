@@ -1,0 +1,30 @@
+{
+  "appId": "app",
+  "configType": "register",
+  "id": "taskRegister",
+  "pageSize": 20,
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Task",
+      "sortConfigs": [
+        {
+          "paramName": "_lastUpdated",
+          "dataType": "DATE",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  },
+  "searchBar": {
+    "visible": false,
+    "display": "Search"
+  },
+  "registerCard": {
+    "rules": [],
+    "views": []
+  },
+  "noResults": {
+    "title": "No tasks",
+    "message": "No tasks found"
+  }
+}
