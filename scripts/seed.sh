@@ -128,6 +128,10 @@ fi
 # openhim-mediator-utils computes: sha512(passwordSalt + password).
 # On a fresh install openhim-core sets this correctly, but re-running is harmless.
 log "Resetting OpenHIM root password hash ..."
+# Ensure mediator container is running before we exec into it (it may have crashed on
+# startup if OpenHIM wasn't ready yet when it first tried to register).
+docker compose up -d bkm-mediator >/dev/null 2>&1 || true
+sleep 3
 SALT=$(docker exec openhim-mongo mongo --quiet openhim \
   --eval "print(db.passports.findOne({protocol:'token',email:'root@openhim.org'}).passwordSalt)")
 HASH=$(docker exec bkm-mediator node -e \

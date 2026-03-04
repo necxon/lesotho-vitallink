@@ -256,16 +256,19 @@ async function pushToOpenLMIS(resource, identity, isReceipt = false) {
     ? (process.env.OPENLMIS_RECEIPT_REASON_ID || '313f2f5f-0c22-4626-8c49-3554ef763de3')
     : (process.env.OPENLMIS_REASON_ID         || 'b5c27da7-bdda-4790-925a-9484c5dfb594');
 
+  const lineItem = {
+    orderableId: identity.orderableId,
+    quantity: quantity,
+    occurredDate: new Date().toISOString().split('T')[0],
+    reasonId: reasonId,
+    documentationNo: `BKM-${resource.id || Date.now()}`
+  };
+  if (process.env.OPENLMIS_LOT_ID) lineItem.lotId = process.env.OPENLMIS_LOT_ID;
+
   const body = {
     facilityId: identity.facilityId,
     programId: identity.programId,
-    lineItems: [{
-      orderableId: identity.orderableId,
-      quantity: quantity,
-      occurredDate: new Date().toISOString().split('T')[0],
-      reasonId: reasonId,
-      documentationNo: `BKM-${resource.id || Date.now()}`
-    }]
+    lineItems: [lineItem]
   };
   logger.debug(`OpenLMIS stockEvents POST: ${JSON.stringify(body)}`);
   const res = await axios.post(`${CONFIG.lmis.mgmtUrl}/api/stockEvents`, body,
