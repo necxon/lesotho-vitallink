@@ -1146,7 +1146,7 @@ fhir_put("ImplementationGuide", "ig-lesotho-vhw", {
     "name":          "app",
     "title":         "Lesotho VHW Implementation Guide",
     "status":        "active",
-    "packageId":     "ls.gov.moh.vhw",
+    "packageId":     "app",
     "fhirVersion":   ["4.0.1"],
     "useContext":    [{"code": {"code": "program"}, "valueQuantity": {"value": 1}}],
     "definition": {
