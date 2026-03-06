@@ -17,7 +17,7 @@ const axios = require('axios');
 // Mock openhim-mediator-utils — registerMediator is a no-op in tests
 jest.mock('openhim-mediator-utils', () => ({ registerMediator: jest.fn() }));
 
-const { app, mediatorConfig, clearRetryQueue, clearNotifCooldowns } = require('../index');
+const { app, mediatorConfig, clearNotifCooldowns } = require('../index');
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -80,8 +80,7 @@ function mockByUrl({ opensrp, dhis2, openlmis, stockCards, stockOnHand = 100 } =
 // resetAllMocks clears both call history AND implementations between tests
 beforeEach(() => {
   jest.resetAllMocks();
-  clearRetryQueue();        // cancel any pending retry timers from previous test
-  clearNotifCooldowns();    // reset throttle state between tests
+  clearNotifCooldowns(); // reset throttle state between tests
 });
 
 // ---------------------------------------------------------------------------
@@ -408,57 +407,6 @@ describe('stock validation', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 9. Resilience — Retry Queue (Job 4 — Backup Plan)
-// ---------------------------------------------------------------------------
-describe('resilience — retry queue', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.clearAllTimers(); // wipe carryover fake timers from previous tests in this block
-  });
-  afterEach(() => jest.useRealTimers());
-
-  test('caller still receives HTTP 207 immediately when OpenLMIS fails', async () => {
-    mockByUrl({
-      openlmis: Promise.reject(new Error('ECONNREFUSED')),
-    });
-
-    const res = await request(app)
-      .post('/fhir/MedicationDispense')
-      .set('Content-Type', 'application/fhir+json')
-      .send(FHIR_BODY);
-
-    expect(res.status).toBe(207);
-    expect(res.body.status).toBe('Completed with errors');
-  });
-
-  test('a retry timer is scheduled after OpenLMIS failure', async () => {
-    mockByUrl({
-      openlmis: Promise.reject(new Error('ECONNREFUSED')),
-    });
-
-    await request(app)
-      .post('/fhir/MedicationDispense')
-      .set('Content-Type', 'application/fhir+json')
-      .send(FHIR_BODY);
-
-    // At least one setTimeout should be pending (first retry at 10 s)
-    expect(jest.getTimerCount()).toBeGreaterThan(0);
-  });
-
-  test('HTTP 200 confirms all targets succeeded and no retry is needed', async () => {
-    mockByUrl(); // all succeed
-
-    const res = await request(app)
-      .post('/fhir/MedicationDispense')
-      .set('Content-Type', 'application/fhir+json')
-      .send(FHIR_BODY);
-
-    // 200 = all three targets fulfilled → scheduleRetry was never called
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('Successful');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // 10. VHW Notifications

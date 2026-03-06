@@ -352,7 +352,8 @@ header "9. VHW Notifications — notification-sink records SMS + push + email"
 
 SINK_URL="http://localhost:8086"
 
-# Clear any history from previous test runs
+# Restart mediator to reset in-memory throttle state, then clear notification history
+docker restart bkm-mediator >/dev/null 2>&1 && sleep 3 || true
 curl -sf -X DELETE "${SINK_URL}/history" -o /dev/null 2>/dev/null || true
 
 # POST one more dispense with a low-stock quantity to trigger both events

@@ -30,7 +30,7 @@ const DailyRotateFile = require('winston-daily-rotate-file');
  *                             medication code → orderable)
  * Job 2 — Fan-out:           Parallel dispatch to OpenSRP + DHIS2 + OpenLMIS
  * Job 3 — Safety Gate:       Stock-on-hand pre-check; rejects (422) if insufficient
- * Job 4 — Backup Plan:       Retry queue for transient downstream failures
+ * Job 4 — Notifications:     VHW alerts via SMS, push, and email (throttled)
  */
 
 // =============================================================================
@@ -194,25 +194,6 @@ async function getKeycloakToken() {
   return refreshingKC;
 }
 
-// =============================================================================
-// RETRY QUEUE  (Job 4 — Backup Plan)
-// =============================================================================
-
-const _retryTimers = [];
-
-function scheduleRetry(fn) {
-  const tid = setTimeout(() => {
-    const idx = _retryTimers.indexOf(tid);
-    if (idx !== -1) _retryTimers.splice(idx, 1);
-    fn();
-  }, parseInt(process.env.RETRY_DELAY_MS || '10000', 10));
-  _retryTimers.push(tid);
-}
-
-function clearRetryQueue() {
-  _retryTimers.forEach(clearTimeout);
-  _retryTimers.length = 0;
-}
 
 // =============================================================================
 // NOTIFICATION THROTTLE
@@ -255,7 +236,7 @@ function clearNotifCooldowns() {
 }
 
 // =============================================================================
-// VHW NOTIFICATIONS  (Job 5 — Notifications)
+// VHW NOTIFICATIONS  (Job 4 — Notifications)
 // =============================================================================
 //
 // Configurable via environment variables:
@@ -305,6 +286,21 @@ async function sendNotifications(events, phone, email) {
   const apiKey   = process.env.NOTIFY_PUSH_API_KEY || '';
   const emailFrom = process.env.NOTIFY_EMAIL_FROM || 'mediator@lesotho.health';
 
+  // Log a failed notification with its full payload so it can be extracted
+  // from the log file and re-submitted later:
+  //   grep '"failedNotification":true' logs/vital-link-*.log | jq '.'
+  // Each entry contains channel, url, payload, error — everything needed to replay.
+  function logFailed(channel, url, payload, err) {
+    logger.error('Notification delivery failed', {
+      failedNotification: true,
+      channel,
+      url,
+      payload,
+      error: err.message,
+      code:  err.code || null
+    });
+  }
+
   const promises = [];
 
   for (const ev of events) {
@@ -313,10 +309,11 @@ async function sendNotifications(events, phone, email) {
 
     if (smsEnabled && smsUrl && phone) {
       if (_canSend('sms', ev.type, phone)) {
+        const smsPayload = { to: phone, message, event: ev.type };
         promises.push(
-          axios.post(smsUrl, { to: phone, message, event: ev.type }, { timeout: TIMEOUT_MS })
+          axios.post(smsUrl, smsPayload, { timeout: TIMEOUT_MS })
             .then(() => { _markSent('sms', ev.type, phone); logger.info(`SMS sent: event=${ev.type} to=${phone}`); })
-            .catch(e => logger.warn(`SMS notification failed (event=${ev.type}): ${e.message}`))
+            .catch(e => logFailed('sms', smsUrl, smsPayload, e))
         );
       } else {
         logger.info(`SMS throttled: event=${ev.type} to=${phone} (cooldown active)`);
@@ -326,12 +323,12 @@ async function sendNotifications(events, phone, email) {
     if (pushEnabled && pushUrl) {
       const pushRecipient = phone || 'vhw';
       if (_canSend('push', ev.type, pushRecipient)) {
-        const pushHeaders = apiKey ? { Authorization: `key=${apiKey}` } : {};
+        const pushHeaders  = apiKey ? { Authorization: `key=${apiKey}` } : {};
+        const pushPayload  = { to: pushRecipient, title, body: message, event: ev.type };
         promises.push(
-          axios.post(pushUrl, { to: pushRecipient, title, body: message, event: ev.type },
-            { headers: pushHeaders, timeout: TIMEOUT_MS })
+          axios.post(pushUrl, pushPayload, { headers: pushHeaders, timeout: TIMEOUT_MS })
             .then(() => { _markSent('push', ev.type, pushRecipient); logger.info(`Push sent: event=${ev.type}`); })
-            .catch(e => logger.warn(`Push notification failed (event=${ev.type}): ${e.message}`))
+            .catch(e => logFailed('push', pushUrl, pushPayload, e))
         );
       } else {
         logger.info(`Push throttled: event=${ev.type} (cooldown active)`);
@@ -340,11 +337,11 @@ async function sendNotifications(events, phone, email) {
 
     if (emailEnabled && emailUrl && email) {
       if (_canSend('email', ev.type, email)) {
+        const emailPayload = { to: email, from: emailFrom, subject: title, body: message, event: ev.type };
         promises.push(
-          axios.post(emailUrl, { to: email, from: emailFrom, subject: title, body: message, event: ev.type },
-            { timeout: TIMEOUT_MS })
+          axios.post(emailUrl, emailPayload, { timeout: TIMEOUT_MS })
             .then(() => { _markSent('email', ev.type, email); logger.info(`Email sent: event=${ev.type} to=${email}`); })
-            .catch(e => logger.warn(`Email notification failed (event=${ev.type}): ${e.message}`))
+            .catch(e => logFailed('email', emailUrl, emailPayload, e))
         );
       } else {
         logger.info(`Email throttled: event=${ev.type} to=${email} (cooldown active)`);
@@ -586,21 +583,11 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
       pushToOpenLMIS(resource, identity, isReceipt)
     ]);
 
-    // Job 4: Retry queue
-    if (opensrp.status === 'rejected') {
-      scheduleRetry(() => forwardToOpenSRP(resource, identity)
-        .catch(e => logger.warn(`OpenSRP retry failed: ${e.message}`)));
-    }
-    if (lmis.status === 'rejected') {
-      scheduleRetry(() => pushToOpenLMIS(resource, identity, isReceipt)
-        .catch(e => logger.warn(`OpenLMIS retry failed: ${e.message}`)));
-    }
-
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? qty : -qty;
     }
 
-    // Job 5: VHW Notifications (non-blocking; failures are swallowed inside sendNotifications)
+    // Job 4: VHW Notifications (non-blocking; failures are swallowed inside sendNotifications)
     if (lmis.status === 'fulfilled') {
       const vhw       = PERFORMER_MAP[performer] || {};
       const phone     = vhw.phone || null;
@@ -702,15 +689,11 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
       pushToOpenLMIS(resource, identity, isReceipt)
     ]);
 
-    if (lmis.status === 'rejected') {
-      scheduleRetry(() => pushToOpenLMIS(resource, identity, isReceipt)
-        .catch(e => logger.warn(`QR OpenLMIS retry: ${e.message}`)));
-    }
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? quantity : -quantity;
     }
 
-    // Job 5: VHW Notifications
+    // Job 4: VHW Notifications
     if (lmis.status === 'fulfilled') {
       const vhw       = PERFORMER_MAP[performer] || {};
       const phone     = vhw.phone || null;
@@ -775,4 +758,4 @@ utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
 // EXPORTS  (used by Jest unit tests)
 // =============================================================================
 
-module.exports = { app, mediatorConfig, clearRetryQueue, clearNotifCooldowns };
+module.exports = { app, mediatorConfig, clearNotifCooldowns };
