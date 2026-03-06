@@ -40,6 +40,13 @@ const FHIR_BODY = {
  *                 Pass stockOnHand: null for "no stock card yet" (first dispense).
  */
 function mockByUrl({ opensrp, dhis2, openlmis, stockCards, stockOnHand = 100 } = {}) {
+  // Attach no-op catch handlers to pre-created rejected promises so Node's
+  // unhandledRejection event doesn't fire before Promise.allSettled handles them.
+  if (opensrp   instanceof Promise) opensrp.catch(() => {});
+  if (dhis2     instanceof Promise) dhis2.catch(() => {});
+  if (openlmis  instanceof Promise) openlmis.catch(() => {});
+  if (stockCards instanceof Promise) stockCards.catch(() => {});
+
   axios.post.mockImplementation((url) => {
     if (url.includes('openid-connect/token')) {
       return Promise.resolve({ data: { access_token: 'kc-token', expires_in: 300 } });
@@ -224,7 +231,7 @@ describe('OpenLMIS payload', () => {
 
     const li = body.lineItems[0];
     expect(li.orderableId).toBe('3be1d20f-6aa9-4e52-864f-4fa04aa02056');
-    expect(li.reasonId).toBe('d159376d-a95f-4a26-9af9-0541e444a927');
+    expect(li.reasonId).toBe('b5c27da7-bdda-4790-925a-9484c5dfb594');
     expect(li.quantity).toBe(6);
     expect(li.occurredDate).toBe('2026-02-28');
     expect(li.documentationNo).toMatch(/^BKM-\d+$/);

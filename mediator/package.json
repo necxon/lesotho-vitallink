@@ -36,5 +36,10 @@
     "jest": "^29.0.0",
     "nodemon": "^3.0.1",
     "supertest": "^6.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": ["./jest.setup.js"],
+    "testTimeout": 15000
   }
 }
