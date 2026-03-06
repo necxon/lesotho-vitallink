@@ -113,11 +113,29 @@ services:
       - OPENLMIS_RECEIPT_REASON_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
       - RECEIPT_TYPE_CODE=RECEIPT
       - LOG_LEVEL=debug
+      # --- VHW Notifications ---
+      - NOTIFY_SMS_ENABLED=true
+      - NOTIFY_PUSH_ENABLED=true
+      - NOTIFY_ON_DISPENSE=true
+      - NOTIFY_ON_LOW_STOCK=true
+      - NOTIFY_ON_RECEIPT=true
+      - NOTIFY_LOW_STOCK_THRESHOLD=20
+      - NOTIFY_SMS_URL=http://notification-sink:3001/sms
+      - NOTIFY_PUSH_URL=http://notification-sink:3001/push
+      - NOTIFY_PUSH_API_KEY=sandbox-key
+      - NOTIFY_EMAIL_ENABLED=true
+      - NOTIFY_EMAIL_URL=http://notification-sink:3001/email
+      - NOTIFY_EMAIL_FROM=mediator@lesotho.health
+      # Throttle — min ms between repeat notifications to the same VHW for the same event type
+      - NOTIFY_SMS_THROTTLE_MS=300000
+      - NOTIFY_PUSH_THROTTLE_MS=60000
+      - NOTIFY_EMAIL_THROTTLE_MS=600000
     depends_on:
       - openhim-core
       - opensrp-server
       - keycloak
       - openlmis-stockmanagement
+      - notification-sink
     networks:
       - health-net
 
@@ -425,6 +443,25 @@ services:
       - openlmis-requisition
       - openlmis-stockmanagement
       - openlmis-notification
+    networks:
+      - health-net
+
+  # --- NOTIFICATION SINK (sandbox SMS/push/email webhook recorder) ---
+  # Accepts POST /sms, /push, /email; records all in memory.
+  # Email payloads are also forwarded to MailHog via SMTP (port 1025).
+  # GET /history returns all received notifications for e2e verification.
+  # DELETE /history clears the log between test runs.
+  notification-sink:
+    build: ./notification-sink
+    container_name: notification-sink
+    ports:
+      - "8086:3001"
+    environment:
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - EMAIL_FROM=mediator@lesotho.health
+    depends_on:
+      - mailhog
     networks:
       - health-net
 

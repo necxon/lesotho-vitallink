@@ -128,7 +128,9 @@ function loadMappings() {
       if (row.type === 'performer' && row.source_id) {
         PERFORMER_MAP[row.source_id.trim()] = {
           facilityId: row.target_facility_id.trim(),
-          programId: row.target_program_id?.trim() || CONFIG.lmis.program
+          programId: row.target_program_id?.trim() || CONFIG.lmis.program,
+          phone: row.phone?.trim() || null,
+          email: row.email?.trim() || null
         };
       } else if (row.type === 'medication' && row.source_id) {
         MEDICATION_MAP[row.source_id.trim()] = row.target_orderable_id.trim();
@@ -213,6 +215,147 @@ function clearRetryQueue() {
 }
 
 // =============================================================================
+// NOTIFICATION THROTTLE
+// =============================================================================
+//
+// Prevents notification spam by enforcing a per-channel, per-recipient,
+// per-event cooldown window.
+//
+// Env vars (0 = no throttle; defaults are set in docker-compose.yml):
+//   NOTIFY_SMS_THROTTLE_MS    — min ms between SMS to the same recipient+event
+//   NOTIFY_PUSH_THROTTLE_MS   — same for push
+//   NOTIFY_EMAIL_THROTTLE_MS  — same for email
+
+const _notifCooldowns = new Map(); // key → timestamp of last successful send
+
+function _throttleKey(channel, eventType, recipient) {
+  return `${channel}:${eventType}:${recipient || '_'}`;
+}
+
+function _throttleMs(channel) {
+  const envKey = `NOTIFY_${channel.toUpperCase()}_THROTTLE_MS`;
+  return parseInt(process.env[envKey] || '0', 10);
+}
+
+function _canSend(channel, eventType, recipient) {
+  const ms = _throttleMs(channel);
+  if (ms <= 0) return true;
+  const last = _notifCooldowns.get(_throttleKey(channel, eventType, recipient)) || 0;
+  return (Date.now() - last) >= ms;
+}
+
+function _markSent(channel, eventType, recipient) {
+  const ms = _throttleMs(channel);
+  if (ms <= 0) return;
+  _notifCooldowns.set(_throttleKey(channel, eventType, recipient), Date.now());
+}
+
+function clearNotifCooldowns() {
+  _notifCooldowns.clear();
+}
+
+// =============================================================================
+// VHW NOTIFICATIONS  (Job 5 — Notifications)
+// =============================================================================
+//
+// Configurable via environment variables:
+//   NOTIFY_SMS_ENABLED=true|false   — master SMS toggle (default: false)
+//   NOTIFY_PUSH_ENABLED=true|false  — master push toggle (default: false)
+//   NOTIFY_ON_DISPENSE=true|false   — fire after confirmed dispense
+//   NOTIFY_ON_LOW_STOCK=true|false  — fire when post-dispense SOH < threshold
+//   NOTIFY_ON_RECEIPT=true|false    — fire after confirmed receipt
+//   NOTIFY_LOW_STOCK_THRESHOLD=20   — SOH units that trigger low-stock alert
+//   NOTIFY_SMS_URL                  — HTTP(S) endpoint for SMS gateway
+//   NOTIFY_PUSH_URL                 — HTTP(S) endpoint for push gateway (FCM-style)
+//   NOTIFY_PUSH_API_KEY             — Authorization key for push gateway
+//   NOTIFY_EMAIL_ENABLED=true|false — master email toggle (default: false)
+//   NOTIFY_EMAIL_URL                — HTTP(S) endpoint that accepts {to,subject,body,event}
+//   NOTIFY_EMAIL_FROM               — From address shown in delivered emails
+
+function _notifMessage(ev) {
+  switch (ev.type) {
+    case 'dispense':
+      return `Dispense confirmed: ${ev.qty} units of ${ev.medication} dispensed to ${ev.patient}`;
+    case 'receipt':
+      return `Receipt recorded: ${ev.qty} units of ${ev.medication} received at facility`;
+    case 'low-stock':
+      return `ALERT: Stock low — ${ev.medication} has ${ev.newSoh} units remaining (threshold: ${ev.threshold})`;
+    default:
+      return `Notification: ${ev.type}`;
+  }
+}
+
+/**
+ * Sends SMS, push, and/or email notifications for one or more events.
+ * All failures are swallowed — notifications must never block the main flow.
+ *
+ * @param {Array<{type,medication,qty,patient?,newSoh?,threshold?}>} events
+ * @param {string|null} phone  VHW phone number (from PERFORMER_MAP)
+ * @param {string|null} email  VHW email address (from PERFORMER_MAP)
+ */
+async function sendNotifications(events, phone, email) {
+  const smsEnabled   = process.env.NOTIFY_SMS_ENABLED   === 'true';
+  const pushEnabled  = process.env.NOTIFY_PUSH_ENABLED  === 'true';
+  const emailEnabled = process.env.NOTIFY_EMAIL_ENABLED === 'true';
+  if (!smsEnabled && !pushEnabled && !emailEnabled) return;
+
+  const smsUrl   = process.env.NOTIFY_SMS_URL;
+  const pushUrl  = process.env.NOTIFY_PUSH_URL;
+  const emailUrl = process.env.NOTIFY_EMAIL_URL;
+  const apiKey   = process.env.NOTIFY_PUSH_API_KEY || '';
+  const emailFrom = process.env.NOTIFY_EMAIL_FROM || 'mediator@lesotho.health';
+
+  const promises = [];
+
+  for (const ev of events) {
+    const message = _notifMessage(ev);
+    const title   = ev.type === 'low-stock' ? 'Low Stock Alert' : 'Stock Update';
+
+    if (smsEnabled && smsUrl && phone) {
+      if (_canSend('sms', ev.type, phone)) {
+        promises.push(
+          axios.post(smsUrl, { to: phone, message, event: ev.type }, { timeout: TIMEOUT_MS })
+            .then(() => { _markSent('sms', ev.type, phone); logger.info(`SMS sent: event=${ev.type} to=${phone}`); })
+            .catch(e => logger.warn(`SMS notification failed (event=${ev.type}): ${e.message}`))
+        );
+      } else {
+        logger.info(`SMS throttled: event=${ev.type} to=${phone} (cooldown active)`);
+      }
+    }
+
+    if (pushEnabled && pushUrl) {
+      const pushRecipient = phone || 'vhw';
+      if (_canSend('push', ev.type, pushRecipient)) {
+        const pushHeaders = apiKey ? { Authorization: `key=${apiKey}` } : {};
+        promises.push(
+          axios.post(pushUrl, { to: pushRecipient, title, body: message, event: ev.type },
+            { headers: pushHeaders, timeout: TIMEOUT_MS })
+            .then(() => { _markSent('push', ev.type, pushRecipient); logger.info(`Push sent: event=${ev.type}`); })
+            .catch(e => logger.warn(`Push notification failed (event=${ev.type}): ${e.message}`))
+        );
+      } else {
+        logger.info(`Push throttled: event=${ev.type} (cooldown active)`);
+      }
+    }
+
+    if (emailEnabled && emailUrl && email) {
+      if (_canSend('email', ev.type, email)) {
+        promises.push(
+          axios.post(emailUrl, { to: email, from: emailFrom, subject: title, body: message, event: ev.type },
+            { timeout: TIMEOUT_MS })
+            .then(() => { _markSent('email', ev.type, email); logger.info(`Email sent: event=${ev.type} to=${email}`); })
+            .catch(e => logger.warn(`Email notification failed (event=${ev.type}): ${e.message}`))
+        );
+      } else {
+        logger.info(`Email throttled: event=${ev.type} to=${email} (cooldown active)`);
+      }
+    }
+  }
+
+  await Promise.all(promises);
+}
+
+// =============================================================================
 // STOCK VALIDATION GATE  (Job 3 — Safety Gate)
 // =============================================================================
 
@@ -236,7 +379,7 @@ async function checkStock(identity, quantity) {
     }
     const soh = content[0].stockOnHand;
     logger.debug(`Stock check: SOH=${soh} requested=${quantity}`);
-    if (soh >= quantity) return { ok: true };
+    if (soh >= quantity) return { ok: true, stockOnHand: soh };
     return { ok: false, stockOnHand: soh, requested: quantity };
   } catch (err) {
     logger.warn(`Stock check failed (fail-open): ${err.message}`);
@@ -424,9 +567,9 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     const isReceipt   = resource.type?.coding?.some(c => c.code === receiptCode) ?? false;
     const dhis2DE     = isReceipt ? process.env.DHIS2_DE_STOCK_RECEIVED : undefined;
 
-    // Job 3: Safety Gate
+    // Job 3: Safety Gate (skip for receipts — adding stock is never blocked)
     const qty   = resource.quantity?.value || 0;
-    const stock = await checkStock(identity, qty);
+    const stock = isReceipt ? { ok: true } : await checkStock(identity, qty);
     if (!stock.ok) {
       logger.warn(`Insufficient stock: SOH=${stock.stockOnHand} requested=${stock.requested}`);
       return res
@@ -455,6 +598,35 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
 
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? qty : -qty;
+    }
+
+    // Job 5: VHW Notifications (non-blocking; failures are swallowed inside sendNotifications)
+    if (lmis.status === 'fulfilled') {
+      const vhw       = PERFORMER_MAP[performer] || {};
+      const phone     = vhw.phone || null;
+      const vhwEmail  = vhw.email || null;
+      const medCode   = resource.medicationCodeableConcept?.coding?.[0]?.code || 'unknown';
+      const patient   = resource.subject?.reference || 'unknown';
+      const threshold = parseInt(process.env.NOTIFY_LOW_STOCK_THRESHOLD || '20', 10);
+      const eventsToNotify = [];
+
+      if (!isReceipt && process.env.NOTIFY_ON_DISPENSE === 'true') {
+        eventsToNotify.push({ type: 'dispense', qty, medication: medCode, patient });
+      }
+      if (isReceipt && process.env.NOTIFY_ON_RECEIPT === 'true') {
+        eventsToNotify.push({ type: 'receipt', qty, medication: medCode, patient });
+      }
+      if (!isReceipt && process.env.NOTIFY_ON_LOW_STOCK === 'true' && stock.stockOnHand !== undefined) {
+        const newSoh = stock.stockOnHand - qty;
+        if (newSoh < threshold) {
+          eventsToNotify.push({ type: 'low-stock', medication: medCode, newSoh, threshold });
+        }
+      }
+
+      if (eventsToNotify.length > 0) {
+        sendNotifications(eventsToNotify, phone, vhwEmail)
+          .catch(e => logger.warn(`Notification batch failed: ${e.message}`));
+      }
     }
 
     const allOk = [opensrp, dhis, lmis].every(r => r.status === 'fulfilled');
@@ -516,7 +688,7 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
       throw new Error(`No mapping for performer=${performer} medication=${medCode}`);
     }
 
-    const stock = await checkStock(identity, quantity);
+    const stock = isReceipt ? { ok: true } : await checkStock(identity, quantity);
     if (!stock.ok) {
       return res.status(422).set('x-mediator-urn', mediatorConfig.urn).json({
         status: 'Rejected', reason: 'insufficient-stock',
@@ -536,6 +708,34 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     }
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? quantity : -quantity;
+    }
+
+    // Job 5: VHW Notifications
+    if (lmis.status === 'fulfilled') {
+      const vhw       = PERFORMER_MAP[performer] || {};
+      const phone     = vhw.phone || null;
+      const vhwEmail  = vhw.email || null;
+      const threshold = parseInt(process.env.NOTIFY_LOW_STOCK_THRESHOLD || '20', 10);
+      const patient   = qr.subject?.reference || 'unknown';
+      const eventsToNotify = [];
+
+      if (!isReceipt && process.env.NOTIFY_ON_DISPENSE === 'true') {
+        eventsToNotify.push({ type: 'dispense', qty: quantity, medication: medCode, patient });
+      }
+      if (isReceipt && process.env.NOTIFY_ON_RECEIPT === 'true') {
+        eventsToNotify.push({ type: 'receipt', qty: quantity, medication: medCode, patient });
+      }
+      if (!isReceipt && process.env.NOTIFY_ON_LOW_STOCK === 'true' && stock.stockOnHand !== undefined) {
+        const newSoh = stock.stockOnHand - quantity;
+        if (newSoh < threshold) {
+          eventsToNotify.push({ type: 'low-stock', medication: medCode, newSoh, threshold });
+        }
+      }
+
+      if (eventsToNotify.length > 0) {
+        sendNotifications(eventsToNotify, phone, vhwEmail)
+          .catch(e => logger.warn(`QR notification batch failed: ${e.message}`));
+      }
     }
 
     const allOk = [opensrp, dhis, lmis].every(r => r.status === 'fulfilled');
@@ -575,4 +775,4 @@ utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
 // EXPORTS  (used by Jest unit tests)
 // =============================================================================
 
-module.exports = { app, mediatorConfig, clearRetryQueue };
+module.exports = { app, mediatorConfig, clearRetryQueue, clearNotifCooldowns };

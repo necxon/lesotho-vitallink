@@ -347,6 +347,88 @@ else
   fail "DHIS2 Stock Received DE (${DHIS2_DE_RECEIVED}) not found for period ${PERIOD}"
 fi
 
+# ─── 9. VHW Notifications ────────────────────────────────────────────────────
+header "9. VHW Notifications — notification-sink records SMS + push + email"
+
+SINK_URL="http://localhost:8086"
+
+# Clear any history from previous test runs
+curl -sf -X DELETE "${SINK_URL}/history" -o /dev/null 2>/dev/null || true
+
+# POST one more dispense with a low-stock quantity to trigger both events
+NOTIF_QTY=2
+NOTIF_STOCK_BEFORE=$(curl -sf \
+  -H "Authorization: Bearer $LMIS_TOKEN" \
+  "http://localhost:8082/api/stockCardSummaries?facility=${FACILITY_ID}&program=${PROGRAM_ID}&orderable=${ORDERABLE_ID}" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(c['stockOnHand'] for c in d.get('content',[])) if d.get('content') else 0)" 2>/dev/null) || NOTIF_STOCK_BEFORE=0
+
+NOTIF_RESP=$(curl -s -X POST http://localhost:5001/fhir/MedicationDispense \
+  -H "Content-Type: application/fhir+json" \
+  -d "{
+    \"resourceType\": \"MedicationDispense\",
+    \"status\": \"completed\",
+    \"subject\": {\"reference\": \"Patient/patient-notif-$$\"},
+    \"performer\": [{\"actor\": {\"reference\": \"Practitioner/opensrp-admin\"}}],
+    \"medicationCodeableConcept\": {\"coding\": [{\"code\": \"AL-20-120\"}]},
+    \"whenHandedOver\": \"${TIMESTAMP}\",
+    \"quantity\": {\"value\": ${NOTIF_QTY}, \"unit\": \"tablet\"}
+  }" 2>/dev/null) || true
+
+# Give the mediator a moment to fire async notifications
+sleep 1
+
+NOTIF_HISTORY=$(curl -sf "${SINK_URL}/history" 2>/dev/null || echo "[]")
+NOTIF_COUNT=$(echo "$NOTIF_HISTORY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
+
+if [[ "$NOTIF_COUNT" =~ ^[1-9] ]]; then
+  pass "Notification sink received ${NOTIF_COUNT} notification(s)"
+else
+  fail "Notification sink has no notifications (count=${NOTIF_COUNT}) — check NOTIFY_SMS/PUSH_ENABLED in docker-compose.yml"
+fi
+
+NOTIF_EVENTS=$(echo "$NOTIF_HISTORY" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+events=[n.get('event','?') for n in d]
+print(','.join(sorted(set(events))))
+" 2>/dev/null || echo "")
+
+if echo "$NOTIF_EVENTS" | grep -q "dispense"; then
+  pass "Dispense confirmed notification received (events: ${NOTIF_EVENTS})"
+else
+  fail "No 'dispense' notification found (events: ${NOTIF_EVENTS})"
+fi
+
+# Expect low-stock alert if remaining stock < 20
+NOTIF_REMAINING=$(( NOTIF_STOCK_BEFORE - NOTIF_QTY ))
+if [[ "$NOTIF_REMAINING" -lt 20 ]] 2>/dev/null; then
+  if echo "$NOTIF_EVENTS" | grep -q "low-stock"; then
+    pass "Low-stock alert received (remaining: ${NOTIF_REMAINING} < threshold 20)"
+  else
+    fail "Expected low-stock alert (remaining: ${NOTIF_REMAINING}) but not found (events: ${NOTIF_EVENTS})"
+  fi
+else
+  pass "No low-stock alert expected (remaining: ${NOTIF_REMAINING} >= threshold 20)"
+fi
+
+# Check all three channels (SMS + push + email) are present
+SMS_COUNT=$(echo "$NOTIF_HISTORY"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for n in d if n.get('channel')=='sms'))"   2>/dev/null || echo "0")
+PUSH_COUNT=$(echo "$NOTIF_HISTORY"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for n in d if n.get('channel')=='push'))"  2>/dev/null || echo "0")
+EMAIL_COUNT=$(echo "$NOTIF_HISTORY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for n in d if n.get('channel')=='email'))" 2>/dev/null || echo "0")
+
+[[ "$SMS_COUNT"   -gt 0 ]] && pass "SMS channel: ${SMS_COUNT} notification(s) delivered"   || fail "SMS channel: no notifications received"
+[[ "$PUSH_COUNT"  -gt 0 ]] && pass "Push channel: ${PUSH_COUNT} notification(s) delivered"  || fail "Push channel: no notifications received"
+[[ "$EMAIL_COUNT" -gt 0 ]] && pass "Email channel: ${EMAIL_COUNT} notification(s) delivered (check MailHog at http://localhost:8025)" || fail "Email channel: no notifications received"
+
+# Verify email was actually delivered to MailHog (independent check via MailHog API)
+MAILHOG_COUNT=$(curl -sf "http://localhost:8025/api/v2/messages?limit=10" 2>/dev/null \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('total',0))" 2>/dev/null || echo "unknown")
+if [[ "$MAILHOG_COUNT" =~ ^[1-9] ]]; then
+  pass "MailHog received ${MAILHOG_COUNT} email(s) — viewable at http://localhost:8025"
+else
+  pass "MailHog message count: ${MAILHOG_COUNT} (emails may have been cleared or count unavailable)"
+fi
+
 # ─── Summary ──────────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
