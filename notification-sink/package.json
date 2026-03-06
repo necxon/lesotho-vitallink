@@ -1,0 +1,10 @@
+{
+  "name": "notification-sink",
+  "version": "1.0.0",
+  "description": "Sandbox notification sink: records SMS/push/email and delivers email via MailHog SMTP",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  }
+}
