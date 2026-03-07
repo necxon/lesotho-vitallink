@@ -17,22 +17,55 @@
     {
       "resource": {
         "resourceType": "SearchParameter",
+        "name": "type",
+        "code": "type",
+        "base": [
+          "Group"
+        ],
+        "type": "token",
+        "expression": "person,medication"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
+        "name": "code",
+        "code": "code",
+        "base": [
+          "Observation"
+        ],
+        "type": "token",
+        "expression": "386452003"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
+        "name": "measure",
+        "code": "measure",
+        "base": [
+          "MeasureReport"
+        ],
+        "type": "uri",
+        "expression": "https://fhir.labs.smartregister.org/fhir/Measure/STOCKIND02,https://fhir.labs.smartregister.org/fhir/Measure/SERVICEIND01,https://fhir.labs.smartregister.org/fhir/Measure/VHWIND01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
         "name": "_id",
         "code": "_id",
         "base": [
-          "Observation",
           "Condition",
           "CarePlan",
           "QuestionnaireResponse",
           "Questionnaire",
           "StructureMap",
           "Task",
-          "Group",
           "PlanDefinition",
           "RelatedPerson",
           "Library",
           "Measure",
-          "MeasureReport",
           "Flag",
           "List"
         ]

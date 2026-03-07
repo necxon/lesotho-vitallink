@@ -6,32 +6,7 @@
   "fhirResource": {
     "baseResource": {
       "resource": "Group",
-      "dataQueries": [
-        {
-          "paramName": "type",
-          "filterCriteria": [
-            {
-              "dataType": "CODE",
-              "value": {
-                "system": "http://hl7.org/fhir/group-type",
-                "code": "person"
-              }
-            }
-          ]
-        },
-        {
-          "paramName": "code",
-          "filterCriteria": [
-            {
-              "dataType": "CODE",
-              "value": {
-                "system": "https://www.snomed.org",
-                "code": "35359004"
-              }
-            }
-          ]
-        }
-      ],
+      "dataQueries": [],
       "sortConfigs": [
         {
           "paramName": "_lastUpdated",

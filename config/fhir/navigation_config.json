@@ -250,6 +250,50 @@
       ]
     },
     {
+      "id": "stockOrderMenu",
+      "visible": true,
+      "display": "Stock Order",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_inventory"
+      },
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_QUESTIONNAIRE",
+          "questionnaire": {
+            "id": "qn-stock-order",
+            "title": "Stock Order",
+            "saveButtonText": "Submit Order",
+            "setPractitionerDetails": false,
+            "setOrganizationDetails": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "stockDispenseMenu",
+      "visible": true,
+      "display": "Stock Dispense",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_inventory"
+      },
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_QUESTIONNAIRE",
+          "questionnaire": {
+            "id": "qn-stock-mgmt-dispense",
+            "title": "Dispense Medication",
+            "saveButtonText": "Submit",
+            "setPractitionerDetails": true,
+            "setOrganizationDetails": true
+          }
+        }
+      ]
+    },
+    {
       "id": "serviceDeliveryReports",
       "visible": true,
       "display": "Service Delivery Reports",

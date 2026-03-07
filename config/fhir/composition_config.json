@@ -156,6 +156,15 @@
               "value": "tbRegister"
             }
           }
+        },
+        {
+          "title": "Inventory register configuration",
+          "focus": {
+            "reference": "Binary/inv-register-config-001",
+            "identifier": {
+              "value": "inventoryRegister"
+            }
+          }
         }
       ]
     },
@@ -187,6 +196,15 @@
             "reference": "Binary/a6d69650-4806-4bb1-bd2b-a60fa18418a0e",
             "identifier": {
               "value": "otherRegistersProfile"
+            }
+          }
+        },
+        {
+          "title": "Inventory profile configuration",
+          "focus": {
+            "reference": "Binary/inv-profile-config-001",
+            "identifier": {
+              "value": "inventoryProfile"
             }
           }
         }
@@ -230,11 +248,31 @@
       "mode": "working",
       "section": [
         {
+          "title": "Stock Order",
+          "focus": {
+            "reference": "Questionnaire/qn-stock-order",
+            "identifier": {
+              "value": "stock-order"
+            }
+          },
+          "mode": "working"
+        },
+        {
           "title": "Add household",
           "focus": {
             "reference": "Questionnaire/f210a832-857f-49e6-93f5-399eec4f4edb",
             "identifier": {
               "value": "household-registration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Stock Dispense",
+          "focus": {
+            "reference": "Questionnaire/qn-stock-mgmt-dispense",
+            "identifier": {
+              "value": "stock-dispense"
             }
           },
           "mode": "working"

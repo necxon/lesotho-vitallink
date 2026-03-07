@@ -923,8 +923,9 @@ fhir_put Patient patient-010 \
 
 # 9f. Groups (catchment populations per VHW)
 fhir_put Group group-ha-mokoena \
-  '{"resourceType":"Group","id":"group-ha-mokoena","type":"person","actual":true,
-    "name":"Ha Mokoena — Thabo Mokoena catchment",
+  '{"resourceType":"Group","id":"group-ha-mokoena","type":"person","actual":true,"active":true,
+    "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
+    "name":"Ha Mokoena - Thabo Mokoena catchment",
     "managingEntity":{"reference":"Practitioner/prac-thabo-mokoena"},
     "member":[
       {"entity":{"reference":"Patient/patient-001"}},
@@ -932,8 +933,9 @@ fhir_put Group group-ha-mokoena \
       {"entity":{"reference":"Patient/patient-003"}}]}'
 
 fhir_put Group group-ha-sehlabane \
-  '{"resourceType":"Group","id":"group-ha-sehlabane","type":"person","actual":true,
-    "name":"Ha Sehlabane — Lineo Nthabi catchment",
+  '{"resourceType":"Group","id":"group-ha-sehlabane","type":"person","actual":true,"active":true,
+    "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
+    "name":"Ha Sehlabane - Lineo Nthabi catchment",
     "managingEntity":{"reference":"Practitioner/prac-lineo-nthabi"},
     "member":[
       {"entity":{"reference":"Patient/patient-004"}},
@@ -941,8 +943,9 @@ fhir_put Group group-ha-sehlabane \
       {"entity":{"reference":"Patient/patient-006"}}]}'
 
 fhir_put Group group-matsieng \
-  '{"resourceType":"Group","id":"group-matsieng","type":"person","actual":true,
-    "name":"Matsieng — Mpho Lerotholi catchment",
+  '{"resourceType":"Group","id":"group-matsieng","type":"person","actual":true,"active":true,
+    "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
+    "name":"Matsieng - Mpho Lerotholi catchment",
     "managingEntity":{"reference":"Practitioner/prac-mpho-lerotholi"},
     "member":[
       {"entity":{"reference":"Patient/patient-007"}},
@@ -1046,16 +1049,41 @@ for bid, rel in binaries:
     upload_binary(bid, rel)
 
 # ── Group: AL 20/120mg commodity ──────────────────────────────────────────────
-# inventoryRegister queries Group?code=http://snomed.info/sct|386452003
+# inventoryRegister syncs via Group?type=medication; local filter uses code=386452003
+# active:true required — FHIR SDK local search requires Group.active=true
 fhir_put("Group", "commodity-al-20-120", {
     "resourceType": "Group",
     "id":           "commodity-al-20-120",
+    "active":       True,
     "type":         "medication",
     "actual":       True,
     "name":         "AL 20/120mg",
     "code": {"coding": [{"system": "http://snomed.info/sct",
                          "code": "386452003",
                          "display": "Supply inventory item"}]},
+})
+
+# ── Observation: initial stock balance for inventory register ─────────────────
+# inventoryRegister reads runningBalance from Observation.component[0].value.value
+# where status=preliminary, subject=Group/commodity-al-20-120
+import datetime as _dt
+_today = _dt.date.today().isoformat()
+fhir_put("Observation", "obs-stock-al-20-120", {
+    "resourceType":     "Observation",
+    "id":               "obs-stock-al-20-120",
+    "status":           "preliminary",
+    "code": {"coding": [{"system": "http://snomed.info/sct",
+                         "code": "386452003",
+                         "display": "Stock on hand"}]},
+    "subject":          {"reference": "Group/commodity-al-20-120"},
+    "effectiveDateTime": _today,
+    "component": [
+        {"code": {"coding": [{"system": "http://snomed.info/sct",
+                              "code": "386452003",
+                              "display": "Running balance"}]},
+         "valueQuantity": {"value": 10000, "unit": "tablet",
+                           "system": "http://unitsofmeasure.org", "code": "{tablet}"}}
+    ]
 })
 
 # ── Questionnaire: stock dispense ─────────────────────────────────────────────
@@ -1076,6 +1104,68 @@ fhir_put("Questionnaire", "qn-stock-dispense", {
          "initial": [{"valueInteger": 6}]},
         {"linkId": "date",      "text": "Date dispensed",
          "type": "date",        "required": True},
+    ]
+})
+
+# ── Questionnaire: stock management dispense form ─────────────────────────────
+fhir_put("Questionnaire", "qn-stock-mgmt-dispense", {
+    "resourceType": "Questionnaire",
+    "id":     "qn-stock-mgmt-dispense",
+    "title":  "Dispense Medication",
+    "status": "active",
+    "subjectType": ["Patient"],
+    "item": [
+        {"linkId": "medication_name",
+         "text": "Select Item",
+         "type": "choice",
+         "required": True,
+         "answerOption": [
+             {"valueCoding": {"code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"code": "rdt-kit",            "display": "RDT Kit"}},
+             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syr."}},
+         ]},
+        {"linkId": "batch_number",
+         "text": "Batch Number",
+         "type": "string",
+         "required": True},
+        {"linkId": "quantity_dispensed",
+         "text": "Quantity",
+         "type": "integer"},
+        {"linkId": "expiry_date",
+         "text": "Expiry Date",
+         "type": "date"},
+    ]
+})
+
+# ── Questionnaire: stock order ────────────────────────────────────────────────
+fhir_put("Questionnaire", "qn-stock-order", {
+    "resourceType": "Questionnaire",
+    "id":     "qn-stock-order",
+    "url":    "http://10.0.2.2:8079/fhir/Questionnaire/qn-stock-order",
+    "title":  "Stock Order",
+    "status": "active",
+    "subjectType": ["Patient"],
+    "item": [
+        {"linkId": "order_item",
+         "text": "Select Item",
+         "type": "choice",
+         "required": True,
+         "answerOption": [
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "AL-20-120",          "display": "AL 20/120mg"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "rdt-kit",            "display": "RDT Kit"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "paracetamol-syr",    "display": "Paracetamol Syr."}},
+         ]},
+        {"linkId": "order_quantity",
+         "text": "Quantity Requested",
+         "type": "integer",
+         "required": True},
+        {"linkId": "order_date",
+         "text": "Order Date",
+         "type": "date"},
+        {"linkId": "order_notes",
+         "text": "Notes",
+         "type": "string"},
     ]
 })
 
@@ -1103,37 +1193,12 @@ fhir_put("Questionnaire", "qn-stock-count", {
 # Load the bundled composition and modify it for HAPI FHIR:
 #   - id "214558" → "app-composition" (HAPI rejects purely numeric IDs)
 #   - strip meta (version conflicts on re-seed)
-#   - add inventoryRegister + inventoryProfile sections
 comp_path = os.path.join(CONFIGS, "composition_config.json")
 with open(comp_path) as f:
     comp = json.load(f)
 
 comp["id"] = "app-composition"
 comp.pop("meta", None)
-
-# Add inventoryRegister to the "Register configurations" nested section
-for s in comp["section"]:
-    if s.get("title") == "Register configurations":
-        s.setdefault("section", []).append({
-            "title": "Inventory register configuration",
-            "focus": {
-                "reference": "Binary/inv-register-config-001",
-                "identifier": {"value": "inventoryRegister"},
-            },
-        })
-        break
-
-# Add inventoryProfile to the "Profile configurations" nested section
-for s in comp["section"]:
-    if s.get("title") == "Profile configurations":
-        s.setdefault("section", []).append({
-            "title": "Inventory profile configuration",
-            "focus": {
-                "reference": "Binary/inv-profile-config-001",
-                "identifier": {"value": "inventoryProfile"},
-            },
-        })
-        break
 
 fhir_put("Composition", "app-composition", comp)
 

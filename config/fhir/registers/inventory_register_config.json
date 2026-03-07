@@ -87,7 +87,7 @@
         "priority": 1,
         "condition": "true",
         "actions": [
-          "data.put('latestObservation', service.filterResources(Observation, 'Observation.status = \"preliminary\"').get(0))"
+          "var obs = service.filterResources(Observation, 'Observation.status = \"preliminary\"'); data.put('latestObservation', obs.size() > 0 ? obs.get(0) : null)"
         ]
       },
       {
@@ -127,7 +127,7 @@
         "priority": 1,
         "condition": "true",
         "actions": [
-          "data.put('activeStockOutFlag', service.filterResources(stockOutFlags, 'Flag.status = \"active\"').get(0))"
+          "var flags = service.filterResources(stockOutFlags, 'Flag.status = \"active\"'); data.put('activeStockOutFlag', flags.size() > 0 ? flags.get(0) : null)"
         ]
       },
       {
@@ -151,7 +151,7 @@
         "priority": 1,
         "condition": "true",
         "actions": [
-          "data.put('amcMeasureReport', service.filterResources(measureReports, 'MeasureReport.measure = \"https://fhir.labs.smartregister.org/fhir/Measure/STOCKIND02\"').get(0))"
+          "var mrs = service.filterResources(measureReports, 'MeasureReport.measure = \"https://fhir.labs.smartregister.org/fhir/Measure/STOCKIND02\"'); data.put('amcMeasureReport', mrs.size() > 0 ? mrs.get(0) : null)"
         ]
       },
       {
