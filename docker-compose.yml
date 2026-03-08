@@ -93,6 +93,8 @@ services:
       - OPENHIM_USER=root@openhim.org
       - OPENHIM_PASS=openhim-password
       - OPENSRP_URL=http://opensrp-server:8080
+      - OPENSRP_CLIENT_ID=bkm-mediator
+      - OPENSRP_CLIENT_SECRET=mediator-secret
       - KEYCLOAK_URL=http://keycloak:8080
       - DHIS2_URL=http://dhis2-web:8080
       - DHIS2_USER=admin

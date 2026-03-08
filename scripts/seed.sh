@@ -924,6 +924,7 @@ fhir_put Patient patient-010 \
 # 9f. Groups (catchment populations per VHW)
 fhir_put Group group-ha-mokoena \
   '{"resourceType":"Group","id":"group-ha-mokoena","type":"person","actual":true,"active":true,
+    "identifier":[{"use":"official","value":"HH-001"}],
     "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
     "name":"Ha Mokoena - Thabo Mokoena catchment",
     "managingEntity":{"reference":"Practitioner/prac-thabo-mokoena"},
@@ -934,6 +935,7 @@ fhir_put Group group-ha-mokoena \
 
 fhir_put Group group-ha-sehlabane \
   '{"resourceType":"Group","id":"group-ha-sehlabane","type":"person","actual":true,"active":true,
+    "identifier":[{"use":"official","value":"HH-002"}],
     "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
     "name":"Ha Sehlabane - Lineo Nthabi catchment",
     "managingEntity":{"reference":"Practitioner/prac-lineo-nthabi"},
@@ -944,6 +946,7 @@ fhir_put Group group-ha-sehlabane \
 
 fhir_put Group group-matsieng \
   '{"resourceType":"Group","id":"group-matsieng","type":"person","actual":true,"active":true,
+    "identifier":[{"use":"official","value":"HH-003"}],
     "code":{"coding":[{"system":"https://www.snomed.org","code":"35359004","display":"Family"}]},
     "name":"Matsieng - Mpho Lerotholi catchment",
     "managingEntity":{"reference":"Practitioner/prac-mpho-lerotholi"},
@@ -968,6 +971,30 @@ fhir_put CareTeam team-maseru-north \
        "member":{"reference":"Practitioner/prac-mpho-lerotholi"}}]}'
 
 log "HAPI FHIR seeded: 1 org, 6 locations, 3 VHWs, 4 roles, 10 patients, 3 groups, 1 care team."
+
+# ─── 9g. Seed RelatedPerson (head of household) ──────────────────────────────
+# The householdProfile Binary config has a familyHeadId JEXL rule that calls
+# .get(0) on RelatedPerson resources filtered by code 99990006 (Head of Household).
+# One RelatedPerson per group is required; linked to the head patient via .patient.
+fhir_put RelatedPerson rp-head-ha-mokoena \
+  '{"resourceType":"RelatedPerson","id":"rp-head-ha-mokoena","active":true,
+    "patient":{"reference":"Patient/patient-001"},
+    "relationship":[{"coding":[{"system":"https://www.snomed.org","code":"99990006","display":"Head of Household"}]}],
+    "name":[{"use":"official","text":"Thabo Mokoena"}]}'
+
+fhir_put RelatedPerson rp-head-ha-sehlabane \
+  '{"resourceType":"RelatedPerson","id":"rp-head-ha-sehlabane","active":true,
+    "patient":{"reference":"Patient/patient-004"},
+    "relationship":[{"coding":[{"system":"https://www.snomed.org","code":"99990006","display":"Head of Household"}]}],
+    "name":[{"use":"official","text":"Lineo Nthabi"}]}'
+
+fhir_put RelatedPerson rp-head-matsieng \
+  '{"resourceType":"RelatedPerson","id":"rp-head-matsieng","active":true,
+    "patient":{"reference":"Patient/patient-007"},
+    "relationship":[{"coding":[{"system":"https://www.snomed.org","code":"99990006","display":"Head of Household"}]}],
+    "name":[{"use":"official","text":"Mpho Lerotholi"}]}'
+
+log "RelatedPerson (head of household) seeded for 3 groups."
 
 # ─── 9h. OpenSRP app config: IG + Composition + Binaries ─────────────────────
 # The OpenSRP FHIR Core Android app downloads its navigation/form configuration
@@ -1083,6 +1110,33 @@ fhir_put("Observation", "obs-stock-al-20-120", {
                               "display": "Running balance"}]},
          "valueQuantity": {"value": 10000, "unit": "tablet",
                            "system": "http://unitsofmeasure.org", "code": "{tablet}"}}
+    ]
+})
+
+# ── Questionnaire: household registration ─────────────────────────────────────
+fhir_put("Questionnaire", "f210a832-857f-49e6-93f5-399eec4f4edb", {
+    "resourceType": "Questionnaire",
+    "id":           "f210a832-857f-49e6-93f5-399eec4f4edb",
+    "status":       "active",
+    "title":        "Add Household",
+    "subjectType":  ["Group"],
+    "extension": [{
+        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+        "valueCanonical": "http://fhir.lesotho.org/fhir/StructureMap/household-registration"
+    }],
+    "item": [
+        {"linkId": "household-name", "text": "Household Name / Village", "type": "string", "required": True},
+        {"linkId": "head-group", "text": "Head of Household", "type": "group", "item": [
+            {"linkId": "head-first-name", "text": "First Name",   "type": "string", "required": True},
+            {"linkId": "head-last-name",  "text": "Last Name",    "type": "string", "required": True},
+            {"linkId": "head-gender",     "text": "Sex",          "type": "choice", "required": True,
+             "answerOption": [
+                 {"valueCoding": {"code": "male",   "display": "Male"}},
+                 {"valueCoding": {"code": "female", "display": "Female"}}
+             ]},
+            {"linkId": "head-dob",   "text": "Date of Birth", "type": "date"},
+            {"linkId": "head-phone", "text": "Phone Number",  "type": "string"}
+        ]}
     ]
 })
 
@@ -1223,7 +1277,7 @@ fhir_put("ImplementationGuide", "ig-lesotho-vhw", {
     },
 })
 
-print(f"OpenSRP app config seeded: IG, Composition, {len(binaries)} Binaries, 2 Questionnaires, 1 commodity Group.")
+print(f"OpenSRP app config seeded: IG, Composition, {len(binaries)} Binaries, 3 Questionnaires, 1 commodity Group.")
 PYEOF
 
 # ─── 10. Generate DHIS2 analytics tables ──────────────────────────────────────

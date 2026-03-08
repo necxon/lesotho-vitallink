@@ -58,6 +58,12 @@
   },
   "users": [
     {
+      "username": "service-account-bkm-mediator",
+      "enabled": true,
+      "serviceAccountClientId": "bkm-mediator",
+      "realmRoles": ["OPENMRS", "ALL_EVENTS"]
+    },
+    {
       "username": "opensrp-admin",
       "enabled": true,
       "credentials": [
