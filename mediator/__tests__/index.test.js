@@ -84,6 +84,40 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Mock helpers for HAPI FHIR (Task CRUD used by SupplyDelivery + QR routes)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mocks axios.put for HAPI FHIR Task creation and axios.get for Task fetch.
+ * taskStatus controls what fetchStockTask returns:
+ *   'requested' — Task exists and is pending (default)
+ *   'completed' — Task already accepted (BR-04 violation)
+ *   null        — Task not found (404)
+ */
+function mockFhir({ taskStatus = 'requested' } = {}) {
+  axios.put.mockImplementation((url) => {
+    if (url.includes('/fhir/Task/')) {
+      return Promise.resolve({ data: { resourceType: 'Task', id: url.split('/Task/')[1], status: 'requested' } });
+    }
+    return Promise.reject(new Error(`Unexpected axios.put URL: ${url}`));
+  });
+
+  axios.get.mockImplementation((url) => {
+    if (url.includes('/fhir/Task/')) {
+      if (taskStatus === null) {
+        return Promise.reject(Object.assign(new Error('Not Found'), { response: { status: 404 } }));
+      }
+      return Promise.resolve({ data: { resourceType: 'Task', id: 'task-test-001', status: taskStatus } });
+    }
+    // Default stock check used by QR route
+    if (url.includes('/api/stockCardSummaries')) {
+      return Promise.resolve({ data: { content: [{ stockOnHand: 100 }] } });
+    }
+    return Promise.reject(new Error(`Unexpected axios.get URL: ${url}`));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // 1. Happy path — all three succeed
 // ---------------------------------------------------------------------------
 describe('POST /fhir/MedicationDispense — happy path', () => {
@@ -694,5 +728,307 @@ describe('notification throttling', () => {
 
     const smsCalls = axios.post.mock.calls.filter(([url]) => url.includes('/sms')).length;
     expect(smsCalls).toBe(1); // cooldown expired — sent again
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. POST /fhir/SupplyDelivery — stock issue creates a FHIR Task
+// ---------------------------------------------------------------------------
+describe('POST /fhir/SupplyDelivery', () => {
+  const SUPPLY_BODY = {
+    performer: 'Practitioner/prac-thabo-mokoena',
+    medication: 'AL-20-120',
+    quantity: 120,
+    issueRef: 'LMIS-2026-TEST',
+  };
+
+  test('returns HTTP 201 with taskId and task resource on success', async () => {
+    mockFhir();
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send(SUPPLY_BODY);
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('Created');
+    expect(res.body.taskId).toBeDefined();
+    expect(res.body.task.resourceType).toBe('Task');
+  });
+
+  test('sets x-mediator-urn response header', async () => {
+    mockFhir();
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send(SUPPLY_BODY);
+
+    expect(res.headers['x-mediator-urn']).toBe(mediatorConfig.urn);
+  });
+
+  test('returns HTTP 400 when performer is missing', async () => {
+    mockFhir();
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send({ medication: 'AL-20-120', quantity: 60 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.status).toBe('Error');
+    expect(res.body.message).toMatch(/performer/);
+  });
+
+  test('returns HTTP 400 when medication is missing', async () => {
+    mockFhir();
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send({ performer: 'Practitioner/prac-thabo-mokoena', quantity: 60 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.status).toBe('Error');
+  });
+
+  test('returns HTTP 400 when quantity is missing', async () => {
+    mockFhir();
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send({ performer: 'Practitioner/prac-thabo-mokoena', medication: 'AL-20-120' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.status).toBe('Error');
+  });
+
+  test('PUTs Task to HAPI FHIR with status=requested and correct fields', async () => {
+    mockFhir();
+
+    await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send(SUPPLY_BODY);
+
+    const putCall = axios.put.mock.calls.find(([url]) => url.includes('/fhir/Task/'));
+    expect(putCall).toBeDefined();
+
+    const task = putCall[1];
+    expect(task.status).toBe('requested');
+    expect(task.intent).toBe('order');
+    expect(task.owner.reference).toBe(SUPPLY_BODY.performer);
+    expect(task.for.reference).toBe(SUPPLY_BODY.performer);
+    expect(task.input.find(i => i.type.text === 'product').valueString).toBe('AL-20-120');
+    expect(task.input.find(i => i.type.text === 'quantity').valueInteger).toBe(120);
+    expect(task.input.find(i => i.type.text === 'issueRef').valueString).toBe('LMIS-2026-TEST');
+  });
+
+  test('returns HTTP 500 when HAPI FHIR is unreachable', async () => {
+    axios.put.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const res = await request(app)
+      .post('/fhir/SupplyDelivery')
+      .set('Content-Type', 'application/json')
+      .send(SUPPLY_BODY);
+
+    expect(res.status).toBe(500);
+    expect(res.body.status).toBe('Error');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13. POST /fhir/QuestionnaireResponse — stock acceptance with BR-04
+// ---------------------------------------------------------------------------
+describe('POST /fhir/QuestionnaireResponse', () => {
+  const QR_BODY = {
+    resourceType: 'QuestionnaireResponse',
+    status: 'completed',
+    basedOn: [{ reference: 'Task/task-test-001' }],
+    item: [
+      { linkId: 'medication', answer: [{ valueString: 'AL-20-120' }] },
+      { linkId: 'quantity',   answer: [{ valueInteger: 60 }] },
+      { linkId: 'type',       answer: [{ valueString: 'RECEIPT' }] },
+    ],
+  };
+
+  function mockQrStack({ taskStatus = 'requested', lmis, stockOnHand = 100 } = {}) {
+    if (lmis instanceof Promise) lmis.catch(() => {});
+    mockFhir({ taskStatus });
+
+    // Override get to also handle stockCardSummaries
+    const existingGet = axios.get.getMockImplementation();
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/stockCardSummaries')) {
+        return Promise.resolve({ data: { content: [{ stockOnHand }] } });
+      }
+      return existingGet(url);
+    });
+
+    // OAuth tokens + downstream fan-out
+    axios.post.mockImplementation((url) => {
+      if (url.includes('openid-connect/token')) {
+        return Promise.resolve({ data: { access_token: 'kc-token', expires_in: 300 } });
+      }
+      if (url.includes('/api/oauth/token')) {
+        return Promise.resolve({ data: { access_token: 'lmis-token', expires_in: 300 } });
+      }
+      if (url.includes('/opensrp/rest/event/add')) {
+        return Promise.resolve({ status: 201 });
+      }
+      if (url.includes('/api/dataValueSets')) {
+        return Promise.resolve({ status: 200 });
+      }
+      if (url.includes('/api/stockEvents')) {
+        return lmis ?? Promise.resolve({ status: 201 });
+      }
+      return Promise.reject(new Error(`Unexpected axios.post URL: ${url}`));
+    });
+  }
+
+  test('returns HTTP 200 Successful when Task is pending and eLMIS succeeds', async () => {
+    mockQrStack();
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('Successful');
+  });
+
+  test('sets x-mediator-urn response header', async () => {
+    mockQrStack();
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    expect(res.headers['x-mediator-urn']).toBe(mediatorConfig.urn);
+  });
+
+  test('BR-04: returns HTTP 409 when Task is already completed', async () => {
+    mockQrStack({ taskStatus: 'completed' });
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    expect(res.status).toBe(409);
+    expect(res.body.status).toBe('Rejected');
+    expect(res.body.reason).toBe('already-accepted');
+    expect(res.body.taskId).toBe('task-test-001');
+    expect(res.body.taskStatus).toBe('completed');
+  });
+
+  test('BR-04: does NOT call eLMIS fan-out when Task is already accepted', async () => {
+    mockQrStack({ taskStatus: 'completed' });
+
+    await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    const lmisCall = axios.post.mock.calls.find(([url]) => url.includes('/api/stockEvents'));
+    expect(lmisCall).toBeUndefined();
+  });
+
+  test('returns HTTP 404 when referenced Task does not exist', async () => {
+    mockQrStack({ taskStatus: null });
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    expect(res.status).toBe(404);
+    expect(res.body.status).toBe('Error');
+    expect(res.body.message).toMatch(/Task\/task-test-001 not found/);
+  });
+
+  test('marks Task completed via PUT after successful eLMIS receipt', async () => {
+    mockQrStack();
+
+    await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    // Allow fire-and-forget completeStockTask to settle
+    await new Promise(resolve => setImmediate(resolve));
+
+    const putCalls = axios.put.mock.calls.filter(([url]) => url.includes('/fhir/Task/task-test-001'));
+    expect(putCalls.length).toBeGreaterThan(0);
+    const completedTask = putCalls[putCalls.length - 1][1];
+    expect(completedTask.status).toBe('completed');
+  });
+
+  test('does NOT mark Task completed when eLMIS fan-out fails', async () => {
+    mockQrStack({ lmis: Promise.reject(new Error('ECONNREFUSED')) });
+
+    await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(QR_BODY);
+
+    await new Promise(resolve => setImmediate(resolve));
+
+    // PUT calls for Task completion should not have happened
+    const taskPuts = axios.put.mock.calls.filter(([url]) => url.includes('/fhir/Task/'));
+    // The only PUT allowed is from fetchStockTask inside completeStockTask — none expected here
+    const completionPuts = taskPuts.filter(([, body]) => body?.status === 'completed');
+    expect(completionPuts.length).toBe(0);
+  });
+
+  test('proceeds without BR-04 check when QR has no basedOn Task reference', async () => {
+    mockQrStack();
+
+    const qrNoTask = {
+      resourceType: 'QuestionnaireResponse',
+      status: 'completed',
+      item: [
+        { linkId: 'medication', answer: [{ valueString: 'AL-20-120' }] },
+        { linkId: 'quantity',   answer: [{ valueInteger: 10 }] },
+        { linkId: 'type',       answer: [{ valueString: 'RECEIPT' }] },
+      ],
+    };
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(qrNoTask);
+
+    // No Task lookup should have been made
+    const taskGets = axios.get.mock.calls.filter(([url]) => url.includes('/fhir/Task/'));
+    expect(taskGets.length).toBe(0);
+    expect(res.status).toBe(200);
+  });
+
+  test('resolves taskId from item linkId task_id when basedOn is absent', async () => {
+    mockQrStack();
+
+    const qrItemTask = {
+      resourceType: 'QuestionnaireResponse',
+      status: 'completed',
+      item: [
+        { linkId: 'task_id',   answer: [{ valueString: 'task-test-001' }] },
+        { linkId: 'medication', answer: [{ valueString: 'AL-20-120' }] },
+        { linkId: 'quantity',   answer: [{ valueInteger: 10 }] },
+        { linkId: 'type',       answer: [{ valueString: 'RECEIPT' }] },
+      ],
+    };
+
+    const res = await request(app)
+      .post('/fhir/QuestionnaireResponse')
+      .set('Content-Type', 'application/fhir+json')
+      .send(qrItemTask);
+
+    const taskGets = axios.get.mock.calls.filter(([url]) => url.includes('/fhir/Task/task-test-001'));
+    expect(taskGets.length).toBeGreaterThan(0);
+    expect(res.status).toBe(200);
   });
 });
