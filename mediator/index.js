@@ -538,7 +538,22 @@ async function pushToDHIS2(resource, dataElement) {
  * from OpenLMIS and writes it to DHIS2 as a separate data element.
  * Fail-open: errors are logged but never surface to the caller.
  */
-async function pushSohToDHIS2(identity) {
+async function pushSohToDHIS2(identity, { triggeredBy } = {}) {
+  const period   = new Date().toISOString().slice(0, 7).replace('-', ''); // YYYYMM
+  const orgUnit  = process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX';
+  const datasetId = CONFIG.dhis2.deSoh;                                   // NFR-20: dataset ID
+
+  const auditBase = {
+    event:          'aggregation-run',
+    reportingPeriod: period,           // NFR-20: reporting period
+    datasetId,                         // NFR-20: dataset (data element) ID
+    facilityId:     identity.facilityId,
+    programId:      identity.programId,
+    orderableId:    identity.orderableId,
+    orgUnit,
+    triggeredBy:    triggeredBy || 'unknown',
+  };
+
   try {
     const token = await getOpenLMISToken();
     const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
@@ -547,19 +562,27 @@ async function pushSohToDHIS2(identity) {
       timeout: TIMEOUT_MS
     });
     const content = res.data.content || [];
-    if (content.length === 0) return;
+    if (content.length === 0) {
+      logger.info({ ...auditBase, outcome: 'skipped', reason: 'no-stock-card' });
+      return;
+    }
     const soh = content[0].stockOnHand;
-    await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
-      dataValues: [{
-        dataElement: CONFIG.dhis2.deSoh,
-        orgUnit:     process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
-        period:      new Date().toISOString().slice(0, 7).replace('-', ''),
-        value:       String(soh)
-      }]
+    const dhisRes = await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
+      dataValues: [{ dataElement: datasetId, orgUnit, period, value: String(soh) }]
     }, { auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass }, timeout: TIMEOUT_MS });
-    logger.info(`SOH synced to DHIS2: ${soh} units (de=${CONFIG.dhis2.deSoh})`);
+
+    logger.info({                       // NFR-20: structured aggregation audit log
+      ...auditBase,
+      outcome:      'success',          // NFR-20: transmission outcome
+      soh,
+      dhis2Status:  dhisRes.status,
+    });
   } catch (err) {
-    logger.warn(`SOH sync to DHIS2 failed (non-fatal): ${err.message}`);
+    logger.warn({                       // NFR-20: failure audit log
+      ...auditBase,
+      outcome: 'failed',
+      error:   err.message,
+    });
   }
 }
 
@@ -744,7 +767,9 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? qty : -qty;
     }
-    if (lmis.status === 'fulfilled') { pushSohToDHIS2(identity).catch(() => {}); }
+    if (lmis.status === 'fulfilled') {
+      pushSohToDHIS2(identity, { triggeredBy: `BKM-${resource.id || 'dispense'}` }).catch(() => {});
+    }
 
     // Job 4: VHW Notifications (non-blocking; failures are swallowed inside sendNotifications)
     if (lmis.status === 'fulfilled') {
@@ -890,7 +915,9 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? quantity : -quantity;
     }
-    if (lmis.status === 'fulfilled') { pushSohToDHIS2(identity).catch(() => {}); }
+    if (lmis.status === 'fulfilled') {
+      pushSohToDHIS2(identity, { triggeredBy: taskId ? `Task/${taskId}` : `BKM-${resource.id || 'qr'}` }).catch(() => {});
+    }
 
     // BR-04: mark Task completed so it can't be accepted again
     if (lmis.status === 'fulfilled' && taskId) {

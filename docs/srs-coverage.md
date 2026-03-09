@@ -77,7 +77,7 @@ Maps every requirement and business rule from the BKM–eLMIS Integration SRS to
 |----|----------|------------|--------|-------|
 | NFR-18 | Must | Aggregated SOH and consumption accurate, reproducible, and traceable | ⚠️ | SOH pushed from live eLMIS stockCardSummaries. Reproducibility depends on eLMIS state at query time; no snapshot stored. |
 | NFR-19 | Must | Aggregation calculations deterministic for same source dataset and period | ⚠️ | SOH sync is point-in-time, not a deterministic aggregation over a fixed dataset. Period-locked batch aggregation not implemented. |
-| NFR-20 | Must | Audit logs for aggregation runs (period, timestamp, dataset ID, outcome) | ❌ | Winston logs `"SOH synced to DHIS2"` but does not record reporting period, dataset ID, or structured outcome for reconciliation. |
+| NFR-20 | Must | Audit logs for aggregation runs (period, timestamp, dataset ID, outcome) | ✅ | `pushSohToDHIS2()` emits a structured Winston log object with `event=aggregation-run`, `reportingPeriod` (YYYYMM), `datasetId` (DHIS2 data element UID), `facilityId`, `programId`, `orderableId`, `soh`, `dhis2Status`, `outcome` (success/failed/skipped), and `triggeredBy` (BKM-{id} or Task/{id}). |
 | NFR-21 | **Should** | Identify and report data completeness/quality issues | ❌ | Not required — Should priority. Missing mappings log an error but no user-visible quality report generated. |
 
 ### 2.2.6 Maintainability and Supportability
@@ -130,17 +130,16 @@ Maps every requirement and business rule from the BKM–eLMIS Integration SRS to
 | NFR — Performance | 4 | 2 | 2 | 2 | 1 | 1 (Should) |
 | NFR — Reliability | 5 | 4 | 1 | 2 | 3 | 0 |
 | NFR — Security | 4 | 4 | 0 | 1 | 3 | 0 |
-| NFR — Data Quality | 4 | 3 | 1 | 0 | 2 | 2 (1×Must, 1×Should) |
+| NFR — Data Quality | 4 | 3 | 1 | 1 | 2 | 1 (Should) |
 | NFR — Maintainability | 4 | 1 | 3 | 3 | 1 | 0 |
 | NFR — Interoperability | 4 | 1 | 3 | 2 | 2 | 0 |
 | Business Rules (BR) | 12 | 12 | 0 | 5 | 7 | 0 |
-| **Total** | **52** | **41** | **11** | **21 (40%)** | **27 (52%)** | **4 (8%)** |
+| **Total** | **52** | **41** | **11** | **22 (42%)** | **26 (50%)** | **4 (8%)** |
 
 ### Must-priority gaps (require attention)
 
 | ID | Gap |
 |----|-----|
-| NFR-20 | Structured audit log for aggregation runs — period, dataset ID, and outcome not recorded |
 | NFR-18/19 | Aggregation accuracy/determinism — SOH sync is point-in-time, not period-locked batch |
 
 ### Should-priority items implemented in this sandbox
