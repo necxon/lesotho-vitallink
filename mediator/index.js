@@ -62,10 +62,11 @@ const CONFIG = {
     url: requiredEnv('KEYCLOAK_URL'),
   },
   dhis2: {
-    url:  requiredEnv('DHIS2_URL'),
-    user: requiredEnv('DHIS2_USER'),
-    pass: requiredEnv('DHIS2_PASS'),
-    de:   process.env.DHIS2_DE_STOCK_DISPENSED || 'ujPSJuS9pph'
+    url:   requiredEnv('DHIS2_URL'),
+    user:  requiredEnv('DHIS2_USER'),
+    pass:  requiredEnv('DHIS2_PASS'),
+    de:    process.env.DHIS2_DE_STOCK_DISPENSED || 'ujPSJuS9pph',
+    deSoh: process.env.DHIS2_DE_STOCK_ON_HAND   || 'StockOnHnd1'
   },
   lmis: {
     authUrl: requiredEnv('OPENLMIS_AUTH_URL'),
@@ -75,6 +76,9 @@ const CONFIG = {
     client:  requiredEnv('OPENLMIS_CLIENT_ID'),
     secret:  requiredEnv('OPENLMIS_CLIENT_SECRET'),
     program: requiredEnv('OPENLMIS_PROGRAM_ID')
+  },
+  fhir: {
+    url: process.env.HAPI_FHIR_URL || 'http://hapi-fhir:8080/fhir'
   }
 };
 
@@ -83,14 +87,64 @@ const mediatorConfig = {
   version: '1.1.0',
   name: 'Vital-Link Lesotho Mediator',
   description: 'Hardened Medication Inventory Lifecycle Plugin',
-  endpoints: [{
-    name: 'Vital-Link Endpoint',
-    host: 'vital-link',
-    port: 3000,
-    path: '/fhir/MedicationDispense',
-    primary: true,
-    type: 'http'
-  }]
+  endpoints: [
+    {
+      name: 'Vital-Link Endpoint',
+      host: 'bkm-mediator',
+      port: 3000,
+      path: '/fhir/MedicationDispense',
+      primary: true,
+      type: 'http'
+    },
+    {
+      name: 'Vital-Link SupplyDelivery',
+      host: 'bkm-mediator',
+      port: 3000,
+      path: '/fhir/SupplyDelivery',
+      primary: false,
+      type: 'http'
+    },
+    {
+      name: 'Vital-Link QuestionnaireResponse',
+      host: 'bkm-mediator',
+      port: 3000,
+      path: '/fhir/QuestionnaireResponse',
+      primary: false,
+      type: 'http'
+    }
+  ],
+  defaultChannelConfig: [
+    {
+      name: 'BKM MedicationDispense',
+      urlPattern: '^/fhir/MedicationDispense$',
+      methods: ['POST'],
+      type: 'http',
+      status: 'enabled',
+      routes: [{ name: 'Vital-Link Endpoint', host: 'bkm-mediator', port: 3000, primary: true, type: 'http' }],
+      allow: [],
+      authType: 'public'
+    },
+    {
+      name: 'BKM SupplyDelivery',
+      urlPattern: '^/fhir/SupplyDelivery$',
+      methods: ['POST'],
+      type: 'http',
+      status: 'enabled',
+      routes: [{ name: 'Vital-Link SupplyDelivery', host: 'bkm-mediator', port: 3000, primary: true, type: 'http' }],
+      allow: [],
+      authType: 'public'
+    },
+    {
+      name: 'BKM QuestionnaireResponse',
+      urlPattern: '^/fhir/QuestionnaireResponse$',
+      methods: ['POST'],
+      type: 'http',
+      status: 'enabled',
+      routes: [{ name: 'Vital-Link QuestionnaireResponse', host: 'bkm-mediator', port: 3000, primary: true, type: 'http' }],
+      allow: [],
+      authType: 'public'
+    }
+  ]
 };
 
 // =============================================================================
@@ -476,6 +530,40 @@ async function pushToDHIS2(resource, dataElement) {
 }
 
 // =============================================================================
+// POST-EVENT SOH SYNC TO DHIS2
+// =============================================================================
+
+/**
+ * After a successful eLMIS stock event, queries the updated stock-on-hand
+ * from OpenLMIS and writes it to DHIS2 as a separate data element.
+ * Fail-open: errors are logged but never surface to the caller.
+ */
+async function pushSohToDHIS2(identity) {
+  try {
+    const token = await getOpenLMISToken();
+    const res = await axios.get(`${CONFIG.lmis.mgmtUrl}/api/stockCardSummaries`, {
+      params: { facility: identity.facilityId, program: identity.programId, orderable: identity.orderableId },
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: TIMEOUT_MS
+    });
+    const content = res.data.content || [];
+    if (content.length === 0) return;
+    const soh = content[0].stockOnHand;
+    await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
+      dataValues: [{
+        dataElement: CONFIG.dhis2.deSoh,
+        orgUnit:     process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX',
+        period:      new Date().toISOString().slice(0, 7).replace('-', ''),
+        value:       String(soh)
+      }]
+    }, { auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass }, timeout: TIMEOUT_MS });
+    logger.info(`SOH synced to DHIS2: ${soh} units (de=${CONFIG.dhis2.deSoh})`);
+  } catch (err) {
+    logger.warn(`SOH sync to DHIS2 failed (non-fatal): ${err.message}`);
+  }
+}
+
+// =============================================================================
 // BACKGROUND STOCK RECEIPT POLLER
 // =============================================================================
 
@@ -523,6 +611,76 @@ async function pollStockLevels() {
     _lastSoH = currentSoH;
   } catch (err) {
     logger.warn(`Stock poll failed (non-fatal): ${err.message}`);
+  }
+}
+
+// =============================================================================
+// STOCK ACCEPTANCE  (BR-03, BR-04, BR-05)
+// =============================================================================
+
+/**
+ * Creates a FHIR Task on HAPI FHIR representing a stock issue pending acceptance.
+ * Called when eLMIS issues stock to a VHW (POST /fhir/SupplyDelivery).
+ * Returns the created Task resource.
+ */
+async function createStockTask({ performer, medication, quantity, issueRef, taskId }) {
+  const id = taskId || `task-stock-${Date.now()}`;
+  const task = {
+    resourceType: 'Task',
+    id,
+    status:   'requested',
+    intent:   'order',
+    code: {
+      coding: [{ system: 'http://snomed.info/sct', code: '373748001', display: 'Stock Issue' }]
+    },
+    description: `${medication} — ${quantity} units (ref: ${issueRef || id})`,
+    for:     { reference: performer },
+    owner:   { reference: performer },
+    authoredOn: new Date().toISOString(),
+    input: [
+      { type: { text: 'product'  }, valueString:  medication },
+      { type: { text: 'quantity' }, valueInteger: quantity   },
+      { type: { text: 'issueRef' }, valueString:  issueRef || id }
+    ]
+  };
+  const res = await axios.put(`${CONFIG.fhir.url}/Task/${id}`, task, {
+    headers: { 'Content-Type': 'application/fhir+json' },
+    timeout: TIMEOUT_MS
+  });
+  logger.info(`Stock Task created: Task/${id} for ${performer} — ${medication} x${quantity}`);
+  return res.data;
+}
+
+/**
+ * Fetches a Task from HAPI FHIR. Returns null on 404.
+ */
+async function fetchStockTask(taskId) {
+  try {
+    const res = await axios.get(`${CONFIG.fhir.url}/Task/${taskId}`, { timeout: TIMEOUT_MS });
+    return res.data;
+  } catch (err) {
+    if (err.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Marks a stock acceptance Task as completed on HAPI FHIR.
+ * Fail-open: errors are logged but never surface to the caller.
+ */
+async function completeStockTask(taskId) {
+  try {
+    const task = await fetchStockTask(taskId);
+    if (!task) { logger.warn(`completeStockTask: Task/${taskId} not found`); return; }
+    task.status = 'completed';
+    task.lastModified = new Date().toISOString();
+    await axios.put(`${CONFIG.fhir.url}/Task/${taskId}`, task, {
+      headers: { 'Content-Type': 'application/fhir+json' },
+      timeout: TIMEOUT_MS
+    });
+    logger.info(`Stock Task completed: Task/${taskId}`);
+  } catch (err) {
+    logger.warn(`completeStockTask failed (non-fatal): ${err.message}`);
   }
 }
 
@@ -586,6 +744,7 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? qty : -qty;
     }
+    if (lmis.status === 'fulfilled') { pushSohToDHIS2(identity).catch(() => {}); }
 
     // Job 4: VHW Notifications (non-blocking; failures are swallowed inside sendNotifications)
     if (lmis.status === 'fulfilled') {
@@ -636,6 +795,28 @@ app.post('/fhir/MedicationDispense', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// POST /fhir/SupplyDelivery  — eLMIS issues stock to a VHW
+// Creates a FHIR Task on HAPI FHIR representing a pending acceptance (BR-03).
+// Body: { performer, medication, quantity, issueRef? }
+// -----------------------------------------------------------------------------
+app.post('/fhir/SupplyDelivery', async (req, res) => {
+  const { performer, medication, quantity, issueRef } = req.body;
+  try {
+    if (!performer || !medication || !quantity) {
+      return res.status(400).set('x-mediator-urn', mediatorConfig.urn)
+        .json({ status: 'Error', message: 'performer, medication, and quantity are required' });
+    }
+    const task = await createStockTask({ performer, medication, quantity: Number(quantity), issueRef });
+    res.status(201).set('x-mediator-urn', mediatorConfig.urn)
+      .json({ status: 'Created', taskId: task.id, task });
+  } catch (err) {
+    logger.error(`SupplyDelivery failed: ${err.message}`);
+    res.status(500).set('x-mediator-urn', mediatorConfig.urn)
+      .json({ status: 'Error', message: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
 // POST /fhir/QuestionnaireResponse
 // -----------------------------------------------------------------------------
 app.post('/fhir/QuestionnaireResponse', async (req, res) => {
@@ -650,12 +831,29 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
     }
 
     const medCode   = answers['medication']?.valueCoding?.code || 'AL-20-120';
-    const quantity  = answers['quantity']?.valueInteger ?? 0;
+    const quantity  = answers['quantity']?.valueInteger ?? answers['quantity_accepted']?.valueInteger ?? 0;
     const performer = qr.author?.reference || 'Practitioner/opensrp-admin';
 
     const receiptCode = process.env.RECEIPT_TYPE_CODE || 'RECEIPT';
     const isReceipt   = answers['type']?.valueCoding?.code === receiptCode;
     const dhis2DE     = isReceipt ? process.env.DHIS2_DE_STOCK_RECEIVED : undefined;
+
+    // BR-04: if this QR is based on a stock acceptance Task, validate it hasn't
+    // already been accepted (prevents duplicate acceptance of same stock issue).
+    const taskRef = qr.basedOn?.[0]?.reference || (answers['task_id'] ? `Task/${answers['task_id'].valueString}` : null);
+    const taskId  = taskRef?.startsWith('Task/') ? taskRef.split('/')[1] : null;
+    if (taskId) {
+      const task = await fetchStockTask(taskId);
+      if (!task) {
+        return res.status(404).set('x-mediator-urn', mediatorConfig.urn)
+          .json({ status: 'Error', message: `Task/${taskId} not found` });
+      }
+      if (task.status !== 'requested') {
+        logger.warn(`BR-04 violation: Task/${taskId} already has status=${task.status}`);
+        return res.status(409).set('x-mediator-urn', mediatorConfig.urn)
+          .json({ status: 'Rejected', reason: 'already-accepted', taskId, taskStatus: task.status });
+      }
+    }
 
     const resource = {
       id:       qr.id || `qr-${Date.now()}`,
@@ -691,6 +889,12 @@ app.post('/fhir/QuestionnaireResponse', async (req, res) => {
 
     if (lmis.status === 'fulfilled' && _lastSoH !== null) {
       _lastSoH += isReceipt ? quantity : -quantity;
+    }
+    if (lmis.status === 'fulfilled') { pushSohToDHIS2(identity).catch(() => {}); }
+
+    // BR-04: mark Task completed so it can't be accepted again
+    if (lmis.status === 'fulfilled' && taskId) {
+      completeStockTask(taskId).catch(() => {});
     }
 
     // Job 4: VHW Notifications

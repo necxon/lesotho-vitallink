@@ -165,6 +165,15 @@
               "value": "inventoryRegister"
             }
           }
+        },
+        {
+          "title": "Stock Acceptance register configuration",
+          "focus": {
+            "reference": "Binary/stock-accept-reg-001",
+            "identifier": {
+              "value": "stockAcceptanceRegister"
+            }
+          }
         }
       ]
     },
@@ -273,6 +282,16 @@
             "reference": "Questionnaire/qn-stock-mgmt-dispense",
             "identifier": {
               "value": "stock-dispense"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Stock Accept",
+          "focus": {
+            "reference": "Questionnaire/qn-stock-accept",
+            "identifier": {
+              "value": "stock-accept"
             }
           },
           "mode": "working"

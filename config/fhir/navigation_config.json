@@ -229,6 +229,26 @@
       ]
     },
     {
+      "id": "stockAcceptanceRegister",
+      "display": "Pending Stock",
+      "showCount": true,
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_inventory"
+      },
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "stockAcceptanceRegister"
+        },
+        {
+          "trigger": "ON_COUNT",
+          "id": "stockAcceptanceRegister"
+        }
+      ]
+    },
+    {
       "id": "inventoryRegister",
       "display": "Stock Inventory",
       "icon": "",

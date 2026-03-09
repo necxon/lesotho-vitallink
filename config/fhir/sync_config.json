@@ -53,6 +53,18 @@
     {
       "resource": {
         "resourceType": "SearchParameter",
+        "name": "owner",
+        "code": "owner",
+        "base": [
+          "Task"
+        ],
+        "type": "reference",
+        "expression": "#owner"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
         "name": "_id",
         "code": "_id",
         "base": [
@@ -61,7 +73,6 @@
           "QuestionnaireResponse",
           "Questionnaire",
           "StructureMap",
-          "Task",
           "PlanDefinition",
           "RelatedPerson",
           "Library",

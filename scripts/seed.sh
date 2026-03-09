@@ -51,6 +51,7 @@ NOW=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(time
 DHIS2_ORG_UNIT="dwx1Yz4BwNX"
 DHIS2_DATA_ELEMENT="ujPSJuS9pph"
 DHIS2_DE_STOCK_RECEIVED="StckRcvdAL1"
+DHIS2_DE_STOCK_ON_HAND="StockOnHnd1"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 log() { echo "[seed] $*"; }
@@ -201,6 +202,71 @@ const req = https.request({hostname:'openhim-core',port:8080,path:'/authenticate
 req.end();
 " 2>/dev/null || log "Warning: visualizer seed failed (non-fatal)"
 
+# ─── 1c. Ensure OpenHIM channels exist for all mediator routes ────────────────
+log "Ensuring OpenHIM channels for SupplyDelivery and QuestionnaireResponse ..."
+docker exec bkm-mediator node -e "
+const https = require('https');
+const crypto = require('crypto');
+const agent = new https.Agent({rejectUnauthorized:false});
+
+function openhimReq(salt, method, path, body, cb) {
+  const now = new Date().toISOString();
+  const passhash = crypto.createHash('sha512').update(salt+'openhim-password').digest('hex');
+  const token    = crypto.createHash('sha512').update(passhash+salt+now).digest('hex');
+  const payload  = body ? JSON.stringify(body) : null;
+  const headers  = {'auth-username':'root@openhim.org','auth-ts':now,'auth-salt':salt,'auth-token':token,'Content-Type':'application/json'};
+  if(payload) headers['Content-Length'] = Buffer.byteLength(payload);
+  const r = https.request({hostname:'openhim-core',port:8080,path,method,agent,headers}, (res) => {
+    let d=''; res.on('data',c=>d+=c); res.on('end',()=>cb(res.statusCode,d));
+  });
+  if(payload) r.write(payload);
+  r.end();
+}
+
+// Channels to ensure exist (idempotent — skip if name already present)
+const CHANNELS = [
+  {
+    name: 'BKM SupplyDelivery',
+    urlPattern: '^/fhir/SupplyDelivery\$',
+    methods: ['POST'],
+    type: 'http',
+    status: 'enabled',
+    routes: [{name:'BKM SupplyDelivery', host:'bkm-mediator', port:3000, primary:true, type:'http'}],
+    allow: [],
+    authType: 'public'
+  },
+  {
+    name: 'BKM QuestionnaireResponse',
+    urlPattern: '^/fhir/QuestionnaireResponse\$',
+    methods: ['POST'],
+    type: 'http',
+    status: 'enabled',
+    routes: [{name:'BKM QuestionnaireResponse', host:'bkm-mediator', port:3000, primary:true, type:'http'}],
+    allow: [],
+    authType: 'public'
+  }
+];
+
+const req = https.request({hostname:'openhim-core',port:8080,path:'/authenticate/root@openhim.org',method:'GET',agent}, (res) => {
+  let d=''; res.on('data',c=>d+=c); res.on('end',()=>{
+    const {salt} = JSON.parse(d);
+    openhimReq(salt, 'GET', '/channels', null, (s, b) => {
+      const existing = JSON.parse(b).map(c => c.name);
+      let pending = CHANNELS.filter(c => !existing.includes(c.name));
+      if(pending.length === 0) { console.log('All channels already exist'); return; }
+      let done = 0;
+      pending.forEach(ch => {
+        openhimReq(salt, 'POST', '/channels', ch, (s2, b2) => {
+          console.log('Channel', ch.name, s2 === 201 ? 'created' : 'error: '+b2.substring(0,120));
+          if(++done === pending.length) console.log('Channel seeding complete');
+        });
+      });
+    });
+  });
+});
+req.end();
+" 2>/dev/null || log "Warning: channel seed failed (non-fatal)"
+
 # ─── 2. Get OpenLMIS admin token ──────────────────────────────────────────────
 log "Obtaining OpenLMIS admin token ..."
 LMIS_TOKEN=$(curl -sf -u user-client:changeme \
@@ -226,7 +292,36 @@ python3 - <<'PYEOF'
 import re, subprocess, sys
 
 C = 'openlmis-nginx'
-ADMIN_UUID = '35316636-6264-6331-2d34-3933322d3462'
+ADMIN_UUID  = '35316636-6264-6331-2d34-3933322d3462'
+FACILITY_ID = '28de536f-b826-4eeb-a3c4-d65221a1120d'
+PROGRAM_ID  = '31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c'
+# Paginated wrappers for user-specific endpoints whose plain-array responses
+# cause TypeError: Cannot read properties of undefined (reading 'content').
+# The SPA does result.content on these; a plain array has no .content.
+_PERMS_CONTENT = (
+    '["STOCK_INVENTORIES_EDIT|{f}|{p}","STOCK_INVENTORIES_EDIT",'
+    '"STOCK_CARD_LINE_ITEM_REASONS_MANAGE","USER_ROLES_MANAGE",'
+    '"PROCESSING_SCHEDULES_MANAGE","PROGRAMS_MANAGE","STOCK_ORGANIZATIONS_MANAGE",'
+    '"STOCK_DESTINATIONS_MANAGE","USERS_MANAGE","STOCK_ADJUSTMENT_REASONS_MANAGE",'
+    '"REQUISITION_GROUPS_MANAGE","SUPERVISORY_NODES_MANAGE","SUPPLY_LINES_MANAGE",'
+    '"SYSTEM_IDEAL_STOCK_AMOUNTS_MANAGE","FACILITIES_MANAGE","RIGHTS_VIEW",'
+    '"GEOGRAPHIC_ZONES_MANAGE","REQUISITION_TEMPLATES_MANAGE",'
+    '"FACILITY_APPROVED_ORDERABLES_MANAGE","STOCK_CARD_TEMPLATES_MANAGE",'
+    '"SERVICE_ACCOUNTS_MANAGE","STOCK_SOURCES_MANAGE","ORDERABLES_MANAGE",'
+    '"SYSTEM_SETTINGS_MANAGE","CCE_MANAGE",'
+    '"STOCK_ADJUST|{f}|{p}","STOCK_CARDS_VIEW|{f}|{p}","STOCK_CARDS_VIEW"]'
+).format(f=FACILITY_ID, p=PROGRAM_ID)
+PERMS_PAGED = ('{{"content":' + _PERMS_CONTENT +
+               ',"totalPages":1,"totalElements":29,"numberOfElements":29,'
+               '"number":0,"size":2147483647,"first":true,"last":true}}')
+PROGS_PAGED = (
+    '{{"content":[{{"code":"EM","name":"Essential Medicines","active":true,'
+    '"periodsSkippable":false,"skipAuthorization":false,"showNonFullSupplyTab":true,'
+    '"enableDatePhysicalStockCountCompleted":false,'
+    '"id":"{p}"}}],'
+    '"totalPages":1,"totalElements":1,"numberOfElements":1,'
+    '"number":0,"size":2147483647,"first":true,"last":true}}'
+).format(p=PROGRAM_ID)
 
 def read_file(path):
     r = subprocess.run(['docker', 'exec', C, 'cat', path], capture_output=True, text=True)
@@ -243,7 +338,17 @@ def write_file(path, content):
 def make_stubs(loc_indent, dir_indent):
     L, D = loc_indent, dir_indent
     return (
-        f'{L}location ~ /api/userContactDetails {{\n'
+        # Paginated user-specific endpoints: the SPA does result.content on these.
+        # location = (exact match) takes priority over the existing location ~ proxies.
+        f'{L}location = /api/users/{ADMIN_UUID}/permissionStrings {{\n'
+        + f'{D}default_type application/json;\n'
+        + f'{D}return 200 \'' + PERMS_PAGED + '\';\n'
+        + f'{L}}}\n'
+        + f'{L}location = /api/users/{ADMIN_UUID}/programs {{\n'
+        + f'{D}default_type application/json;\n'
+        + f'{D}return 200 \'' + PROGS_PAGED + '\';\n'
+        + f'{L}}}\n'
+        + f'{L}location ~ /api/userContactDetails {{\n'
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{"referenceDataUserId":"{ADMIN_UUID}","emailDetails":{{"email":"admin@example.com","emailVerified":false}},"phoneNumber":"","allowNotify":true}}\';\n'
         f'{L}}}\n'
@@ -280,6 +385,12 @@ def make_stubs(loc_indent, dir_indent):
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'[]\';\n'
         f'{L}}}\n'
+        f'{L}location = /api/orderables/search {{\n'
+        f'{D}proxy_method GET;\n'
+        f'{D}rewrite ^ /api/orderables break;\n'
+        f'{D}proxy_pass http://referencedata;\n'
+        f'{D}proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n'
+        f'{L}}}\n'
         f'{L}location ~ /api/validSources {{\n'
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":0,"last":true,"first":true,"number":0,"numberOfElements":0,"size":2147483647}}\';\n'
@@ -287,6 +398,18 @@ def make_stubs(loc_indent, dir_indent):
         f'{L}location ~ /api/validDestinations {{\n'
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":0,"last":true,"first":true,"number":0,"numberOfElements":0,"size":2147483647}}\';\n'
+        f'{L}}}\n'
+        f'{L}location ~ /api/requisitionGroups {{\n'
+        f'{D}default_type application/json;\n'
+        f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":0,"last":true,"first":true,"number":0,"numberOfElements":0,"size":2147483647}}\';\n'
+        f'{L}}}\n'
+        f'{L}location ~ /api/stockAdjustmentReasons {{\n'
+        f'{D}default_type application/json;\n'
+        f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":0,"last":true,"first":true,"number":0,"numberOfElements":0,"size":2147483647}}\';\n'
+        f'{L}}}\n'
+        f'{L}location ~ /api/facilities/[^/]+/supportedPrograms {{\n'
+        f'{D}default_type application/json;\n'
+        f'{D}return 200 \'[{{"programId":"{PROGRAM_ID}","programName":"Essential Medicines","programCode":"EM","periodsSkippable":false,"skipAuthorization":false,"showNonFullSupplyTab":true,"supportStartDate":null,"locallyFulfilled":false}}]\';\n'
         f'{L}}}\n'
         f'{L}location ~ /localeSettings {{\n'
         f'{D}default_type application/json;\n'
@@ -321,7 +444,7 @@ if tmpl:
     # B) Stubs — insert before the consul-template range loop that generates
     #    location blocks from Consul KV.  This anchor is always present.
     TMPL_ANCHOR = '  # First retrieve paths without parameters'
-    if 'userContactDetails' not in tmpl and TMPL_ANCHOR in tmpl:
+    if ('userContactDetails' not in tmpl or 'requisitionGroups' not in tmpl or 'location = /api/users/me' not in tmpl or 'facilities/[^/]+/supportedPrograms' not in tmpl or 'permissionStrings' not in tmpl) and TMPL_ANCHOR in tmpl:
         tmpl = tmpl.replace(TMPL_ANCHOR, make_stubs('  ', '    ') + TMPL_ANCHOR, 1)
         changed = True; print('template: stubs inserted')
 
@@ -364,7 +487,7 @@ if old_map and '"~^localhost"' not in c:
 # B) Stubs — insert before the first /api/notification location block.
 #    This block is always present (generated from the "api/notification" Consul KV key).
 CONF_ANCHOR = 'location ~ /api/notification/?'
-if 'userContactDetails' not in c and CONF_ANCHOR in c:
+if ('userContactDetails' not in c or 'requisitionGroups' not in c or 'location = /api/users/me' not in c or 'facilities/[^/]+/supportedPrograms' not in c or 'permissionStrings' not in c) and CONF_ANCHOR in c:
     c = c.replace(CONF_ANCHOR, make_stubs('      ', '        ') + CONF_ANCHOR, 1)
     changed = True; print('rendered: stubs inserted')
 
@@ -414,6 +537,14 @@ DHIS2_RESULT=$(curl -sf -u admin:district -X POST \
         \"aggregationType\": \"SUM\",
         \"domainType\": \"AGGREGATE\",
         \"valueType\": \"INTEGER_ZERO_OR_POSITIVE\"
+      },
+      {
+        \"id\": \"${DHIS2_DE_STOCK_ON_HAND}\",
+        \"name\": \"Stock on Hand - AL 20/120mg\",
+        \"shortName\": \"AL 20/120mg SOH\",
+        \"aggregationType\": \"LAST\",
+        \"domainType\": \"AGGREGATE\",
+        \"valueType\": \"INTEGER_ZERO_OR_POSITIVE\"
       }
     ]
   }")
@@ -421,46 +552,71 @@ log "DHIS2 seed result: $(echo "$DHIS2_RESULT" | grep -o '"status":"[^"]*"' | he
 
 # ─── 4b. Seed DHIS2 visualizations + dashboard ───────────────────────────────
 log "Seeding DHIS2 dashboard ..."
-# Stable UIDs — PUT is idempotent (create or update)
-DHIS2_VIZ_CHART="BKMBarChart1"
-DHIS2_VIZ_PIVOT="BKMPivotTbl1"
-DHIS2_DASHBOARD="BKMDashbrd01"
+# DHIS2 UIDs are exactly 11 chars [A-Za-z][A-Za-z0-9]{10}
+# CRITICAL: /api/metadata strips columns/rows/filters from visualizations — must use
+# POST /api/visualizations directly. Delete first makes this idempotent.
+DHIS2_VIZ_CHART="BKMBarChrt1"
+DHIS2_VIZ_PIVOT="BKMPivotTb1"
+DHIS2_VIZ_SOH="BKMSohLine1"
+DHIS2_DASHBOARD="BKMDashbrd1"
 
-curl -s -u admin:district -X PUT "http://localhost:8081/api/visualizations/${DHIS2_VIZ_CHART}" \
+_seed_viz() {
+  local uid="$1" payload="$2"
+  curl -s -u admin:district -X DELETE "http://localhost:8081/api/visualizations/${uid}" > /dev/null 2>&1 || true
+  curl -sf -u admin:district -X POST "http://localhost:8081/api/visualizations" \
+    -H "Content-Type: application/json" -d "$payload" > /dev/null
+}
+
+_seed_viz "${DHIS2_VIZ_CHART}" "{
+  \"id\": \"${DHIS2_VIZ_CHART}\",
+  \"name\": \"AL 20/120mg Dispensing - Bar Chart\",
+  \"type\": \"COLUMN\",
+  \"columns\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
+  \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"aggregationType\": \"SUM\",
+  \"domainAxisLabel\": \"Month\",
+  \"rangeAxisLabel\": \"Tablets Dispensed\"
+}"
+
+_seed_viz "${DHIS2_VIZ_SOH}" "{
+  \"id\": \"${DHIS2_VIZ_SOH}\",
+  \"name\": \"AL 20/120mg Stock on Hand - Line Chart\",
+  \"type\": \"LINE\",
+  \"columns\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DE_STOCK_ON_HAND}\"}]}],
+  \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"aggregationType\": \"LAST\",
+  \"domainAxisLabel\": \"Month\",
+  \"rangeAxisLabel\": \"Tablets on Hand\"
+}"
+
+_seed_viz "${DHIS2_VIZ_PIVOT}" "{
+  \"id\": \"${DHIS2_VIZ_PIVOT}\",
+  \"name\": \"AL 20/120mg Dispensing - Monthly Pivot\",
+  \"type\": \"PIVOT_TABLE\",
+  \"columns\": [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"rows\":    [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"filters\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
+  \"aggregationType\": \"SUM\",
+  \"showData\": true
+}"
+
+# Dashboard: DELETE+POST for create, then PUT to set items
+# (metadata endpoint silently drops dashboardItems just like it drops viz dimensions)
+curl -s -u admin:district -X DELETE "http://localhost:8081/api/dashboards/${DHIS2_DASHBOARD}" > /dev/null 2>&1 || true
+curl -sf -u admin:district -X POST "http://localhost:8081/api/dashboards" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"id\": \"${DHIS2_VIZ_CHART}\",
-    \"name\": \"AL 20/120mg Dispensing - Bar Chart\",
-    \"type\": \"COLUMN\",
-    \"columns\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
-    \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\":\"202501\"},{\"id\":\"202502\"},{\"id\":\"202503\"},{\"id\":\"202601\"},{\"id\":\"202602\"},{\"id\":\"202603\"},{\"id\":\"202604\"},{\"id\":\"202605\"},{\"id\":\"202606\"}]}],
-    \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
-    \"aggregationType\": \"SUM\",
-    \"domainAxisLabel\": \"Month\",
-    \"rangeAxisLabel\": \"Tablets Dispensed\"
-  }" > /dev/null
-
-curl -s -u admin:district -X PUT "http://localhost:8081/api/visualizations/${DHIS2_VIZ_PIVOT}" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"id\": \"${DHIS2_VIZ_PIVOT}\",
-    \"name\": \"AL 20/120mg Dispensing - Monthly Pivot\",
-    \"type\": \"PIVOT_TABLE\",
-    \"columns\": [{\"dimension\": \"pe\", \"items\": [{\"id\":\"202501\"},{\"id\":\"202502\"},{\"id\":\"202503\"},{\"id\":\"202601\"},{\"id\":\"202602\"},{\"id\":\"202603\"},{\"id\":\"202604\"},{\"id\":\"202605\"},{\"id\":\"202606\"}]}],
-    \"rows\":    [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
-    \"filters\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DATA_ELEMENT}\"}]}],
-    \"aggregationType\": \"SUM\",
-    \"showData\": true
-  }" > /dev/null
-
-curl -s -u admin:district -X PUT "http://localhost:8081/api/dashboards/${DHIS2_DASHBOARD}" \
+  -d "{\"id\": \"${DHIS2_DASHBOARD}\", \"name\": \"BKM Stock Dispensing - Lesotho\"}" > /dev/null
+curl -sf -u admin:district -X PUT "http://localhost:8081/api/dashboards/${DHIS2_DASHBOARD}" \
   -H "Content-Type: application/json" \
   -d "{
     \"id\": \"${DHIS2_DASHBOARD}\",
     \"name\": \"BKM Stock Dispensing - Lesotho\",
     \"dashboardItems\": [
-      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_CHART}\"}, \"width\": 40, \"height\": 20, \"x\": 0, \"y\": 0},
-      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_PIVOT}\"}, \"width\": 40, \"height\": 20, \"x\": 0, \"y\": 20}
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_CHART}\"}},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_SOH}\"}},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_PIVOT}\"}}
     ]
   }" > /dev/null
 log "DHIS2 dashboard ready: http://localhost:8081/dhis-web-dashboard/index.html#/${DHIS2_DASHBOARD}"
@@ -696,7 +852,28 @@ for rightname in PROGRAMS_MANAGE SYSTEM_IDEAL_STOCK_AMOUNTS_MANAGE SERVICE_ACCOU
     VALUES (gen_random_uuid(), '${ADMIN_UUID}', '${rightname}')
     ON CONFLICT DO NOTHING;" 2>/dev/null
 done
+# STOCK_INVENTORIES_EDIT — required for physical inventory (scoped + unscoped)
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.right_assignments (id, userid, rightname, facilityid, programid)
+  VALUES (gen_random_uuid(), '${ADMIN_UUID}', 'STOCK_INVENTORIES_EDIT', '${FACILITY_ID}', '${PROGRAM_ID}')
+  ON CONFLICT DO NOTHING;" 2>/dev/null
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.right_assignments (id, userid, rightname)
+  VALUES (gen_random_uuid(), '${ADMIN_UUID}', 'STOCK_INVENTORIES_EDIT')
+  ON CONFLICT DO NOTHING;" 2>/dev/null
 log "right_assignments patched for admin user (UUID: ${ADMIN_UUID})."
+
+# ─── 7c. Seed valid_reason_assignments in stockmanagement ─────────────────────
+# Links Flyway-seeded reasons (Consumed, Receipts, etc.) to the health_center
+# facility type + Essential Medicines program so the SPA dropdowns are populated.
+# Idempotent via the unique constraint on (facilityTypeId, programId, reasonId).
+FLYWAY_HC_TYPE_SM="e3f5a2c1-d9b8-4f5c-aa3b-8c2e7d1f3a04"
+docker exec health-db-postgres psql -U admin -d openlmis_stockmanagement -q -c "
+  INSERT INTO stockmanagement.valid_reason_assignments (id, facilitytypeid, programid, reasonid, hidden)
+  SELECT gen_random_uuid(), '${FLYWAY_HC_TYPE_SM}', '${PROGRAM_ID}', id, false
+  FROM stockmanagement.stock_card_line_item_reasons
+  ON CONFLICT DO NOTHING;" 2>/dev/null
+log "valid_reason_assignments seeded for health_center + Essential Medicines."
 
 # ─── 7b. Seed initial stock receipt (so dispense events don't underflow) ───────
 # AL 20/120mg starts at 10,000 tablets at Maseru District Clinic A.
@@ -1062,6 +1239,7 @@ binaries = [
     ("079a2120-e802-4445-95ac-59511751a4c0e",   "registers/sick_child_register_config.json"),
     ("2ac6ec4f-1a29-4d85-a015-06db9c1b82d9e",   "registers/tb_register_config.json"),
     ("inv-register-config-001",                  "registers/inventory_register_config.json"),
+    ("stock-accept-reg-001",                     "registers/stock_acceptance_register_config.json"),
     # profiles
     ("bbb3c2b0-51c9-44e9-9674-7d311ad5f859e",   "profiles/household_profile_config.json"),
     ("34b709f3-e8a1-44e9-867a-714b68bb1367e",   "profiles/default_profile_config.json"),
@@ -1295,6 +1473,117 @@ fhir_put("Questionnaire", "qn-stock-count", {
          "type": "date",        "required": True},
         {"linkId": "notes",     "text": "Notes (optional)",
          "type": "string",      "required": False},
+    ]
+})
+
+# ── Questionnaire: stock acceptance ──────────────────────────────────────────
+# VHW accepts stock issued by eLMIS. linkIds mirror what the mediator's
+# POST /fhir/QuestionnaireResponse route reads (medication, quantity, type, task_id).
+fhir_put("Questionnaire", "qn-stock-accept", {
+    "resourceType": "Questionnaire",
+    "id":     "qn-stock-accept",
+    "title":  "Accept Stock",
+    "status": "active",
+    "subjectType": ["Practitioner"],
+    "item": [
+        {"linkId": "task_id",
+         "text": "Task Reference",
+         "type": "string",
+         "readOnly": True},
+        {"linkId": "medication",
+         "text": "Product",
+         "type": "choice",
+         "required": True,
+         "answerOption": [
+             {"valueCoding": {"code": "AL-20-120",         "display": "AL 20/120mg"}},
+             {"valueCoding": {"code": "amoxicillin-250mg", "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"code": "rdt-kit",           "display": "RDT Kit"}},
+             {"valueCoding": {"code": "paracetamol-syr",   "display": "Paracetamol Syr."}},
+         ]},
+        {"linkId": "quantity_issued",
+         "text": "Quantity Issued",
+         "type": "integer",
+         "readOnly": True},
+        {"linkId": "quantity",
+         "text": "Quantity Accepted",
+         "type": "integer",
+         "required": True},
+        {"linkId": "condition",
+         "text": "Condition",
+         "type": "choice",
+         "answerOption": [
+             {"valueCoding": {"code": "good",    "display": "Good"}},
+             {"valueCoding": {"code": "damaged", "display": "Some Damaged"}},
+             {"valueCoding": {"code": "expired", "display": "Some Expired"}},
+         ]},
+        {"linkId": "type",
+         "text": "Transaction Type",
+         "type": "string",
+         "readOnly": True,
+         "initial": [{"valueString": "RECEIPT"}]},
+        {"linkId": "notes",
+         "text": "Notes",
+         "type": "string"},
+    ]
+})
+
+# ── Demo Tasks: pending stock acceptance ──────────────────────────────────────
+# Two Tasks representing stock issued by the health facility to opensrp-admin.
+# status=requested + code=373748001 = picked up by the stockAcceptanceRegister.
+import datetime as _dt2
+_today = _dt2.date.today().isoformat()
+
+# Look up opensrp-admin Practitioner ID dynamically (changes on container recreate).
+# HAPI FHIR validates reference existence, so we must use the real resource ID.
+_admin_prac_id = None
+try:
+    _req = urllib.request.Request(f"{HAPI}/Practitioner?name=opensrp-admin&_count=1")
+    with urllib.request.urlopen(_req, timeout=10) as _resp:
+        _entries = json.loads(_resp.read()).get("entry", [])
+    if _entries:
+        _admin_prac_id = _entries[0]["resource"]["id"]
+except Exception as _e:
+    print(f"  WARNING: could not look up opensrp-admin Practitioner: {_e}", flush=True)
+
+if not _admin_prac_id:
+    # Fallback: use a stable VHW practitioner so Tasks are still visible in some account
+    _admin_prac_id = "prac-thabo-mokoena"
+    print(f"  WARNING: using fallback owner Practitioner/{_admin_prac_id} for demo Tasks", flush=True)
+else:
+    print(f"  opensrp-admin Practitioner ID = {_admin_prac_id}", flush=True)
+
+fhir_put("Task", "task-pending-001", {
+    "resourceType": "Task",
+    "id":           "task-pending-001",
+    "status":       "requested",
+    "intent":       "order",
+    "code": {"coding": [{"system": "http://snomed.info/sct",
+                         "code": "373748001", "display": "Stock Issue"}]},
+    "description":  "AL 20/120mg — 120 units (ref: LMIS-2026-001)",
+    "for":          {"reference": f"Practitioner/{_admin_prac_id}"},
+    "owner":        {"reference": f"Practitioner/{_admin_prac_id}"},
+    "authoredOn":   f"{_today}T08:00:00Z",
+    "input": [
+        {"type": {"text": "product"},   "valueString":  "AL-20-120"},
+        {"type": {"text": "quantity"},  "valueInteger": 120},
+        {"type": {"text": "issueRef"},  "valueString":  "LMIS-2026-001"},
+    ]
+})
+fhir_put("Task", "task-pending-002", {
+    "resourceType": "Task",
+    "id":           "task-pending-002",
+    "status":       "requested",
+    "intent":       "order",
+    "code": {"coding": [{"system": "http://snomed.info/sct",
+                         "code": "373748001", "display": "Stock Issue"}]},
+    "description":  "AL 20/120mg — 60 units (ref: LMIS-2026-002)",
+    "for":          {"reference": f"Practitioner/{_admin_prac_id}"},
+    "owner":        {"reference": f"Practitioner/{_admin_prac_id}"},
+    "authoredOn":   f"{_today}T08:30:00Z",
+    "input": [
+        {"type": {"text": "product"},   "valueString":  "AL-20-120"},
+        {"type": {"text": "quantity"},  "valueInteger": 60},
+        {"type": {"text": "issueRef"},  "valueString":  "LMIS-2026-002"},
     ]
 })
 
