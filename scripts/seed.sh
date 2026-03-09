@@ -1140,6 +1140,61 @@ fhir_put("Questionnaire", "f210a832-857f-49e6-93f5-399eec4f4edb", {
     ]
 })
 
+# ── Questionnaire: add household member ───────────────────────────────────────
+fhir_put("Questionnaire", "e5155788-8831-4916-a3f5-486915ce34b2", {
+    "resourceType": "Questionnaire",
+    "id":           "e5155788-8831-4916-a3f5-486915ce34b2",
+    "status":       "active",
+    "title":        "Add Household Member",
+    "subjectType":  ["Patient"],
+    "item": [
+        {
+            "linkId": "ed77104e-c279-4030-ab20-8cd99ca99ca9",
+            "text": "OpenSRP ID",
+            "type": "integer",
+            "readOnly": True
+        },
+        {
+            "linkId": "toggle-is-family-head",
+            "text": "Is Family Head",
+            "type": "integer",
+            "readOnly": True
+        },
+        {
+            "linkId": "first-name",
+            "text": "First Name",
+            "type": "string",
+            "required": True
+        },
+        {
+            "linkId": "last-name",
+            "text": "Last Name",
+            "type": "string",
+            "required": True
+        },
+        {
+            "linkId": "gender",
+            "text": "Sex",
+            "type": "choice",
+            "required": True,
+            "answerOption": [
+                {"valueCoding": {"code": "male",   "display": "Male"}},
+                {"valueCoding": {"code": "female", "display": "Female"}}
+            ]
+        },
+        {
+            "linkId": "dob",
+            "text": "Date of Birth",
+            "type": "date"
+        },
+        {
+            "linkId": "phone",
+            "text": "Phone Number",
+            "type": "string"
+        }
+    ]
+})
+
 # ── Questionnaire: stock dispense ─────────────────────────────────────────────
 fhir_put("Questionnaire", "qn-stock-dispense", {
     "resourceType": "Questionnaire",

@@ -185,7 +185,7 @@
       "name": "familyHeadId",
       "condition": "true",
       "actions": [
-        "data.put('familyHeadId', service.filterResources(RelatedPerson, 'RelatedPerson.relationship.coding.code=\"99990006\"').get(0).patient.reference)"
+        "data.put('familyHeadId', service.filterResources(RelatedPerson, 'RelatedPerson.relationship.coding.code=\"99990006\"').size() > 0 ? service.filterResources(RelatedPerson, 'RelatedPerson.relationship.coding.code=\"99990006\"').get(0).patient.reference : '')"
       ]
     },
     {
