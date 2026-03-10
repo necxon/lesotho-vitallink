@@ -295,9 +295,8 @@ C = 'openlmis-nginx'
 ADMIN_UUID  = '35316636-6264-6331-2d34-3933322d3462'
 FACILITY_ID = '28de536f-b826-4eeb-a3c4-d65221a1120d'
 PROGRAM_ID  = '31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c'
-# Paginated wrappers for user-specific endpoints whose plain-array responses
-# cause TypeError: Cannot read properties of undefined (reading 'content').
-# The SPA does result.content on these; a plain array has no .content.
+# permissionStrings must be a plain array — the SPA calls .forEach() directly on the response.
+# PROGS_PAGED must be a Spring Page object — the SPA does .content on that one.
 _PERMS_CONTENT = (
     '["STOCK_INVENTORIES_EDIT|{f}|{p}","STOCK_INVENTORIES_EDIT",'
     '"STOCK_CARD_LINE_ITEM_REASONS_MANAGE","USER_ROLES_MANAGE",'
@@ -311,9 +310,6 @@ _PERMS_CONTENT = (
     '"SYSTEM_SETTINGS_MANAGE","CCE_MANAGE",'
     '"STOCK_ADJUST|{f}|{p}","STOCK_CARDS_VIEW|{f}|{p}","STOCK_CARDS_VIEW"]'
 ).format(f=FACILITY_ID, p=PROGRAM_ID)
-PERMS_PAGED = ('{{"content":' + _PERMS_CONTENT +
-               ',"totalPages":1,"totalElements":29,"numberOfElements":29,'
-               '"number":0,"size":2147483647,"first":true,"last":true}}')
 PROGS_PAGED = (
     '{{"content":[{{"code":"EM","name":"Essential Medicines","active":true,'
     '"periodsSkippable":false,"skipAuthorization":false,"showNonFullSupplyTab":true,'
@@ -338,11 +334,12 @@ def write_file(path, content):
 def make_stubs(loc_indent, dir_indent):
     L, D = loc_indent, dir_indent
     return (
-        # Paginated user-specific endpoints: the SPA does result.content on these.
+        f'# bkm-stubs-v2\n'
+        # SPA calls permissionStrings.forEach() — expects a plain array, NOT a Spring Page.
         # location = (exact match) takes priority over the existing location ~ proxies.
         f'{L}location = /api/users/{ADMIN_UUID}/permissionStrings {{\n'
         + f'{D}default_type application/json;\n'
-        + f'{D}return 200 \'' + PERMS_PAGED + '\';\n'
+        + f'{D}return 200 \'' + _PERMS_CONTENT + '\';\n'
         + f'{L}}}\n'
         + f'{L}location = /api/users/{ADMIN_UUID}/programs {{\n'
         + f'{D}default_type application/json;\n'
@@ -365,7 +362,18 @@ def make_stubs(loc_indent, dir_indent):
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":1,"last":true,"first":true,"number":0,"numberOfElements":0,"size":10}}\';\n'
         f'{L}}}\n'
-        f'{L}location ~ /api/pages/home {{\n'
+        # Superset OAuth -- ${SUPERSET_URL} is unresolved in reference-ui 5.2.13;
+        # unhandled 404 on /oauth-init/openlmis causes $stateChangeError ->
+        # "Internal application error". Return {"state":"NONE"} to suppress gracefully.
+        f'{L}location ~ /oauth-init/openlmis {{\n'
+        + f'{D}default_type application/json;\n'
+        + f'{D}return 200 \'{{"state":"NONE"}}\';\n'
+        + f'{L}}}\n'
+        + f'{L}location ~ /oauth-authorized/openlmis {{\n'
+        + f'{D}default_type application/json;\n'
+        + f'{D}return 200 \'{{"state":"NONE"}}\';\n'
+        + f'{L}}}\n'
+        + f'{L}location ~ /api/pages/home {{\n'
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{"content":[],"totalElements":0,"totalPages":0,"last":true,"first":true,"number":0,"numberOfElements":0,"size":10}}\';\n'
         f'{L}}}\n'
@@ -415,6 +423,13 @@ def make_stubs(loc_indent, dir_indent):
         f'{D}default_type application/json;\n'
         f'{D}return 200 \'{{}}\';\n'
         f'{L}}}\n'
+        # SPA fetches /api/currencySettings at bootstrap (before login) to format numbers.
+        # The real endpoint requires auth → 401 → error interceptor → "Internal application error".
+        # Return Lesotho Loti (LSL / M) settings as a public stub.
+        f'{L}location = /api/currencySettings {{\n'
+        f'{D}default_type application/json;\n'
+        f'{D}return 200 \'{{"currencyCode":"LSL","currencySymbol":"M","currencySymbolSide":"left","currencyDecimalPlaces":2,"groupingSeparator":",","groupingSize":3,"decimalSeparator":"."}}\';\n'
+        f'{L}}}\n'
         f'{L}location ~ "^/\\{{\\{{" {{\n'
         f'{D}return 200 \'\';\n'
         f'{L}}}\n'
@@ -444,9 +459,13 @@ if tmpl:
     # B) Stubs — insert before the consul-template range loop that generates
     #    location blocks from Consul KV.  This anchor is always present.
     TMPL_ANCHOR = '  # First retrieve paths without parameters'
-    if ('userContactDetails' not in tmpl or 'requisitionGroups' not in tmpl or 'location = /api/users/me' not in tmpl or 'facilities/[^/]+/supportedPrograms' not in tmpl or 'permissionStrings' not in tmpl) and TMPL_ANCHOR in tmpl:
-        tmpl = tmpl.replace(TMPL_ANCHOR, make_stubs('  ', '    ') + TMPL_ANCHOR, 1)
-        changed = True; print('template: stubs inserted')
+    if 'bkm-stubs-v2' not in tmpl:
+        if '# bkm-stubs-v1\n' in tmpl:
+            tmpl = tmpl.replace('# bkm-stubs-v1\n', make_stubs('  ', '    '), 1)
+            changed = True; print('template: stubs upgraded v1→v2')
+        elif TMPL_ANCHOR in tmpl:
+            tmpl = tmpl.replace(TMPL_ANCHOR, make_stubs('  ', '    ') + TMPL_ANCHOR, 1)
+            changed = True; print('template: stubs inserted')
 
     # C) Catch unrendered AngularJS template URLs (nginx decodes %7B%7B → {{ before matching)
     if '\\{\\{' not in tmpl and TMPL_ANCHOR in tmpl:
@@ -487,9 +506,13 @@ if old_map and '"~^localhost"' not in c:
 # B) Stubs — insert before the first /api/notification location block.
 #    This block is always present (generated from the "api/notification" Consul KV key).
 CONF_ANCHOR = 'location ~ /api/notification/?'
-if ('userContactDetails' not in c or 'requisitionGroups' not in c or 'location = /api/users/me' not in c or 'facilities/[^/]+/supportedPrograms' not in c or 'permissionStrings' not in c) and CONF_ANCHOR in c:
-    c = c.replace(CONF_ANCHOR, make_stubs('      ', '        ') + CONF_ANCHOR, 1)
-    changed = True; print('rendered: stubs inserted')
+if 'bkm-stubs-v2' not in c:
+    if '# bkm-stubs-v1\n' in c:
+        c = c.replace('# bkm-stubs-v1\n', make_stubs('      ', '        '), 1)
+        changed = True; print('rendered: stubs upgraded v1→v2')
+    elif CONF_ANCHOR in c:
+        c = c.replace(CONF_ANCHOR, make_stubs('      ', '        ') + CONF_ANCHOR, 1)
+        changed = True; print('rendered: stubs inserted')
 
 # C) Catch unrendered AngularJS template URLs (nginx decodes %7B%7B → {{ before matching)
 if '\\{\\{' not in c and CONF_ANCHOR in c:
@@ -1642,6 +1665,17 @@ if [ -n "$JOB_ID" ]; then
 else
   log "  Warning: could not start analytics job — run manually after seeding."
 fi
+
+# ─── 11. Patch OpenHIM Console index.html with OpenLMIS theme link ────────────
+log "Step 11: Applying OpenLMIS theme to OpenHIM Console..."
+docker exec openhim-console sh -c "
+  if ! grep -q 'openlmis-theme.css' /usr/share/nginx/html/index.html; then
+    sed -i 's|<link href=\"styles.css\" rel=\"stylesheet\">|<link href=\"styles.css\" rel=\"stylesheet\"><link href=\"openlmis-theme.css\" rel=\"stylesheet\">|' /usr/share/nginx/html/index.html
+    echo 'Theme link injected.'
+  else
+    echo 'Theme link already present — skipping.'
+  fi
+" && log "  OpenHIM Console theme applied."
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 log ""

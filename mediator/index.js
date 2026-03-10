@@ -538,8 +538,8 @@ async function pushToDHIS2(resource, dataElement) {
  * from OpenLMIS and writes it to DHIS2 as a separate data element.
  * Fail-open: errors are logged but never surface to the caller.
  */
-async function pushSohToDHIS2(identity, { triggeredBy } = {}) {
-  const period   = new Date().toISOString().slice(0, 7).replace('-', ''); // YYYYMM
+async function pushSohToDHIS2(identity, { triggeredBy, period: periodOverride } = {}) {
+  const period   = periodOverride || new Date().toISOString().slice(0, 7).replace('-', ''); // YYYYMM
   const orgUnit  = process.env.DHIS2_ORG_UNIT || 'dwx1Yz4BwNX';
   const datasetId = CONFIG.dhis2.deSoh;                                   // NFR-20: dataset ID
 
@@ -568,7 +568,7 @@ async function pushSohToDHIS2(identity, { triggeredBy } = {}) {
     }
     const soh = content[0].stockOnHand;
     const dhisRes = await axios.post(`${CONFIG.dhis2.url}/api/dataValueSets`, {
-      dataValues: [{ dataElement: datasetId, orgUnit, period, value: String(soh) }]
+      dataValues: [{ dataElement: datasetId, orgUnit, period, value: String(soh), comment: triggeredBy || 'unknown' }]
     }, { auth: { username: CONFIG.dhis2.user, password: CONFIG.dhis2.pass }, timeout: TIMEOUT_MS });
 
     logger.info({                       // NFR-20: structured aggregation audit log
@@ -578,12 +578,77 @@ async function pushSohToDHIS2(identity, { triggeredBy } = {}) {
       dhis2Status:  dhisRes.status,
     });
   } catch (err) {
+    // BR-11: detect DHIS2 period-locked rejection (409 or explicit lock message)
+    const httpStatus = err.response?.status;
+    const body       = err.response?.data;
+    const isLocked   = httpStatus === 409 ||
+      (typeof body?.message === 'string' && /period.*lock|lock.*period/i.test(body.message));
     logger.warn({                       // NFR-20: failure audit log
       ...auditBase,
-      outcome: 'failed',
-      error:   err.message,
+      outcome:    isLocked ? 'period-locked' : 'failed', // BR-11: period-locked outcome
+      dhis2Status: httpStatus,
+      error:      err.message,
     });
   }
+}
+
+// =============================================================================
+// PERIOD-END SOH SNAPSHOT  (NFR-18, NFR-19, NFR-08)
+// =============================================================================
+
+/**
+ * Runs at 00:05 on the 1st of each month. For every unique
+ * (facilityId, programId, orderableId) combination derived from the CSV
+ * mappings, queries OpenLMIS for the final SOH of the just-closed period
+ * and writes a deterministic period-end snapshot to DHIS2 with
+ * comment = "period-end-snapshot".
+ *
+ * This satisfies NFR-18 (reproducible — snapshot locked after period close)
+ * and NFR-19 (deterministic — same source dataset produces same value).
+ */
+async function runPeriodEndSnapshot() {
+  const now      = new Date();
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const period   = prevMonth.toISOString().slice(0, 7).replace('-', ''); // previous YYYYMM
+
+  // Derive unique (facilityId, programId, orderableId) from loaded CSV mappings
+  const seen   = new Set();
+  const combos = [];
+  for (const perf of Object.values(PERFORMER_MAP)) {
+    for (const orderableId of Object.values(MEDICATION_MAP)) {
+      const key = `${perf.facilityId}|${perf.programId}|${orderableId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combos.push({ facilityId: perf.facilityId, programId: perf.programId, orderableId });
+      }
+    }
+  }
+
+  if (combos.length === 0) {
+    logger.warn({ event: 'period-end-snapshot', period, outcome: 'skipped', reason: 'no-mappings' });
+    return;
+  }
+
+  logger.info({ event: 'period-end-snapshot', period, combos: combos.length, message: 'Starting period-end SOH snapshot' });
+  for (const identity of combos) {
+    await pushSohToDHIS2(identity, { triggeredBy: 'period-end-snapshot', period }).catch(() => {});
+  }
+  logger.info({ event: 'period-end-snapshot', period, outcome: 'complete' });
+}
+
+/**
+ * Schedules runPeriodEndSnapshot() to fire at 00:05 on the 1st of each month,
+ * then self-reschedules for the following month.
+ */
+function schedulePeriodEndSnapshot() {
+  const now     = new Date();
+  const nextRun = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 5, 0); // 00:05 on 1st of next month
+  const msUntil = nextRun - now;
+  logger.info(`Period-end snapshot scheduled for ${nextRun.toISOString()} (in ${Math.round(msUntil / 3600000)}h)`);
+  setTimeout(async () => {
+    try { await runPeriodEndSnapshot(); } catch (err) { logger.error(`Period-end snapshot error: ${err.message}`); }
+    schedulePeriodEndSnapshot(); // reschedule for the month after
+  }, msUntil);
 }
 
 // =============================================================================
@@ -657,8 +722,8 @@ async function createStockTask({ performer, medication, quantity, issueRef, task
       coding: [{ system: 'http://snomed.info/sct', code: '373748001', display: 'Stock Issue' }]
     },
     description: `${medication} — ${quantity} units (ref: ${issueRef || id})`,
-    for:     { reference: performer },
-    owner:   { reference: performer },
+    for:     { reference: performer.includes('/') ? performer : `Practitioner/${performer}` },
+    owner:   { reference: performer.includes('/') ? performer : `Practitioner/${performer}` },
     authoredOn: new Date().toISOString(),
     input: [
       { type: { text: 'product'  }, valueString:  medication },
@@ -982,6 +1047,7 @@ utils.registerMediator(CONFIG.openhim, mediatorConfig, (err) => {
     logger.info('Vital-Link Lesotho v1.1.0 Active on port 3000');
     setTimeout(pollStockLevels, 10000);
     setInterval(pollStockLevels, POLL_INTERVAL_MS);
+    schedulePeriodEndSnapshot();
   });
 });
 

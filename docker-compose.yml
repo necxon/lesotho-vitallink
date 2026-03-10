@@ -47,6 +47,8 @@ services:
     container_name: openhim-console
     ports:
       - "9000:80"
+    volumes:
+      - ./config/openhim-console/openlmis-theme.css:/usr/share/nginx/html/openlmis-theme.css:ro
     networks:
       - health-net
 

@@ -12,7 +12,9 @@
           "filterCriteria": [
             {
               "dataType": "CODE",
-              "value": "requested"
+              "value": {
+                "code": "requested"
+              }
             }
           ]
         },
