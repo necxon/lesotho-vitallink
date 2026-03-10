@@ -23,6 +23,7 @@ A practical guide for developers and technical staff working with the Lesotho na
 6. [Testing](#6-testing)
 7. [Troubleshooting](#7-troubleshooting)
 8. [Reference](#8-reference)
+9. [Upstream projects & Docker images](#9-upstream-projects--docker-images)
 
 ---
 
@@ -727,3 +728,62 @@ docker compose logs -f --tail=20
 | [aggregation.md](aggregation.md) | SOH aggregation and DHIS2 data push |
 | [fhir-tasks.md](fhir-tasks.md) | FHIR Task lifecycle (stock acceptance) |
 | [srs-coverage.md](srs-coverage.md) | All 52 requirements mapped to sandbox status |
+
+---
+
+## 9. Upstream projects & Docker images
+
+The sandbox is assembled from open-source projects. The table below lists each service, its Docker image as used in [docker-compose.yml](../docker-compose.yml), and links to the upstream project and documentation.
+
+### Interoperability
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **OpenHIM Core** | `jembi/openhim-core:latest` | [openhim-core on GitHub](https://github.com/jembi/openhim-core-js) | [OpenHIM Docs](http://openhim.org/docs/) |
+| **OpenHIM Console** | `jembi/openhim-console:latest` | [openhim-console on GitHub](https://github.com/jembi/openhim-console) | [OpenHIM Docs](http://openhim.org/docs/) |
+
+### Logistics (eLMIS)
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **OpenLMIS nginx** | `openlmis/nginx:latest` | [openlmis-nginx on GitHub](https://github.com/OpenLMIS/openlmis-nginx) | [OpenLMIS Dev Docs](https://docs.openlmis.org/) |
+| **OpenLMIS Reference UI** | `openlmis/reference-ui:5.2.13` | [openlmis-reference-ui on GitHub](https://github.com/OpenLMIS/openlmis-reference-ui) | [UI Extension Guide](https://docs.openlmis.org/en/latest/components/uiExtensionGuide.html) |
+| **OpenLMIS Auth** | `openlmis/auth:latest` | [openlmis-auth on GitHub](https://github.com/OpenLMIS/openlmis-auth) | [Auth Service API](https://raw.githubusercontent.com/OpenLMIS/openlmis-auth/master/src/main/resources/api-definition.yaml) |
+| **OpenLMIS Referencedata** | `openlmis/referencedata:latest` | [openlmis-referencedata on GitHub](https://github.com/OpenLMIS/openlmis-referencedata) | [Referencedata API](https://raw.githubusercontent.com/OpenLMIS/openlmis-referencedata/master/src/main/resources/api-definition.yaml) |
+| **OpenLMIS Stockmanagement** | `openlmis/stockmanagement:latest` | [openlmis-stockmanagement on GitHub](https://github.com/OpenLMIS/openlmis-stockmanagement) | [Stock API](https://raw.githubusercontent.com/OpenLMIS/openlmis-stockmanagement/master/src/main/resources/api-definition.yaml) |
+| **OpenLMIS Requisition** | `openlmis/requisition:latest` | [openlmis-requisition on GitHub](https://github.com/OpenLMIS/openlmis-requisition) | — |
+| **OpenLMIS Notification** | `openlmis/notification:latest` | [openlmis-notification on GitHub](https://github.com/OpenLMIS/openlmis-notification) | — |
+
+> **nginx note:** OpenLMIS nginx uses [consul-template](https://github.com/hashicorp/consul-template) to render its config at runtime from Consul KV. The template lives at `/etc/consul-template/openlmis.conf` inside the container. Direct edits to `/etc/nginx/conf.d/default.conf` are overwritten on the next Consul data change — always patch both files (see `seed.sh` step 3).
+
+### Identity & Access
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **Keycloak** | `quay.io/keycloak/keycloak:23.0` | [Keycloak on GitHub](https://github.com/keycloak/keycloak) | [Keycloak Docs](https://www.keycloak.org/documentation) · [Admin REST API](https://www.keycloak.org/docs-api/23.0/rest-api/) |
+
+> **Keycloak note:** This sandbox runs `start-dev` which uses an in-memory H2 database. All realm configuration (roles, clients, users) is persisted in [config/keycloak/opensrp-realm.json](../config/keycloak/opensrp-realm.json) and imported at container startup. Keycloak will not re-import if the realm already exists — delete the container to force a re-import.
+
+### FHIR & OpenSRP
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **HAPI FHIR** | `hapiproject/hapi:v7.2.0` | [hapi-fhir-jpaserver-starter on GitHub](https://github.com/hapifhir/hapi-fhir-jpaserver-starter) | [HAPI FHIR Docs](https://hapifhir.io/hapi-fhir/docs/) · [Docker Hub](https://hub.docker.com/r/hapiproject/hapi) |
+| **OpenSRP Server** | `opensrp/opensrp-server-web:latest` | [opensrp-server-web on GitHub](https://github.com/OpenSRP/opensrp-server-web) | [OpenSRP Docs](https://smartregister.atlassian.net/wiki/spaces/Documentation/) |
+| **OpenSRP Web** | `opensrp/web:latest` | [web on GitHub](https://github.com/OpenSRP/web) | [OpenSRP Web Docs](https://github.com/OpenSRP/web/wiki) |
+
+### Reporting
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **DHIS2** | `dhis2/core:2.40` | [dhis2-core on GitHub](https://github.com/dhis2/dhis2-core) | [DHIS2 Developer Docs](https://docs.dhis2.org/en/develop/using-the-api/dhis-core-version-240/) · [Docker Hub](https://hub.docker.com/r/dhis2/core) |
+
+### Infrastructure
+
+| Service | Docker image | Project | Docs / Source |
+|---|---|---|---|
+| **PostgreSQL + PostGIS** | `postgis/postgis:14-3.2` | [postgis/docker-postgis on GitHub](https://github.com/postgis/docker-postgis) | [PostGIS Docs](https://postgis.net/documentation/) |
+| **MongoDB** | `mongo:4.4` | [Official MongoDB image](https://hub.docker.com/_/mongo) | [MongoDB Docs](https://www.mongodb.com/docs/) |
+| **RabbitMQ** | `rabbitmq:3.8-management` | [Official RabbitMQ image](https://hub.docker.com/_/rabbitmq) | [RabbitMQ Docs](https://www.rabbitmq.com/documentation.html) |
+| **Consul** | `hashicorp/consul:1.9` | [consul on GitHub](https://github.com/hashicorp/consul) | [Consul Docs](https://developer.hashicorp.com/consul/docs) |
+| **MailHog** | `mailhog/mailhog:latest` | [MailHog on GitHub](https://github.com/mailhog/MailHog) | SMTP sink — web UI at http://localhost:8025 |
