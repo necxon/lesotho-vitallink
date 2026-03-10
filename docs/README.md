@@ -11,3 +11,4 @@ Reference documentation for the Lesotho Health System Sandbox.
 | [dhis2-visualizations.md](dhis2-visualizations.md) | How to create DHIS2 visualizations and dashboards via curl — UIDs, gotchas, analytics regeneration |
 | [srs-coverage.md](srs-coverage.md) | SRS coverage table — all 52 URs, NFRs, and BRs mapped to sandbox status with Must/Should priority |
 | [aggregation.md](aggregation.md) | What "aggregation" means in this integration — SOH sync to DHIS2, data flow, audit log, and gaps (BR-11, BR-12) |
+| [fhir-tasks.md](fhir-tasks.md) | FHIR Task lifecycle — creation, sync, stock acceptance workflow, and Task status values with code references |
