@@ -581,6 +581,9 @@ log "Seeding DHIS2 dashboard ..."
 DHIS2_VIZ_CHART="BKMBarChrt1"
 DHIS2_VIZ_PIVOT="BKMPivotTb1"
 DHIS2_VIZ_SOH="BKMSohLine1"
+DHIS2_VIZ_RECV="BKMRecvBar1"
+DHIS2_VIZ_COMBO="BKMDispSOH1"
+DHIS2_VIZ_ALL="BKMAllPivt1"
 DHIS2_DASHBOARD="BKMDashbrd1"
 
 _seed_viz() {
@@ -625,6 +628,48 @@ _seed_viz "${DHIS2_VIZ_PIVOT}" "{
   \"showData\": true
 }"
 
+_seed_viz "${DHIS2_VIZ_RECV}" "{
+  \"id\": \"${DHIS2_VIZ_RECV}\",
+  \"name\": \"AL 20/120mg Stock Received - Bar Chart\",
+  \"type\": \"COLUMN\",
+  \"columns\": [{\"dimension\": \"dx\", \"items\": [{\"id\": \"${DHIS2_DE_STOCK_RECEIVED}\"}]}],
+  \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"aggregationType\": \"SUM\",
+  \"domainAxisLabel\": \"Month\",
+  \"rangeAxisLabel\": \"Tablets Received\"
+}"
+
+_seed_viz "${DHIS2_VIZ_COMBO}" "{
+  \"id\": \"${DHIS2_VIZ_COMBO}\",
+  \"name\": \"AL 20/120mg Dispensed vs Stock on Hand - Line\",
+  \"type\": \"LINE\",
+  \"columns\": [{\"dimension\": \"dx\", \"items\": [
+    {\"id\": \"${DHIS2_DATA_ELEMENT}\"},
+    {\"id\": \"${DHIS2_DE_STOCK_ON_HAND}\"}
+  ]}],
+  \"rows\":    [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"aggregationType\": \"SUM\",
+  \"domainAxisLabel\": \"Month\",
+  \"rangeAxisLabel\": \"Tablets\"
+}"
+
+_seed_viz "${DHIS2_VIZ_ALL}" "{
+  \"id\": \"${DHIS2_VIZ_ALL}\",
+  \"name\": \"AL 20/120mg - Dispensed / Received / SOH Pivot\",
+  \"type\": \"PIVOT_TABLE\",
+  \"columns\": [{\"dimension\": \"pe\", \"items\": [{\"id\": \"LAST_12_MONTHS\"}]}],
+  \"rows\":    [{\"dimension\": \"dx\", \"items\": [
+    {\"id\": \"${DHIS2_DATA_ELEMENT}\"},
+    {\"id\": \"${DHIS2_DE_STOCK_RECEIVED}\"},
+    {\"id\": \"${DHIS2_DE_STOCK_ON_HAND}\"}
+  ]}],
+  \"filters\": [{\"dimension\": \"ou\", \"items\": [{\"id\": \"${DHIS2_ORG_UNIT}\"}]}],
+  \"aggregationType\": \"SUM\",
+  \"showData\": true
+}"
+
 # Dashboard: DELETE+POST for create, then PUT to set items
 # (metadata endpoint silently drops dashboardItems just like it drops viz dimensions)
 curl -s -u admin:district -X DELETE "http://localhost:8081/api/dashboards/${DHIS2_DASHBOARD}" > /dev/null 2>&1 || true
@@ -639,7 +684,10 @@ curl -sf -u admin:district -X PUT "http://localhost:8081/api/dashboards/${DHIS2_
     \"dashboardItems\": [
       {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_CHART}\"}},
       {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_SOH}\"}},
-      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_PIVOT}\"}}
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_PIVOT}\"}},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_RECV}\"}},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_COMBO}\"}},
+      {\"type\": \"VISUALIZATION\", \"visualization\": {\"id\": \"${DHIS2_VIZ_ALL}\"}}
     ]
   }" > /dev/null
 log "DHIS2 dashboard ready: http://localhost:8081/dhis-web-dashboard/index.html#/${DHIS2_DASHBOARD}"
