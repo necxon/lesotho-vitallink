@@ -4,6 +4,7 @@ Reference documentation for the Lesotho Health System Sandbox.
 
 | Document | Description |
 |---|---|
+| [training-manual.md](training-manual.md) | **Start here** — end-to-end guide covering all services, core workflows, testing, and troubleshooting |
 | [architecture.md](architecture.md) | System overview — services, data flow, port layout, and integration points |
 | [vhw-fhir-data-model.md](vhw-fhir-data-model.md) | FHIR resource model for VHW registration (Patient, Group, RelatedPerson, CareTeam) |
 | [openlmis-stock-management.md](openlmis-stock-management.md) | How to view, create, and verify stock cards in OpenLMIS |
