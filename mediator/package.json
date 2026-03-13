@@ -18,7 +18,7 @@
     "openlmis",
     "interoperability"
   ],
-  "author": "Technical Integration Team",
+  "author": "Technical Integration Team - NECXON",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",

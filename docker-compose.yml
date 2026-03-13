@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # --- SHARED DATABASE LAYER ---
   db-postgres:
@@ -7,7 +9,7 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=password123
       - POSTGRES_DB=postgres
-      - POSTGRES_HOST_AUTH_METHOD=md5  # OpenLMIS JDBC drivers don't support SCRAM-SHA-256
+      - POSTGRES_HOST_AUTH_METHOD=md5
     networks:
       - health-net
     healthcheck:
@@ -32,9 +34,9 @@ services:
     image: jembi/openhim-core:latest
     container_name: openhim-core
     ports:
-      - "5000:5000"   # Client HTTPS channel
-      - "5001:5001"   # Client HTTP channel  ← Android app POSTs here (curl/test target)
-      - "8080:8080"   # Admin API            ← console default (https://localhost:8080)
+      - "5000:5000"
+      - "5001:5001"
+      - "8080:8080"
     environment:
       - mongo_url=mongodb://db-mongo:27017/openhim
     depends_on:
@@ -52,41 +54,82 @@ services:
     networks:
       - health-net
 
-  # --- DHIS2 (National Health Dashboard) ---
-  # DHIS2 reads connection settings from dhis.conf, not from env vars.
-  dhis2-web:
-    image: dhis2/core:2.40
-    container_name: dhis2-web
-    ports:
-      - "8081:8080"   # Moved to 8081 — 8080 is reserved for OpenHIM admin API
-    volumes:
-      - ./config/dhis.conf:/opt/dhis2/dhis.conf:ro
-    depends_on:
-      db-postgres:
-        condition: service_healthy
-    networks:
-      - health-net
+  # --- MONITORING LAYER ---
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090" 
+  #   volumes:
+  #     - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus-data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.retention.time=15d'
+  #   networks:
+  #     - health-net
+  #   restart: always
 
-  # --- KEYCLOAK (Identity Provider for OpenSRP) ---
-  # Runs in dev mode (H2 in-memory) — no persistence between restarts.
-  # Imports the opensrp realm on startup via --import-realm.
-  keycloak:
-    image: quay.io/keycloak/keycloak:23.0
-    container_name: keycloak
-    command: ["start-dev", "--import-realm"]
-    environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
-    volumes:
-      - ./config/keycloak/opensrp-realm.json:/opt/keycloak/data/import/opensrp-realm.json:ro
-    ports:
-      - "8083:8080"
-    networks:
-      - health-net
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   ports:
+  #     - "3005:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin123
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #   networks:
+  #     - health-net
+  #   restart: always
 
-  # --- BKM MEDIATOR (OpenHIM fan-out: OpenSRP + DHIS2 + OpenLMIS) ---
-  # OpenHIM routes POST /fhir/MedicationDispense here via a configured channel.
-  # The mediator stores to OpenSRP, aggregates to DHIS2, and adjusts stock in OpenLMIS.
+  # loki:
+  #   image: grafana/loki:latest
+  #   container_name: loki
+  #   ports:
+  #     - "3100:3100"
+  #   command: -config.file=/etc/loki/local-config.yaml
+  #   volumes:
+  #     - loki-data:/data/loki
+  #   networks:
+  #     - health-net
+  #   restart: always
+
+  # promtail:
+  #   image: grafana/promtail:latest
+  #   container_name: promtail
+  #   volumes:
+  #     - /var/log:/var/log:ro
+  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
+  #     - ./config/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+  #   command: -config.file=/etc/promtail/config.yml
+  #   networks:
+  #     - health-net
+  #   restart: always
+
+  # cadvisor:
+  #   image: gcr.io/cadvisor/cadvisor:latest
+  #   container_name: cadvisor
+  #   volumes:
+  #     - /:/rootfs:ro
+  #     - /var/run:/var/run:ro
+  #     - /sys:/sys:ro
+  #     - /var/lib/docker/:/var/lib/docker:ro
+  #     - /dev/disk/:/dev/disk:ro
+  #   networks:
+  #     - health-net
+  #   restart: always
+
+  # postgres-exporter:
+  #   image: prometheuscommunity/postgres-exporter
+  #   container_name: postgres-exporter
+  #   environment:
+  #     - DATA_SOURCE_NAME=postgresql://admin:password123@db-postgres:5432/postgres?sslmode=disable
+  #   networks:
+  #     - health-net
+  #   restart: always
+
+  # --- BKM MEDIATOR ---
   bkm-mediator:
     build: ./mediator
     container_name: bkm-mediator
@@ -119,7 +162,6 @@ services:
       - OPENLMIS_RECEIPT_REASON_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
       - RECEIPT_TYPE_CODE=RECEIPT
       - LOG_LEVEL=debug
-      # --- VHW Notifications ---
       - NOTIFY_SMS_ENABLED=true
       - NOTIFY_PUSH_ENABLED=true
       - NOTIFY_ON_DISPENSE=true
@@ -132,7 +174,6 @@ services:
       - NOTIFY_EMAIL_ENABLED=true
       - NOTIFY_EMAIL_URL=http://notification-sink:3001/email
       - NOTIFY_EMAIL_FROM=mediator@lesotho.health
-      # Throttle — min ms between repeat notifications to the same VHW for the same event type
       - NOTIFY_SMS_THROTTLE_MS=300000
       - NOTIFY_PUSH_THROTTLE_MS=60000
       - NOTIFY_EMAIL_THROTTLE_MS=600000
@@ -145,9 +186,36 @@ services:
     networks:
       - health-net
 
-  # --- OPENSRP 2 (Community Health Worker Mobile Hub) ---
-  # Uses JNDI for its DataSource — context.xml declares java:comp/env/jdbc/openSRPDB.
-  # keycloak.json is mounted into the classpath so the Keycloak adapter can initialize.
+  # --- DHIS2 ---
+  dhis2-web:
+    image: dhis2/core:2.40
+    container_name: dhis2-web
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./config/dhis.conf:/opt/dhis2/dhis.conf:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+
+  # --- KEYCLOAK ---
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - ./config/keycloak/opensrp-realm.json:/opt/keycloak/data/import/opensrp-realm.json:ro
+    ports:
+      - "8083:8080"
+    networks:
+      - health-net
+
+  # --- OPENSRP SERVER ---
   opensrp-server:
     image: opensrp/opensrp-server-web:latest
     container_name: opensrp-server
@@ -164,10 +232,7 @@ services:
     networks:
       - health-net
 
-  # --- OPENLMIS (Supply Chain / Warehouse Management) ---
-  # OpenLMIS microservice stack requires Consul (service registry) and
-  # an rsyslog container reachable as 'log' for centralized logging.
-
+  # --- OPENLMIS MICROSERVICES ---
   consul:
     image: hashicorp/consul:1.9
     container_name: consul
@@ -175,7 +240,6 @@ services:
     networks:
       - health-net
 
-  # Must be named 'log' — OpenLMIS services hardcode this hostname for syslog.
   log:
     image: openlmis/rsyslog:latest
     container_name: openlmis-log
@@ -204,8 +268,6 @@ services:
       - POSTGRES_PASSWORD=password123
       - BASE_URL=http://openlmis-nginx
       - spring.rabbitmq.host=openlmis-rabbitmq
-      # Hibernate 5.0 auto-detects PostgreSQL81Dialect for PG14, which lacks pg-uuid.
-      # PostgreSQL94Dialect (extends 82Dialect) registers PostgresUUIDType as 'pg-uuid'.
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQL94Dialect
       - JAVA_OPTS=-Xmx512m
     depends_on:
@@ -231,40 +293,9 @@ services:
       - spring.rabbitmq.host=openlmis-rabbitmq
       - JAVA_OPTS=-Xmx512m
     depends_on:
-      db-postgres:
-        condition: service_healthy
-      openlmis-rabbitmq:
-        condition: service_healthy
-      openlmis-auth:
-        condition: service_started
-      consul:
-        condition: service_started
-      log:
-        condition: service_started
-    networks:
-      - health-net
-
-  openlmis-requisition:
-    image: openlmis/requisition:latest
-    container_name: openlmis-requisition
-    environment:
-      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_requisition
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=password123
-      - BASE_URL=http://openlmis-nginx
-      - spring.rabbitmq.host=openlmis-rabbitmq
-      - JAVA_OPTS=-Xmx512m
-    depends_on:
-      db-postgres:
-        condition: service_healthy
-      openlmis-rabbitmq:
-        condition: service_healthy
-      openlmis-referencedata:
-        condition: service_started
-      consul:
-        condition: service_started
-      log:
-        condition: service_started
+      - db-postgres
+      - openlmis-rabbitmq
+      - openlmis-auth
     networks:
       - health-net
 
@@ -280,152 +311,10 @@ services:
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQL94Dialect
       - JAVA_OPTS=-Xmx512m
     depends_on:
-      db-postgres:
-        condition: service_healthy
-      openlmis-rabbitmq:
-        condition: service_healthy
-      openlmis-auth:
-        condition: service_started
-      openlmis-referencedata:
-        condition: service_started
-      consul:
-        condition: service_started
-      log:
-        condition: service_started
-    networks:
-      - health-net
-
-  # --- HAPI FHIR R4 SERVER (for OpenSRP FHIR Core mobile app) ---
-  # Exposed on port 8084 so the patched APK can reach it via 10.0.2.2:8084/fhir/
-  hapi-fhir:
-    image: hapiproject/hapi:v7.2.0
-    container_name: hapi-fhir
-    ports:
-      - "8079:8080"
-    environment:
-      - hapi.fhir.fhir_version=R4
-      - hapi.fhir.allow_multiple_delete=true
-      - hapi.fhir.allow_external_references=true
-      - hapi.fhir.reuse_cached_search_results_millis=-1
-    networks:
-      - health-net
-
-  # --- OPENSRP FHIR WEB UI (fhir-web) ---
-  # React SPA + Express OAuth proxy for managing FHIR resources via browser.
-  # Auth flow: browser → Express (port 9901) → Keycloak (port 8083) → JWT → HAPI FHIR (port 8079)
-  # Login: http://localhost:9901  |  credentials: opensrp-admin / admin
-  opensrp-web:
-    image: opensrp/web:latest
-    container_name: opensrp-web
-    ports:
-      - "9901:3000"
-    environment:
-      # ── Express OAuth proxy (server-side; uses Docker-internal Keycloak URL) ──
-      - EXPRESS_OPENSRP_CLIENT_ID=opensrp-web
-      - EXPRESS_OPENSRP_CLIENT_SECRET=opensrp-secret
-      - EXPRESS_OPENSRP_ACCESS_TOKEN_URL=http://keycloak:8080/realms/opensrp/protocol/openid-connect/token
-      - EXPRESS_OPENSRP_AUTHORIZATION_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/auth
-      - EXPRESS_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
-      - EXPRESS_OPENSRP_USER_URL=http://keycloak:8080/realms/opensrp/protocol/openid-connect/userinfo
-      - EXPRESS_OPENSRP_CALLBACK_URL=http://localhost:9901/oauth/callback/OpenSRP/
-      - EXPRESS_SERVER_LOGOUT_URL=http://localhost:9901/logout
-      - EXPRESS_SESSION_SECRET=lesotho-sandbox-fhir-web-session-secret
-      - EXPRESS_ALLOW_TOKEN_RENEWAL=true
-      - EXPRESS_OPENSRP_SCOPES=openid profile email
-      - NODE_ENV=development
-      # Disable CSP for sandbox — default policy blocks cross-origin fetches to
-      # localhost:8079 (HAPI FHIR) and localhost:8083 (Keycloak) with 'self' connect-src
-      - EXPRESS_CONTENT_SECURITY_POLICY_CONFIG=false
-      # ── React frontend (browser-side; uses host-accessible localhost URLs) ──
-      # Must be "keycloak" — the RbacProvider only supports d={keycloak: adapter}.
-      # "opensrp" would call d["opensrp"](r) → undefined() → TypeError → error boundary.
-      # Keycloak.js is NOT used browser-side; "keycloak" here only picks the RBAC adapter.
-      - REACT_APP_AUTHZ_STRATEGY=keycloak
-      - REACT_APP_KEYCLOAK_API_BASE_URL=http://localhost:8083/admin/realms/opensrp
-      - REACT_APP_KEYCLOAK_LOGOUT_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/logout
-      - REACT_APP_OPENSRP_CLIENT_ID=opensrp-web
-      - REACT_APP_OPENSRP_ACCESS_TOKEN_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/token
-      - REACT_APP_OPENSRP_AUTHORIZATION_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/auth
-      - REACT_APP_OPENSRP_USER_URL=http://localhost:8083/realms/opensrp/protocol/openid-connect/userinfo
-      - REACT_APP_DOMAIN_NAME=http://localhost:9901
-      - REACT_APP_WEBSITE_NAME=Lesotho Health — FHIR Web
-      - REACT_APP_EXPRESS_OAUTH_GET_STATE_URL=http://localhost:9901/oauth/state
-      - REACT_APP_EXPRESS_OAUTH_LOGOUT_URL=http://localhost:9901/logout
-      - REACT_APP_FHIR_API_BASE_URL=http://localhost:8079/fhir
-      - REACT_APP_OPENSRP_WEB_VERSION=latest
-      # Provide empty-but-valid Sentry config — confd maps REACT_APP_OPENSRP_SENTRY_CONFIG_JSON
-      # to /react/app/opensrp/sentry/config/json; leaving it "" causes JSON.parse("") to throw
-      # during React module initialization (SyntaxError: Unexpected end of JSON input).
-      - REACT_APP_OPENSRP_SENTRY_CONFIG_JSON={}
-      # ── Module toggles ──
-      - REACT_APP_ENABLE_FHIR_LOCATIONS=true
-      - REACT_APP_ENABLE_FHIR_CARE_TEAM=true
-      - REACT_APP_ENABLE_FHIR_TEAMS=true
-      - REACT_APP_ENABLE_FHIR_USER_MANAGEMENT=true
-      - REACT_APP_ENABLE_FHIR_PATIENTS=true
-      - REACT_APP_ENABLE_QUEST=true
-    volumes:
-      # Mount patched appconfig.toml that adds /react/app/authz/strategy (and others)
-      # to confd's watched keys list — without this, confd ignores REACT_APP_AUTHZ_STRATEGY.
-      - ./config/opensrp-web/appconfig.toml:/etc/confd/conf.d/appconfig.toml:ro
-      # Persist sessions across container restarts — without this, the session files are
-      # wiped on restart but the browser still sends the old cookie → ENOENT error loop.
-      - opensrp-web-sessions:/tmp/express-sessions
-    depends_on:
-      - keycloak
-      - hapi-fhir
-    networks:
-      - health-net
-
-  # MailHog — local SMTP sink + web UI (http://localhost:8025) for sandbox email capture.
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: mailhog
-    ports:
-      - "8025:8025"   # Web UI — view caught emails
-    networks:
-      - health-net
-
-  openlmis-notification:
-    image: openlmis/notification:latest
-    container_name: openlmis-notification
-    environment:
-      - DATABASE_URL=jdbc:postgresql://db-postgres:5432/openlmis_notification
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=password123
-      - BASE_URL=http://openlmis-nginx
-      - spring.rabbitmq.host=openlmis-rabbitmq
-      - MAIL_HOST=mailhog
-      - MAIL_PORT=1025
-      - MAIL_USERNAME=
-      - MAIL_PASSWORD=
-      - JAVA_OPTS=-Xmx512m
-    depends_on:
-      db-postgres:
-        condition: service_healthy
-      openlmis-rabbitmq:
-        condition: service_healthy
-      openlmis-auth:
-        condition: service_started
-      openlmis-referencedata:
-        condition: service_started
-      consul:
-        condition: service_started
-      log:
-        condition: service_started
-      mailhog:
-        condition: service_started
-    networks:
-      - health-net
-
-  # OpenLMIS Reference UI — AngularJS SPA served by nginx.
-  # No external port needed: traffic flows through openlmis-nginx on :8082.
-  # UI_SERVICE_URL tells openlmis-nginx where to proxy static asset requests.
-  openlmis-ui:
-    image: openlmis/reference-ui:5.2.13
-    container_name: openlmis-ui
-    environment:
-      - BASE_URL=http://localhost:8082
+      - db-postgres
+      - openlmis-rabbitmq
+      - openlmis-auth
+      - openlmis-referencedata
     networks:
       - health-net
 
@@ -438,34 +327,63 @@ services:
       - VIRTUAL_HOST=localhost
       - AUTH_SERVICE_URL=http://openlmis-auth:8080
       - REFERENCEDATA_SERVICE_URL=http://openlmis-referencedata:8080
-      - REQUISITION_SERVICE_URL=http://openlmis-requisition:8080
       - STOCKMANAGEMENT_SERVICE_URL=http://openlmis-stockmanagement:8080
-      - NOTIFICATION_SERVICE_URL=http://openlmis-notification:8080
       - UI_SERVICE_URL=http://openlmis-ui:80
     depends_on:
-      - consul
       - openlmis-auth
       - openlmis-referencedata
-      - openlmis-requisition
       - openlmis-stockmanagement
-      - openlmis-notification
     networks:
       - health-net
 
-  # --- NOTIFICATION SINK (sandbox SMS/push/email webhook recorder) ---
-  # Accepts POST /sms, /push, /email; records all in memory.
-  # Email payloads are also forwarded to MailHog via SMTP (port 1025).
-  # GET /history returns all received notifications for e2e verification.
-  # DELETE /history clears the log between test runs.
+  openlmis-ui:
+    image: openlmis/reference-ui:5.2.13
+    container_name: openlmis-ui
+    environment:
+      - BASE_URL=http://localhost:8082
+    networks:
+      - health-net
+
+  # --- HAPI FHIR & OPENSRP WEB ---
+  hapi-fhir:
+    image: hapiproject/hapi:v7.2.0
+    container_name: hapi-fhir
+    ports:
+      - "8079:8080"
+    environment:
+      - hapi.fhir.fhir_version=R4
+    networks:
+      - health-net
+
+  opensrp-web:
+    image: opensrp/web:latest
+    container_name: opensrp-web
+    ports:
+      - "9901:3000"
+    environment:
+      - EXPRESS_OPENSRP_CLIENT_ID=opensrp-web
+      - EXPRESS_OPENSRP_ACCESS_TOKEN_URL=http://keycloak:8080/realms/opensrp/protocol/openid-connect/token
+      - REACT_APP_FHIR_API_BASE_URL=http://localhost:8079/fhir
+    depends_on:
+      - keycloak
+      - hapi-fhir
+    networks:
+      - health-net
+
+  # --- UTILITIES & SINKS ---
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "8025:8025"
+    networks:
+      - health-net
+
   notification-sink:
     build: ./notification-sink
     container_name: notification-sink
     ports:
       - "8086:3001"
-    environment:
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - EMAIL_FROM=mediator@lesotho.health
     depends_on:
       - mailhog
     networks:
@@ -478,4 +396,7 @@ networks:
 volumes:
   postgres-data:
   mongo-data:
+  # prometheus-data:
+  # grafana-data:
+  # loki-data:
   opensrp-web-sessions:

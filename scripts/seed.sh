@@ -809,6 +809,88 @@ docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
     );" 2>/dev/null
 log "Trade item, lot (AL-LOT-2026), and approved product entry seeded."
 
+# ─── 6a-ii. Seed 7 additional medicines ───────────────────────────────────────
+log "Seeding 7 additional OpenLMIS orderables ..."
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  -- Orderables
+  INSERT INTO referencedata.orderables (id, fullproductname, packroundingthreshold, netcontent, code, roundtozero, dispensableid) VALUES
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02002', 'Amoxicillin 250mg',     0, 1, 'AMOX250',  false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02003', 'RDT Kit',               0, 1, 'RDTKIT',   false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02004', 'Paracetamol Syrup',     0, 1, 'PARASYR',  false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02005', 'Cotrimoxazole 480mg',   0, 1, 'CTX480',   false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02006', 'ORS Sachet',            0, 1, 'ORSACH',   false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02007', 'Zinc 20mg',             0, 1, 'ZINC20',   false, '${DISPENSABLE_ID}'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02008', 'Iron + Folic Acid',     0, 1, 'IRNFOL',   false, '${DISPENSABLE_ID}')
+  ON CONFLICT (id) DO NOTHING;
+  -- program_orderables
+  INSERT INTO referencedata.program_orderables
+    (id, active, displayorder, fullsupply, orderabledisplaycategoryid, orderableid, programid)
+  SELECT gen_random_uuid(), true, row_number() OVER () + 1, true, '${ODC_ID}', v.id::uuid, '${PROGRAM_ID}'
+  FROM (VALUES
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02002'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02003'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02004'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02005'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02006'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02007'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02008')
+  ) AS v(id)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM referencedata.program_orderables
+    WHERE orderableid = v.id::uuid AND programid = '${PROGRAM_ID}'
+  );
+  -- trade_items
+  INSERT INTO referencedata.trade_items (id, manufactureroftradeitem) VALUES
+    ('eeeeeeee-0000-0000-0000-000000000002', 'GSK'),
+    ('eeeeeeee-0000-0000-0000-000000000003', 'SD Biosensor'),
+    ('eeeeeeee-0000-0000-0000-000000000004', 'Aspen'),
+    ('eeeeeeee-0000-0000-0000-000000000005', 'Roche'),
+    ('eeeeeeee-0000-0000-0000-000000000006', 'Unicef'),
+    ('eeeeeeee-0000-0000-0000-000000000007', 'Cipla'),
+    ('eeeeeeee-0000-0000-0000-000000000008', 'Cipla')
+  ON CONFLICT (id) DO NOTHING;
+  -- orderable_identifiers
+  INSERT INTO referencedata.orderable_identifiers (key, value, orderableid) VALUES
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000002', '3be1d20f-6aa9-4e52-864f-4fa04aa02002'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000003', '3be1d20f-6aa9-4e52-864f-4fa04aa02003'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000004', '3be1d20f-6aa9-4e52-864f-4fa04aa02004'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000005', '3be1d20f-6aa9-4e52-864f-4fa04aa02005'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000006', '3be1d20f-6aa9-4e52-864f-4fa04aa02006'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000007', '3be1d20f-6aa9-4e52-864f-4fa04aa02007'),
+    ('tradeItem', 'eeeeeeee-0000-0000-0000-000000000008', '3be1d20f-6aa9-4e52-864f-4fa04aa02008')
+  ON CONFLICT DO NOTHING;
+  -- facility_type_approved_products
+  INSERT INTO referencedata.facility_type_approved_products
+    (id, emergencyorderpoint, maxperiodsofstock, minperiodsofstock, facilitytypeid, orderableid, programid)
+  SELECT gen_random_uuid(), 0, 3, 0, f.typeid, v.oid::uuid, '${PROGRAM_ID}'
+  FROM referencedata.facilities f,
+  (VALUES
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02002'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02003'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02004'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02005'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02006'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02007'),
+    ('3be1d20f-6aa9-4e52-864f-4fa04aa02008')
+  ) AS v(oid)
+  WHERE f.id = '${FACILITY_ID}'
+  AND NOT EXISTS (
+    SELECT 1 FROM referencedata.facility_type_approved_products
+    WHERE facilitytypeid = f.typeid AND orderableid = v.oid::uuid AND programid = '${PROGRAM_ID}'
+  );" 2>/dev/null
+# lots (separate call — trade_items must exist first)
+docker exec health-db-postgres psql -U admin -d openlmis_referencedata -q -c "
+  INSERT INTO referencedata.lots (id, lotcode, expirationdate, manufacturedate, tradeitemid, active) VALUES
+    ('ffffffff-0000-0000-0000-000000000002', 'AMOX-LOT-2026',  '2028-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000002', true),
+    ('ffffffff-0000-0000-0000-000000000003', 'RDT-LOT-2026',   '2027-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000003', true),
+    ('ffffffff-0000-0000-0000-000000000004', 'PARA-LOT-2026',  '2028-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000004', true),
+    ('ffffffff-0000-0000-0000-000000000005', 'CTX-LOT-2026',   '2028-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000005', true),
+    ('ffffffff-0000-0000-0000-000000000006', 'ORS-LOT-2026',   '2027-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000006', true),
+    ('ffffffff-0000-0000-0000-000000000007', 'ZINC-LOT-2026',  '2028-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000007', true),
+    ('ffffffff-0000-0000-0000-000000000008', 'IFA-LOT-2026',   '2028-12-31', '2026-01-01', 'eeeeeeee-0000-0000-0000-000000000008', true)
+  ON CONFLICT (id) DO NOTHING;" 2>/dev/null
+log "7 additional medicines seeded (orderables, lots, approved products)."
+
 # ─── 6b. Seed Lesotho district facilities ─────────────────────────────────────
 # 30 facilities across 3 districts (Leribe, Berea, Maseru).
 # Flyway-seeded geographic level, zone, and facility type IDs are queried dynamically
@@ -967,6 +1049,34 @@ if [[ "$EXISTING_RECEIPT" == "0" && -n "$RECEIPT_REASON_ID" ]]; then
   log "Initial stock receipt created (10,000 tablets, lot AL-LOT-2026)."
 else
   log "Initial stock receipt already exists — skipping."
+fi
+
+# ─── 7c. Seed initial stock for 7 additional medicines ────────────────────────
+EXISTING_RECEIPT_V2=$(docker exec health-db-postgres psql -U admin -d openlmis_stockmanagement -t -c \
+  "SELECT count(*) FROM stockmanagement.stock_card_line_items WHERE documentnumber='SEED-INITIAL-RECEIPT-V2';" 2>/dev/null | tr -d '[:space:]')
+if [[ "$EXISTING_RECEIPT_V2" == "0" ]]; then
+  log "Seeding initial stock for 7 additional medicines ..."
+  LMIS_TOKEN_STOCK2=$(curl -sf -u user-client:changeme \
+    -d "grant_type=password&username=admin&password=password" \
+    http://localhost:8082/api/oauth/token \
+    | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('access_token',''))")
+  RECEIPT_REASON_ID2=$(docker exec health-db-postgres psql -U admin -d openlmis_stockmanagement -t -c \
+    "SELECT id FROM stockmanagement.stock_card_line_item_reasons WHERE name='Receipts' LIMIT 1;" 2>/dev/null | tr -d '[:space:]')
+  curl -sf -o /dev/null -X POST \
+    -H "Authorization: Bearer ${LMIS_TOKEN_STOCK2}" -H "Content-Type: application/json" \
+    "http://localhost:8082/api/stockEvents" \
+    -d "{\"facilityId\":\"${FACILITY_ID}\",\"programId\":\"${PROGRAM_ID}\",\"lineItems\":[
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02002\",\"lotId\":\"ffffffff-0000-0000-0000-000000000002\",\"quantity\":5000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02003\",\"lotId\":\"ffffffff-0000-0000-0000-000000000003\",\"quantity\":500,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02004\",\"lotId\":\"ffffffff-0000-0000-0000-000000000004\",\"quantity\":3000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02005\",\"lotId\":\"ffffffff-0000-0000-0000-000000000005\",\"quantity\":5000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02006\",\"lotId\":\"ffffffff-0000-0000-0000-000000000006\",\"quantity\":2000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02007\",\"lotId\":\"ffffffff-0000-0000-0000-000000000007\",\"quantity\":8000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"},
+      {\"orderableId\":\"3be1d20f-6aa9-4e52-864f-4fa04aa02008\",\"lotId\":\"ffffffff-0000-0000-0000-000000000008\",\"quantity\":10000,\"occurredDate\":\"${TODAY}\",\"reasonId\":\"${RECEIPT_REASON_ID2}\",\"documentationNo\":\"SEED-INITIAL-RECEIPT-V2\"}
+    ]}"
+  log "Initial stock seeded for 7 additional medicines."
+else
+  log "Additional medicines initial stock already exists — skipping."
 fi
 
 # ─── 8. Seed OpenSRP practitioner ─────────────────────────────────────────────
@@ -1362,6 +1472,46 @@ fhir_put("Observation", "obs-stock-al-20-120", {
     ]
 })
 
+# ── Groups + Observations: 7 additional medicines ─────────────────────────────
+_extra_medicines = [
+    ("amoxicillin-250mg", "Amoxicillin 250mg",   5000),
+    ("rdt-kit",           "RDT Kit",              500),
+    ("paracetamol-syr",   "Paracetamol Syrup",    3000),
+    ("cotrimoxazole-480mg","Cotrimoxazole 480mg", 5000),
+    ("ors-sachet",        "ORS Sachet",           2000),
+    ("zinc-20mg",         "Zinc 20mg",            8000),
+    ("iron-folic-acid",   "Iron + Folic Acid",    10000),
+]
+for _code, _name, _qty in _extra_medicines:
+    fhir_put("Group", f"commodity-{_code}", {
+        "resourceType": "Group",
+        "id":           f"commodity-{_code}",
+        "active":       True,
+        "type":         "medication",
+        "actual":       True,
+        "name":         _name,
+        "code": {"coding": [{"system": "http://snomed.info/sct",
+                             "code": "386452003",
+                             "display": "Supply inventory item"}]},
+    })
+    fhir_put("Observation", f"obs-stock-{_code}", {
+        "resourceType":     "Observation",
+        "id":               f"obs-stock-{_code}",
+        "status":           "preliminary",
+        "code": {"coding": [{"system": "http://snomed.info/sct",
+                             "code": "386452003",
+                             "display": "Stock on hand"}]},
+        "subject":          {"reference": f"Group/commodity-{_code}"},
+        "effectiveDateTime": _today,
+        "component": [
+            {"code": {"coding": [{"system": "http://snomed.info/sct",
+                                  "code": "386452003",
+                                  "display": "Running balance"}]},
+             "valueQuantity": {"value": _qty, "unit": "unit",
+                               "system": "http://unitsofmeasure.org", "code": "{unit}"}}
+        ]
+    })
+
 # ── Questionnaire: household registration ─────────────────────────────────────
 fhir_put("Questionnaire", "f210a832-857f-49e6-93f5-399eec4f4edb", {
     "resourceType": "Questionnaire",
@@ -1456,7 +1606,16 @@ fhir_put("Questionnaire", "qn-stock-dispense", {
          "type": "reference",   "required": True},
         {"linkId": "commodity", "text": "Commodity",
          "type": "choice",      "required": True,
-         "answerOption": [{"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg (6 tablets)"}}]},
+         "answerOption": [
+             {"valueCoding": {"code": "AL-20-120",          "display": "AL 20/120mg (6 tablets)"}},
+             {"valueCoding": {"code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"code": "rdt-kit",            "display": "RDT Kit"}},
+             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syrup"}},
+             {"valueCoding": {"code": "cotrimoxazole-480mg","display": "Cotrimoxazole 480mg"}},
+             {"valueCoding": {"code": "ors-sachet",         "display": "ORS Sachet"}},
+             {"valueCoding": {"code": "zinc-20mg",          "display": "Zinc 20mg"}},
+             {"valueCoding": {"code": "iron-folic-acid",    "display": "Iron + Folic Acid"}},
+         ]},
         {"linkId": "quantity",  "text": "Quantity dispensed (tablets)",
          "type": "integer",     "required": True,
          "initial": [{"valueInteger": 6}]},
@@ -1478,9 +1637,14 @@ fhir_put("Questionnaire", "qn-stock-mgmt-dispense", {
          "type": "choice",
          "required": True,
          "answerOption": [
+             {"valueCoding": {"code": "AL-20-120",          "display": "AL 20/120mg"}},
              {"valueCoding": {"code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
              {"valueCoding": {"code": "rdt-kit",            "display": "RDT Kit"}},
-             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syr."}},
+             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syrup"}},
+             {"valueCoding": {"code": "cotrimoxazole-480mg","display": "Cotrimoxazole 480mg"}},
+             {"valueCoding": {"code": "ors-sachet",         "display": "ORS Sachet"}},
+             {"valueCoding": {"code": "zinc-20mg",          "display": "Zinc 20mg"}},
+             {"valueCoding": {"code": "iron-folic-acid",    "display": "Iron + Folic Acid"}},
          ]},
         {"linkId": "batch_number",
          "text": "Batch Number",
@@ -1512,7 +1676,11 @@ fhir_put("Questionnaire", "qn-stock-order", {
              {"valueCoding": {"system": "http://snomed.info/sct", "code": "AL-20-120",          "display": "AL 20/120mg"}},
              {"valueCoding": {"system": "http://snomed.info/sct", "code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
              {"valueCoding": {"system": "http://snomed.info/sct", "code": "rdt-kit",            "display": "RDT Kit"}},
-             {"valueCoding": {"system": "http://snomed.info/sct", "code": "paracetamol-syr",    "display": "Paracetamol Syr."}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "paracetamol-syr",    "display": "Paracetamol Syrup"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "cotrimoxazole-480mg","display": "Cotrimoxazole 480mg"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "ors-sachet",         "display": "ORS Sachet"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "zinc-20mg",          "display": "Zinc 20mg"}},
+             {"valueCoding": {"system": "http://snomed.info/sct", "code": "iron-folic-acid",    "display": "Iron + Folic Acid"}},
          ]},
         {"linkId": "order_quantity",
          "text": "Quantity Requested",
@@ -1537,8 +1705,17 @@ fhir_put("Questionnaire", "qn-stock-count", {
     "item": [
         {"linkId": "commodity", "text": "Commodity",
          "type": "choice",      "required": True,
-         "answerOption": [{"valueCoding": {"code": "AL-20-120", "display": "AL 20/120mg"}}]},
-        {"linkId": "balance",   "text": "Physical stock count (tablets)",
+         "answerOption": [
+             {"valueCoding": {"code": "AL-20-120",          "display": "AL 20/120mg"}},
+             {"valueCoding": {"code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"code": "rdt-kit",            "display": "RDT Kit"}},
+             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syrup"}},
+             {"valueCoding": {"code": "cotrimoxazole-480mg","display": "Cotrimoxazole 480mg"}},
+             {"valueCoding": {"code": "ors-sachet",         "display": "ORS Sachet"}},
+             {"valueCoding": {"code": "zinc-20mg",          "display": "Zinc 20mg"}},
+             {"valueCoding": {"code": "iron-folic-acid",    "display": "Iron + Folic Acid"}},
+         ]},
+        {"linkId": "balance",   "text": "Physical stock count (units)",
          "type": "integer",     "required": True},
         {"linkId": "date",      "text": "Count date",
          "type": "date",        "required": True},
@@ -1566,10 +1743,14 @@ fhir_put("Questionnaire", "qn-stock-accept", {
          "type": "choice",
          "required": True,
          "answerOption": [
-             {"valueCoding": {"code": "AL-20-120",         "display": "AL 20/120mg"}},
-             {"valueCoding": {"code": "amoxicillin-250mg", "display": "Amoxicillin 250mg"}},
-             {"valueCoding": {"code": "rdt-kit",           "display": "RDT Kit"}},
-             {"valueCoding": {"code": "paracetamol-syr",   "display": "Paracetamol Syr."}},
+             {"valueCoding": {"code": "AL-20-120",          "display": "AL 20/120mg"}},
+             {"valueCoding": {"code": "amoxicillin-250mg",  "display": "Amoxicillin 250mg"}},
+             {"valueCoding": {"code": "rdt-kit",            "display": "RDT Kit"}},
+             {"valueCoding": {"code": "paracetamol-syr",    "display": "Paracetamol Syrup"}},
+             {"valueCoding": {"code": "cotrimoxazole-480mg","display": "Cotrimoxazole 480mg"}},
+             {"valueCoding": {"code": "ors-sachet",         "display": "ORS Sachet"}},
+             {"valueCoding": {"code": "zinc-20mg",          "display": "Zinc 20mg"}},
+             {"valueCoding": {"code": "iron-folic-acid",    "display": "Iron + Folic Acid"}},
          ]},
         {"linkId": "quantity_issued",
          "text": "Quantity Issued",
@@ -1692,7 +1873,7 @@ fhir_put("ImplementationGuide", "ig-lesotho-vhw", {
     },
 })
 
-print(f"OpenSRP app config seeded: IG, Composition, {len(binaries)} Binaries, 3 Questionnaires, 1 commodity Group.")
+print(f"OpenSRP app config seeded: IG, Composition, {len(binaries)} Binaries, 3 Questionnaires, 8 commodity Groups.")
 PYEOF
 
 # ─── 10. Generate DHIS2 analytics tables ──────────────────────────────────────
