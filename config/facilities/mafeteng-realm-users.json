@@ -1,54 +1,5 @@
 [
   {
-    "id": "1fc3b1cd-b10c-5071-9095-b39cc24f9f80",
-    "username": "sm.mafeteng-hospital",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Mafeteng Hospital",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Mafeteng Hospital"
-      ],
-      "facilityId": [
-        "565674bc-791c-5baf-8ad8-44203a4291de"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "407eee95-5d78-54b4-ad54-05801d245d8b",
     "username": "co.mafeteng-hospital",
     "enabled": true,
@@ -72,55 +23,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "6be32603-b865-5997-a843-d36d754957a9",
-    "username": "sm.samaria",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Samaria HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Samaria HC"
-      ],
-      "facilityId": [
-        "88a0ba9b-285a-56d0-a5d9-b16f0371d37f"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -196,55 +98,6 @@
     ]
   },
   {
-    "id": "48c04c39-3269-5829-ad0d-7a36015fc382",
-    "username": "sm.mt-tabor",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Mt Tabor HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Mt Tabor HC"
-      ],
-      "facilityId": [
-        "5f86b62d-8d9a-5da5-8515-b896835b6d81"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "d93e3a1d-564b-5d6b-9cab-ac34f158aa78",
     "username": "co.mt-tabor",
     "enabled": true,
@@ -268,55 +121,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "e0ae961f-c446-5b53-beda-dc79e2f19a85",
-    "username": "sm.thabana-morena",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Thabana-Morena HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Thabana-Morena HC"
-      ],
-      "facilityId": [
-        "75d31b75-8678-53f4-9275-f47d64c33e3d"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -392,55 +196,6 @@
     ]
   },
   {
-    "id": "c2c03759-2948-5d9c-ac97-a520adeb3ed6",
-    "username": "sm.mt-olivet",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Mt Olivet HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Mt Olivet HC"
-      ],
-      "facilityId": [
-        "a5558f08-4ea7-502f-8d72-e3d3322c2f47"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "b0381ebc-a890-5215-933a-aefe284bcb92",
     "username": "co.mt-olivet",
     "enabled": true,
@@ -464,55 +219,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "c202dc05-1f27-50ec-96e7-2ee9692ff833",
-    "username": "sm.thaba-tsoeu",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Thaba-Tsoeu HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Thaba-Tsoeu HC"
-      ],
-      "facilityId": [
-        "6bf59525-e671-5e5b-9053-1de926bf222f"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -588,55 +294,6 @@
     ]
   },
   {
-    "id": "38fab8da-b7bd-5a10-a782-67da3ee093e4",
-    "username": "sm.kolo",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Kolo HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Kolo HC"
-      ],
-      "facilityId": [
-        "6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "f1b0423e-d21a-5f9b-9cdc-b8190c8173c9",
     "username": "co.kolo",
     "enabled": true,
@@ -660,55 +317,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "835278eb-0899-599a-ad85-d754480ced9d",
-    "username": "sm.sekameng",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Sekameng HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Sekameng HC"
-      ],
-      "facilityId": [
-        "364d604f-8749-521d-b1dc-858e59f84b4a"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -784,55 +392,6 @@
     ]
   },
   {
-    "id": "341fc1fa-0ed7-568f-936d-f929b4a5d7ff",
-    "username": "sm.tsakholo",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Tsakholo HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Tsakholo HC"
-      ],
-      "facilityId": [
-        "1e2443d7-cb1c-5c38-8011-ee70c9fb693d"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "b810784f-6367-531f-8842-b5cf3a051245",
     "username": "co.tsakholo",
     "enabled": true,
@@ -856,55 +415,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "1158c5b3-cbc0-59fc-be33-bf83f173f1b5",
-    "username": "sm.litsoeneng",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Litsoeneng HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Litsoeneng HC"
-      ],
-      "facilityId": [
-        "59dc144f-206c-5062-bb7e-01a6d8283dbc"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -980,55 +490,6 @@
     ]
   },
   {
-    "id": "0016fbbf-03e8-5f2d-9e6b-2122d5e39af7",
-    "username": "sm.ribaneng",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Ribaneng HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Ribaneng HC"
-      ],
-      "facilityId": [
-        "b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "bcdf0826-4054-57e9-81c4-b4886ea3cc36",
     "username": "co.ribaneng",
     "enabled": true,
@@ -1052,55 +513,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "76a94180-565f-51cd-a30c-887cb605a60c",
-    "username": "sm.masemouse",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Masemouse HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Masemouse HC"
-      ],
-      "facilityId": [
-        "e61834df-cffb-5e03-8469-8f4d791a3ff4"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -1176,55 +588,6 @@
     ]
   },
   {
-    "id": "a358b1ba-bfa0-5598-b4ec-b8ff521b6c4c",
-    "username": "sm.st-andrews",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "St. Andrews HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "St. Andrews HC"
-      ],
-      "facilityId": [
-        "04a8e13d-f434-50d7-96d6-26edc264f327"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "1aca3bc6-f288-5fc5-87b4-39d8b71ca796",
     "username": "co.st-andrews",
     "enabled": true,
@@ -1248,55 +611,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "0057e20d-e2dd-5414-ab2c-969e996dcb8f",
-    "username": "sm.emmause",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Emmause HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Emmause HC"
-      ],
-      "facilityId": [
-        "f1acc7fa-a085-5743-be4a-8e467e6f6ec2"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -1372,55 +686,6 @@
     ]
   },
   {
-    "id": "017337da-4eea-5695-b445-a1b86b907566",
-    "username": "sm.matelile",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Matelile HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Matelile HC"
-      ],
-      "facilityId": [
-        "ce613609-d766-58cf-a9ee-b59a6c2ac295"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "295ae25f-b453-5cb9-bb70-68ae71836f9c",
     "username": "co.matelile",
     "enabled": true,
@@ -1444,55 +709,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "f4c79874-6b51-5ed4-9adb-37b0baffd4ce",
-    "username": "sm.malealea",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Malealea HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Malealea HC"
-      ],
-      "facilityId": [
-        "5184d3d1-de9a-54e2-a52a-424eedf0c717"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",
@@ -1568,55 +784,6 @@
     ]
   },
   {
-    "id": "67b5af26-f2a2-5ac7-aa04-ed8414e3e516",
-    "username": "sm.motsekuoa",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Motsekuoa HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Motsekuoa HC"
-      ],
-      "facilityId": [
-        "f0d9855b-0a6d-5716-909b-171af1687764"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
     "id": "3642ca50-23f4-50ee-b321-ac0d672f9d2a",
     "username": "co.motsekuoa",
     "enabled": true,
@@ -1640,55 +807,6 @@
     ],
     "realmRoles": [
       "coordinator",
-      "OPENMRS",
-      "ALL_EVENTS",
-      "MANAGE_Patient",
-      "MANAGE_Practitioner",
-      "MANAGE_PractitionerRole",
-      "MANAGE_Group",
-      "MANAGE_Organization",
-      "MANAGE_OrganizationAffiliation",
-      "MANAGE_HealthcareService",
-      "MANAGE_Location",
-      "MANAGE_Observation",
-      "MANAGE_QuestionnaireResponse",
-      "MANAGE_CareTeam",
-      "MANAGE_PlanDefinition",
-      "MANAGE_Questionnaire",
-      "MANAGE_PractitionerDetail",
-      "MANAGE_List",
-      "MANAGE_Binary",
-      "MANAGE_Condition",
-      "MANAGE_Task",
-      "MANAGE_Immunization",
-      "MANAGE_Encounter",
-      "MANAGE_Flag"
-    ]
-  },
-  {
-    "id": "64f8eb66-35cd-501c-a0e0-3d48adfb918d",
-    "username": "sm.lecoop",
-    "enabled": true,
-    "emailVerified": true,
-    "firstName": "Lecoop HC",
-    "lastName": "Store Manager",
-    "attributes": {
-      "facility": [
-        "Lecoop HC"
-      ],
-      "facilityId": [
-        "75605da0-dc3f-5a6f-9569-ce1a4dfd74d2"
-      ]
-    },
-    "credentials": [
-      {
-        "type": "password",
-        "value": "Bkm@2026",
-        "temporary": false
-      }
-    ],
-    "realmRoles": [
-      "store_manager",
       "OPENMRS",
       "ALL_EVENTS",
       "MANAGE_Patient",

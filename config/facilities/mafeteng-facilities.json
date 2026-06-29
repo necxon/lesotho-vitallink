@@ -18,11 +18,6 @@
       "dhis2Ou": "MhVktPWEah5",
       "users": [
         {
-          "username": "sm.mafeteng-hospital",
-          "role": "store_manager",
-          "kcId": "1fc3b1cd-b10c-5071-9095-b39cc24f9f80"
-        },
-        {
           "username": "co.mafeteng-hospital",
           "role": "coordinator",
           "kcId": "407eee95-5d78-54b4-ad54-05801d245d8b"
@@ -39,11 +34,6 @@
       "fhirLocationId": "loc-samaria",
       "dhis2Ou": "MxDywFDTRp9",
       "users": [
-        {
-          "username": "sm.samaria",
-          "role": "store_manager",
-          "kcId": "6be32603-b865-5997-a843-d36d754957a9"
-        },
         {
           "username": "co.samaria",
           "role": "coordinator",
@@ -62,11 +52,6 @@
       "dhis2Ou": "M08eNfUcluG",
       "users": [
         {
-          "username": "sm.mt-tabor",
-          "role": "store_manager",
-          "kcId": "48c04c39-3269-5829-ad0d-7a36015fc382"
-        },
-        {
           "username": "co.mt-tabor",
           "role": "coordinator",
           "kcId": "d93e3a1d-564b-5d6b-9cab-ac34f158aa78"
@@ -83,11 +68,6 @@
       "fhirLocationId": "loc-thabana-morena",
       "dhis2Ou": "MXUJeJpd527",
       "users": [
-        {
-          "username": "sm.thabana-morena",
-          "role": "store_manager",
-          "kcId": "e0ae961f-c446-5b53-beda-dc79e2f19a85"
-        },
         {
           "username": "co.thabana-morena",
           "role": "coordinator",
@@ -106,11 +86,6 @@
       "dhis2Ou": "Mpm3anAFHbG",
       "users": [
         {
-          "username": "sm.mt-olivet",
-          "role": "store_manager",
-          "kcId": "c2c03759-2948-5d9c-ac97-a520adeb3ed6"
-        },
-        {
           "username": "co.mt-olivet",
           "role": "coordinator",
           "kcId": "b0381ebc-a890-5215-933a-aefe284bcb92"
@@ -127,11 +102,6 @@
       "fhirLocationId": "loc-thaba-tsoeu",
       "dhis2Ou": "MTmalx6GDQh",
       "users": [
-        {
-          "username": "sm.thaba-tsoeu",
-          "role": "store_manager",
-          "kcId": "c202dc05-1f27-50ec-96e7-2ee9692ff833"
-        },
         {
           "username": "co.thaba-tsoeu",
           "role": "coordinator",
@@ -150,11 +120,6 @@
       "dhis2Ou": "MoRm4JeA36j",
       "users": [
         {
-          "username": "sm.kolo",
-          "role": "store_manager",
-          "kcId": "38fab8da-b7bd-5a10-a782-67da3ee093e4"
-        },
-        {
           "username": "co.kolo",
           "role": "coordinator",
           "kcId": "f1b0423e-d21a-5f9b-9cdc-b8190c8173c9"
@@ -171,11 +136,6 @@
       "fhirLocationId": "loc-sekameng",
       "dhis2Ou": "M6QoWeMH7eE",
       "users": [
-        {
-          "username": "sm.sekameng",
-          "role": "store_manager",
-          "kcId": "835278eb-0899-599a-ad85-d754480ced9d"
-        },
         {
           "username": "co.sekameng",
           "role": "coordinator",
@@ -194,11 +154,6 @@
       "dhis2Ou": "M2X6u3DJHnD",
       "users": [
         {
-          "username": "sm.tsakholo",
-          "role": "store_manager",
-          "kcId": "341fc1fa-0ed7-568f-936d-f929b4a5d7ff"
-        },
-        {
           "username": "co.tsakholo",
           "role": "coordinator",
           "kcId": "b810784f-6367-531f-8842-b5cf3a051245"
@@ -215,11 +170,6 @@
       "fhirLocationId": "loc-litsoeneng",
       "dhis2Ou": "MPIlF8CgTor",
       "users": [
-        {
-          "username": "sm.litsoeneng",
-          "role": "store_manager",
-          "kcId": "1158c5b3-cbc0-59fc-be33-bf83f173f1b5"
-        },
         {
           "username": "co.litsoeneng",
           "role": "coordinator",
@@ -238,11 +188,6 @@
       "dhis2Ou": "MTL8jPRRuz6",
       "users": [
         {
-          "username": "sm.ribaneng",
-          "role": "store_manager",
-          "kcId": "0016fbbf-03e8-5f2d-9e6b-2122d5e39af7"
-        },
-        {
           "username": "co.ribaneng",
           "role": "coordinator",
           "kcId": "bcdf0826-4054-57e9-81c4-b4886ea3cc36"
@@ -259,11 +204,6 @@
       "fhirLocationId": "loc-masemouse",
       "dhis2Ou": "M5kgucFmUvb",
       "users": [
-        {
-          "username": "sm.masemouse",
-          "role": "store_manager",
-          "kcId": "76a94180-565f-51cd-a30c-887cb605a60c"
-        },
         {
           "username": "co.masemouse",
           "role": "coordinator",
@@ -282,11 +222,6 @@
       "dhis2Ou": "MprL0Q9KK5s",
       "users": [
         {
-          "username": "sm.st-andrews",
-          "role": "store_manager",
-          "kcId": "a358b1ba-bfa0-5598-b4ec-b8ff521b6c4c"
-        },
-        {
           "username": "co.st-andrews",
           "role": "coordinator",
           "kcId": "1aca3bc6-f288-5fc5-87b4-39d8b71ca796"
@@ -303,11 +238,6 @@
       "fhirLocationId": "loc-emmause",
       "dhis2Ou": "MTYfpHurTt7",
       "users": [
-        {
-          "username": "sm.emmause",
-          "role": "store_manager",
-          "kcId": "0057e20d-e2dd-5414-ab2c-969e996dcb8f"
-        },
         {
           "username": "co.emmause",
           "role": "coordinator",
@@ -326,11 +256,6 @@
       "dhis2Ou": "MXoJ83iRlEx",
       "users": [
         {
-          "username": "sm.matelile",
-          "role": "store_manager",
-          "kcId": "017337da-4eea-5695-b445-a1b86b907566"
-        },
-        {
           "username": "co.matelile",
           "role": "coordinator",
           "kcId": "295ae25f-b453-5cb9-bb70-68ae71836f9c"
@@ -347,11 +272,6 @@
       "fhirLocationId": "loc-malealea",
       "dhis2Ou": "MSJuHbEkMai",
       "users": [
-        {
-          "username": "sm.malealea",
-          "role": "store_manager",
-          "kcId": "f4c79874-6b51-5ed4-9adb-37b0baffd4ce"
-        },
         {
           "username": "co.malealea",
           "role": "coordinator",
@@ -370,11 +290,6 @@
       "dhis2Ou": "MdrVFmVscxi",
       "users": [
         {
-          "username": "sm.motsekuoa",
-          "role": "store_manager",
-          "kcId": "67b5af26-f2a2-5ac7-aa04-ed8414e3e516"
-        },
-        {
           "username": "co.motsekuoa",
           "role": "coordinator",
           "kcId": "3642ca50-23f4-50ee-b321-ac0d672f9d2a"
@@ -391,11 +306,6 @@
       "fhirLocationId": "loc-lecoop",
       "dhis2Ou": "MDt7yKbmU1b",
       "users": [
-        {
-          "username": "sm.lecoop",
-          "role": "store_manager",
-          "kcId": "64f8eb66-35cd-501c-a0e0-3d48adfb918d"
-        },
         {
           "username": "co.lecoop",
           "role": "coordinator",

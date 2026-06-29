@@ -1,20 +1,6 @@
 {
   "performers": [
     {
-      "sourceId": "1fc3b1cd-b10c-5071-9095-b39cc24f9f80",
-      "facilityId": "565674bc-791c-5baf-8ad8-44203a4291de",
-      "facilityName": "Mafeteng Hospital",
-      "programId": "",
-      "dhis2OrgUnit": "MhVktPWEah5",
-      "name": "Mafeteng Hospital Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.mafeteng-hospital"
-      ],
-      "locationId": "loc-mafeteng-hospital",
-      "locationName": "Mafeteng Hospital"
-    },
-    {
       "sourceId": "407eee95-5d78-54b4-ad54-05801d245d8b",
       "facilityId": "565674bc-791c-5baf-8ad8-44203a4291de",
       "facilityName": "Mafeteng Hospital",
@@ -27,20 +13,6 @@
       ],
       "locationId": "loc-mafeteng-hospital",
       "locationName": "Mafeteng Hospital"
-    },
-    {
-      "sourceId": "6be32603-b865-5997-a843-d36d754957a9",
-      "facilityId": "88a0ba9b-285a-56d0-a5d9-b16f0371d37f",
-      "facilityName": "Samaria HC",
-      "programId": "",
-      "dhis2OrgUnit": "MxDywFDTRp9",
-      "name": "Samaria HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.samaria"
-      ],
-      "locationId": "loc-samaria",
-      "locationName": "Samaria HC"
     },
     {
       "sourceId": "d080a89f-ad6c-5f09-bb4a-6838f9204962",
@@ -57,20 +29,6 @@
       "locationName": "Samaria HC"
     },
     {
-      "sourceId": "48c04c39-3269-5829-ad0d-7a36015fc382",
-      "facilityId": "5f86b62d-8d9a-5da5-8515-b896835b6d81",
-      "facilityName": "Mt Tabor HC",
-      "programId": "",
-      "dhis2OrgUnit": "M08eNfUcluG",
-      "name": "Mt Tabor HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.mt-tabor"
-      ],
-      "locationId": "loc-mt-tabor",
-      "locationName": "Mt Tabor HC"
-    },
-    {
       "sourceId": "d93e3a1d-564b-5d6b-9cab-ac34f158aa78",
       "facilityId": "5f86b62d-8d9a-5da5-8515-b896835b6d81",
       "facilityName": "Mt Tabor HC",
@@ -83,20 +41,6 @@
       ],
       "locationId": "loc-mt-tabor",
       "locationName": "Mt Tabor HC"
-    },
-    {
-      "sourceId": "e0ae961f-c446-5b53-beda-dc79e2f19a85",
-      "facilityId": "75d31b75-8678-53f4-9275-f47d64c33e3d",
-      "facilityName": "Thabana-Morena HC",
-      "programId": "",
-      "dhis2OrgUnit": "MXUJeJpd527",
-      "name": "Thabana-Morena HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.thabana-morena"
-      ],
-      "locationId": "loc-thabana-morena",
-      "locationName": "Thabana-Morena HC"
     },
     {
       "sourceId": "893c0287-9c95-58cd-ad95-14a07637453c",
@@ -113,20 +57,6 @@
       "locationName": "Thabana-Morena HC"
     },
     {
-      "sourceId": "c2c03759-2948-5d9c-ac97-a520adeb3ed6",
-      "facilityId": "a5558f08-4ea7-502f-8d72-e3d3322c2f47",
-      "facilityName": "Mt Olivet HC",
-      "programId": "",
-      "dhis2OrgUnit": "Mpm3anAFHbG",
-      "name": "Mt Olivet HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.mt-olivet"
-      ],
-      "locationId": "loc-mt-olivet",
-      "locationName": "Mt Olivet HC"
-    },
-    {
       "sourceId": "b0381ebc-a890-5215-933a-aefe284bcb92",
       "facilityId": "a5558f08-4ea7-502f-8d72-e3d3322c2f47",
       "facilityName": "Mt Olivet HC",
@@ -139,20 +69,6 @@
       ],
       "locationId": "loc-mt-olivet",
       "locationName": "Mt Olivet HC"
-    },
-    {
-      "sourceId": "c202dc05-1f27-50ec-96e7-2ee9692ff833",
-      "facilityId": "6bf59525-e671-5e5b-9053-1de926bf222f",
-      "facilityName": "Thaba-Tsoeu HC",
-      "programId": "",
-      "dhis2OrgUnit": "MTmalx6GDQh",
-      "name": "Thaba-Tsoeu HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.thaba-tsoeu"
-      ],
-      "locationId": "loc-thaba-tsoeu",
-      "locationName": "Thaba-Tsoeu HC"
     },
     {
       "sourceId": "b23ffb42-13fa-5d17-97cd-86bd1309abb1",
@@ -169,20 +85,6 @@
       "locationName": "Thaba-Tsoeu HC"
     },
     {
-      "sourceId": "38fab8da-b7bd-5a10-a782-67da3ee093e4",
-      "facilityId": "6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872",
-      "facilityName": "Kolo HC",
-      "programId": "",
-      "dhis2OrgUnit": "MoRm4JeA36j",
-      "name": "Kolo HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.kolo"
-      ],
-      "locationId": "loc-kolo",
-      "locationName": "Kolo HC"
-    },
-    {
       "sourceId": "f1b0423e-d21a-5f9b-9cdc-b8190c8173c9",
       "facilityId": "6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872",
       "facilityName": "Kolo HC",
@@ -195,20 +97,6 @@
       ],
       "locationId": "loc-kolo",
       "locationName": "Kolo HC"
-    },
-    {
-      "sourceId": "835278eb-0899-599a-ad85-d754480ced9d",
-      "facilityId": "364d604f-8749-521d-b1dc-858e59f84b4a",
-      "facilityName": "Sekameng HC",
-      "programId": "",
-      "dhis2OrgUnit": "M6QoWeMH7eE",
-      "name": "Sekameng HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.sekameng"
-      ],
-      "locationId": "loc-sekameng",
-      "locationName": "Sekameng HC"
     },
     {
       "sourceId": "ef483396-1d8e-5564-acb0-ca2998cb0f0d",
@@ -225,20 +113,6 @@
       "locationName": "Sekameng HC"
     },
     {
-      "sourceId": "341fc1fa-0ed7-568f-936d-f929b4a5d7ff",
-      "facilityId": "1e2443d7-cb1c-5c38-8011-ee70c9fb693d",
-      "facilityName": "Tsakholo HC",
-      "programId": "",
-      "dhis2OrgUnit": "M2X6u3DJHnD",
-      "name": "Tsakholo HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.tsakholo"
-      ],
-      "locationId": "loc-tsakholo",
-      "locationName": "Tsakholo HC"
-    },
-    {
       "sourceId": "b810784f-6367-531f-8842-b5cf3a051245",
       "facilityId": "1e2443d7-cb1c-5c38-8011-ee70c9fb693d",
       "facilityName": "Tsakholo HC",
@@ -251,20 +125,6 @@
       ],
       "locationId": "loc-tsakholo",
       "locationName": "Tsakholo HC"
-    },
-    {
-      "sourceId": "1158c5b3-cbc0-59fc-be33-bf83f173f1b5",
-      "facilityId": "59dc144f-206c-5062-bb7e-01a6d8283dbc",
-      "facilityName": "Litsoeneng HC",
-      "programId": "",
-      "dhis2OrgUnit": "MPIlF8CgTor",
-      "name": "Litsoeneng HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.litsoeneng"
-      ],
-      "locationId": "loc-litsoeneng",
-      "locationName": "Litsoeneng HC"
     },
     {
       "sourceId": "7db5c2b2-efe8-5b13-84c0-a41d33d0bcd6",
@@ -281,20 +141,6 @@
       "locationName": "Litsoeneng HC"
     },
     {
-      "sourceId": "0016fbbf-03e8-5f2d-9e6b-2122d5e39af7",
-      "facilityId": "b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2",
-      "facilityName": "Ribaneng HC",
-      "programId": "",
-      "dhis2OrgUnit": "MTL8jPRRuz6",
-      "name": "Ribaneng HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.ribaneng"
-      ],
-      "locationId": "loc-ribaneng",
-      "locationName": "Ribaneng HC"
-    },
-    {
       "sourceId": "bcdf0826-4054-57e9-81c4-b4886ea3cc36",
       "facilityId": "b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2",
       "facilityName": "Ribaneng HC",
@@ -307,20 +153,6 @@
       ],
       "locationId": "loc-ribaneng",
       "locationName": "Ribaneng HC"
-    },
-    {
-      "sourceId": "76a94180-565f-51cd-a30c-887cb605a60c",
-      "facilityId": "e61834df-cffb-5e03-8469-8f4d791a3ff4",
-      "facilityName": "Masemouse HC",
-      "programId": "",
-      "dhis2OrgUnit": "M5kgucFmUvb",
-      "name": "Masemouse HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.masemouse"
-      ],
-      "locationId": "loc-masemouse",
-      "locationName": "Masemouse HC"
     },
     {
       "sourceId": "883be84a-a191-57d9-919f-35d1be225707",
@@ -337,20 +169,6 @@
       "locationName": "Masemouse HC"
     },
     {
-      "sourceId": "a358b1ba-bfa0-5598-b4ec-b8ff521b6c4c",
-      "facilityId": "04a8e13d-f434-50d7-96d6-26edc264f327",
-      "facilityName": "St. Andrews HC",
-      "programId": "",
-      "dhis2OrgUnit": "MprL0Q9KK5s",
-      "name": "St. Andrews HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.st-andrews"
-      ],
-      "locationId": "loc-st-andrews",
-      "locationName": "St. Andrews HC"
-    },
-    {
       "sourceId": "1aca3bc6-f288-5fc5-87b4-39d8b71ca796",
       "facilityId": "04a8e13d-f434-50d7-96d6-26edc264f327",
       "facilityName": "St. Andrews HC",
@@ -363,20 +181,6 @@
       ],
       "locationId": "loc-st-andrews",
       "locationName": "St. Andrews HC"
-    },
-    {
-      "sourceId": "0057e20d-e2dd-5414-ab2c-969e996dcb8f",
-      "facilityId": "f1acc7fa-a085-5743-be4a-8e467e6f6ec2",
-      "facilityName": "Emmause HC",
-      "programId": "",
-      "dhis2OrgUnit": "MTYfpHurTt7",
-      "name": "Emmause HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.emmause"
-      ],
-      "locationId": "loc-emmause",
-      "locationName": "Emmause HC"
     },
     {
       "sourceId": "a223f92c-4403-5a35-b38a-12963778d5b9",
@@ -393,20 +197,6 @@
       "locationName": "Emmause HC"
     },
     {
-      "sourceId": "017337da-4eea-5695-b445-a1b86b907566",
-      "facilityId": "ce613609-d766-58cf-a9ee-b59a6c2ac295",
-      "facilityName": "Matelile HC",
-      "programId": "",
-      "dhis2OrgUnit": "MXoJ83iRlEx",
-      "name": "Matelile HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.matelile"
-      ],
-      "locationId": "loc-matelile",
-      "locationName": "Matelile HC"
-    },
-    {
       "sourceId": "295ae25f-b453-5cb9-bb70-68ae71836f9c",
       "facilityId": "ce613609-d766-58cf-a9ee-b59a6c2ac295",
       "facilityName": "Matelile HC",
@@ -419,20 +209,6 @@
       ],
       "locationId": "loc-matelile",
       "locationName": "Matelile HC"
-    },
-    {
-      "sourceId": "f4c79874-6b51-5ed4-9adb-37b0baffd4ce",
-      "facilityId": "5184d3d1-de9a-54e2-a52a-424eedf0c717",
-      "facilityName": "Malealea HC",
-      "programId": "",
-      "dhis2OrgUnit": "MSJuHbEkMai",
-      "name": "Malealea HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.malealea"
-      ],
-      "locationId": "loc-malealea",
-      "locationName": "Malealea HC"
     },
     {
       "sourceId": "94fd2db6-7b27-51e1-ada7-6a7df9206678",
@@ -449,20 +225,6 @@
       "locationName": "Malealea HC"
     },
     {
-      "sourceId": "67b5af26-f2a2-5ac7-aa04-ed8414e3e516",
-      "facilityId": "f0d9855b-0a6d-5716-909b-171af1687764",
-      "facilityName": "Motsekuoa HC",
-      "programId": "",
-      "dhis2OrgUnit": "MdrVFmVscxi",
-      "name": "Motsekuoa HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.motsekuoa"
-      ],
-      "locationId": "loc-motsekuoa",
-      "locationName": "Motsekuoa HC"
-    },
-    {
       "sourceId": "3642ca50-23f4-50ee-b321-ac0d672f9d2a",
       "facilityId": "f0d9855b-0a6d-5716-909b-171af1687764",
       "facilityName": "Motsekuoa HC",
@@ -475,20 +237,6 @@
       ],
       "locationId": "loc-motsekuoa",
       "locationName": "Motsekuoa HC"
-    },
-    {
-      "sourceId": "64f8eb66-35cd-501c-a0e0-3d48adfb918d",
-      "facilityId": "75605da0-dc3f-5a6f-9569-ce1a4dfd74d2",
-      "facilityName": "Lecoop HC",
-      "programId": "",
-      "dhis2OrgUnit": "MDt7yKbmU1b",
-      "name": "Lecoop HC Store Manager",
-      "role": "store_manager",
-      "aliases": [
-        "sm.lecoop"
-      ],
-      "locationId": "loc-lecoop",
-      "locationName": "Lecoop HC"
     },
     {
       "sourceId": "d6834bb5-8987-580b-b5e2-77d1deb8c3aa",
