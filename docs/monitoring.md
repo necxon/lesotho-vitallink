@@ -47,6 +47,10 @@ Both datasources are auto-provisioned from `config/grafana/provisioning/datasour
 
 All dashboards are provisioned from `config/grafana/dashboards/` and auto-loaded every 30 seconds. Changes to JSON files appear in Grafana without a restart.
 
+One Loki/Prometheus-backed dashboard per service, tagged by area:
+
+![Grafana dashboards list - one per service (Mediator, DHIS2, FHIR, Infrastructure, Keycloak, OpenHIM, OpenLMIS), tagged by area](images/grafana-dashboards.png)
+
 ### BKM Mediator Logs
 **URL:** http://localhost:3005/d/bkm-mediator-logs
 **Datasource:** Loki
@@ -100,6 +104,8 @@ Nginx log format (parsed):
 **URL:** http://localhost:3005/d/fhir-overview
 **Datasource:** Loki
 **Containers:** `hapi-fhir`, `opensrp-server`
+
+![Grafana FHIR dashboard - read/write throughput, QuestionnaireResponse and Task operations, resource activity and request logs](images/grafana-fhir.png)
 
 HAPI FHIR logs every request via `fhirtest.access` interceptor in the format:
 `Operation[search-type  Observation] UA[okhttp/4.12.0] Params[...]`
@@ -209,6 +215,8 @@ curl -X POST -u admin:district http://localhost:8081/api/resourceTables/analytic
 ### Infrastructure — Docker & PostgreSQL
 **URL:** http://localhost:3005/d/docker-infra
 **Datasource:** Prometheus (cAdvisor + postgres-exporter)
+
+![Grafana Infrastructure dashboard - running containers, total memory/CPU/network, PostgreSQL size, and per-container CPU and memory](images/grafana-infrastructure.png)
 
 | Section | Content |
 |---|---|
