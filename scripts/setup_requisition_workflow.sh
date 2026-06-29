@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NEC XON (c) Copyright 2025. All rights reserved.
+# NEC XON (c) Copyright 2025.
 #
 # setup_requisition_workflow.sh — Tier 1: enable the OpenLMIS requisition lifecycle
 # (INITIATED -> SUBMITTED -> AUTHORIZED -> APPROVED -> RELEASED) for Clinic A +

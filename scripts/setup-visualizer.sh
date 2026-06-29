@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NEC XON (c) Copyright 2025. All rights reserved.
+# NEC XON (c) Copyright 2025.
 #
 # setup-visualizer.sh — install the "BKM End-to-End Flow" OpenHIM Console visualizer.
 #

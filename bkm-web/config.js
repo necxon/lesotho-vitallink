@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Runtime environment config for bkm-web (build-less SPA — loaded by index.html
  * BEFORE core.js). Values here OVERRIDE the localhost defaults in core.js, and are

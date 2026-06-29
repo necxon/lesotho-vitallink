@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * GET /aggregate/whoami — returns ONLY the caller's own facility/role, derived
  * from the JWT sub (matched against the performer map's sourceId/aliases). Lets the

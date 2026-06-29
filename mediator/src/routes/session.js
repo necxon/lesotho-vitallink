@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Single-seat session lock for the bkm-web portal.
  * Only ONE user may hold the portal at a time. The SPA acquires the seat on

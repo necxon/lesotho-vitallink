@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NEC XON (c) Copyright 2025. All rights reserved.
+# NEC XON (c) Copyright 2025.
 #
 # Phase-1 role migration (post site-visit): create the store_manager + coordinator
 # Keycloak realm roles, then RENAME + reassign the existing users:

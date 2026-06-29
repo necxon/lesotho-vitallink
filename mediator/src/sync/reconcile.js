@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Dispense reconciliation.
  *

@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Dynamic OpenSRP custom endpoints that plain HAPI FHIR does not implement, but the
  * FHIR-Core Android app calls on login to resolve the user's team/org/location:

@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Workflow roles (2026-06): coordinator > vhw, under admin. The store_manager
  * role was removed (2026-06-22) — coordinator is now the top facility role and

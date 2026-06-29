@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Per-VHW stock allocation API (mounted at /aggregate/stock).
  *   POST /allocate    — facility worker assigns a per-period budget to a VHW

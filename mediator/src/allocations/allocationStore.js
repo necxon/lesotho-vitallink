@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Per-VHW stock allocation store. A facility worker assigns a per-period budget
  * of a medicine to a VHW; dispenses deduct from it. OpenLMIS stock stays

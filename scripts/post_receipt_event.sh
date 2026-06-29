@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NEC XON (c) Copyright 2025. All rights reserved.
+# NEC XON (c) Copyright 2025.
 #
 # post_receipt_event.sh — post a RECEIPT (accepted delivery) to the mediator.
 #

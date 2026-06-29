@@ -1,5 +1,5 @@
 /*
- * NEC XON (c) Copyright 2025. All rights reserved.
+ * NEC XON (c) Copyright 2025.
  *
  * Mirrors a MedicationDispense into HAPI FHIR so it appears in the patient's
  * dispense history (and the Stock Log cross-reference). Tagged mediator-processed

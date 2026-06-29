@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NEC XON (c) Copyright 2025. All rights reserved.
+# NEC XON (c) Copyright 2025.
 #
 # setup_dhis2_dashboard.sh — (re)build the BKM DHIS2 demo dashboard.
 #
