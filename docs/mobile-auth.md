@@ -6,6 +6,14 @@ The BKM Android app authenticates directly against Keycloak using OpenID Connect
 There is no proxy or middleware in the login path - the phone talks straight to the
 Keycloak server.
 
+## Getting the app
+
+The latest BKM Android app is available from the web portal landing page. Open the portal
+(https://lesotho-bkm.xyz) and, on the home page, scan the "Get the BKM app" QR code with
+your phone camera to install the current build.
+
+![BKM portal landing page with the Get the BKM app QR code](images/bkm-app-download.png)
+
 ## Identity provider
 
 - Server: https://lesotho-bkm.xyz/auth
