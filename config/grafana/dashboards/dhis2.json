@@ -1,0 +1,238 @@
+{
+  "uid": "dhis2-overview",
+  "title": "DHIS2",
+  "description": "DHIS2 auth events, data value writes (mediator stock pushes), metadata imports, analytics query errors, scheduler",
+  "tags": ["dhis2", "logs", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Auth Success (window)",
+      "description": "AuthenticationSuccessEvent — API logins from mediator, seed.sh, console",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"AuthenticationSuccessEvent\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Auth Failures (window)",
+      "description": "AuthenticationFailure events — bad credentials against DHIS2 API",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"AuthenticationFailure\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Data Value Writes (window)",
+      "description": "POST /api/dataValueSets completions — each = mediator pushing stock data to DHIS2",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"Data value import done\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Metadata Imports (window)",
+      "description": "Import:Done lines — metadata POSTs from seed.sh or the mediator dashboard updater",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"Import:Done\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Analytics Query Errors (window)",
+      "description": "SQL errors on analytics queries — typically uidlevel4 column missing until analytics tables are rebuilt",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"error occurred during the execution of an analytics query\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "ERROR Lines (window)",
+      "description": "All * ERROR lines in DHIS2 logs",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"dhis2-web\"} |= \"* ERROR\" [$__range]))",
+        "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Auth & Request Activity", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Auth Event Rate",
+      "description": "Burst of successes = seed.sh run or mediator start. Failures = bad credentials.",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"AuthenticationSuccessEvent\" [$__interval]))",
+          "legendFormat": "auth success", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"AuthenticationFailure\" [$__interval]))",
+          "legendFormat": "auth failure", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "WARN & ERROR Rate",
+      "description": "Overall signal noise: WARN = expected fallbacks; ERROR = needs investigation",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"* WARN\" [$__interval]))",
+          "legendFormat": "WARN", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"* ERROR\" [$__interval]))",
+          "legendFormat": "ERROR", "refId": "B" }
+      ]
+    },
+    {
+      "id": 12, "type": "logs", "title": "Auth Events Log",
+      "description": "AuthenticationSuccessEvent and failure lines — includes username and source IP",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 6 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |~ \"AuthenticationSuccessEvent|AuthenticationFailure\"",
+        "refId": "A" }]
+    },
+
+    { "id": 102, "type": "row", "title": "Data Value Writes (Mediator Stock Pushes)", "gridPos": { "x": 0, "y": 19, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "timeseries", "title": "Data Value Import Rate",
+      "description": "Each \"Data value import done\" = one POST /api/dataValueSets from the mediator (stock dispense, receipt, SOH, or order).",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"Data value import done\" [$__interval]))",
+          "legendFormat": "dataValueSets writes/s", "refId": "A" }
+      ]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "Metadata Import Rate",
+      "description": "Import:Done lines — seed.sh runs, dashboard text updates, visualisation/org-unit metadata changes",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"Import:Done\" [$__interval]))",
+          "legendFormat": "metadata imports/s", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"Updating\" |= \"object(s) of type\" [$__interval]))",
+          "legendFormat": "object updates/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 22, "type": "logs", "title": "Data Value Import Events",
+      "description": "Shows total/import/update/delete counts per batch. \"update\" dominant = idempotent re-pushes.",
+      "gridPos": { "x": 0, "y": 27, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |= \"Data value import done\"",
+        "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Analytics Errors", "gridPos": { "x": 0, "y": 34, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "type": "timeseries", "title": "Analytics Query Error Rate",
+      "description": "Spikes typically caused by uidlevel4 column missing — rebuild analytics tables via POST /api/resourceTables/analytics to fix.",
+      "gridPos": { "x": 0, "y": 35, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"error occurred during the execution of an analytics query\" [$__interval]))",
+          "legendFormat": "analytics errors/s", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"dhis2-web\"} |= \"silently fallback since it's multiple analytics query\" [$__interval]))",
+          "legendFormat": "analytics fallbacks/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 31, "type": "logs", "title": "Analytics Error Detail",
+      "description": "Most common cause: column ax.uidlevel4 does not exist — village org units added but analytics tables not yet rebuilt. Fix: POST /api/resourceTables/analytics (admin/district)",
+      "gridPos": { "x": 12, "y": 35, "w": 12, "h": 6 },
+      "options": { "dedupStrategy": "signatures", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |= \"error occurred during the execution of an analytics query\"",
+        "refId": "A" }]
+    },
+    {
+      "id": 32, "type": "logs", "title": "All Errors & Warnings (excl. analytics fallback)",
+      "description": "Real errors: JsonMappingException, SQL errors, transaction rollbacks, ANALYTICS_TABLE failures",
+      "gridPos": { "x": 0, "y": 41, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |~ \"\\* (ERROR|WARN)\" != \"silently fallback since it's multiple analytics query\" != \"Encryption not configured\" != \"Spring Security to ignore\" != \"development mode\"",
+        "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "Scheduler & Startup", "gridPos": { "x": 0, "y": 49, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 40, "type": "logs", "title": "Scheduled Job Events",
+      "description": "ANALYTICS_TABLE rebuild, Resource Table jobs, nightly aggregation. Each line = scheduled job lifecycle event.",
+      "gridPos": { "x": 0, "y": 50, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |~ \"ANALYTICS_TABLE|resourceTable|Scheduling job|Scheduled job|SchedulingManager|unexecuted jobs\"",
+        "refId": "A" }]
+    },
+    {
+      "id": 41, "type": "logs", "title": "Startup & Config Warnings",
+      "description": "Encryption not configured, Spring Security ignore rules, dev-mode flags",
+      "gridPos": { "x": 12, "y": 50, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"dhis2-web\"} |~ \"Encryption not configured|Spring Security to ignore|Scheduler started with one or more unexecuted\"",
+        "refId": "A" }]
+    },
+
+    { "id": 105, "type": "row", "title": "Raw Logs", "gridPos": { "x": 0, "y": 57, "w": 24, "h": 1 }, "collapsed": true,
+      "panels": [
+        {
+          "id": 50, "type": "logs", "title": "All DHIS2 Logs",
+          "gridPos": { "x": 0, "y": 58, "w": 24, "h": 10 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"dhis2-web\"}", "refId": "A" }]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      { "hide": 2, "name": "loki_ds", "query": "loki", "refresh": 1, "type": "datasource" }
+    ]
+  }
+}

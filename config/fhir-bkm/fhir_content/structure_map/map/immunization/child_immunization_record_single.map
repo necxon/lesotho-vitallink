@@ -1,0 +1,159 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/3c118304-fb18-4752-a296-941292811433" = "Child Immunization Record Single"
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+
+group childImmunizationSingleFollowUp(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> bundle.type = "collection" "r_bundle_type";
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.subject) as referencedPatient then
+        extractChildImmunizationSingleEncounters(questionnaireResponse, referencedPatient, bundle) "rule_ref";
+}
+
+group extractChildImmunizationSingleEncounters(source questionnaireResponse : QuestionnaireResponse, source referencedPatient : Reference, target bundle: Bundle) {
+    questionnaireResponse -> evaluate(questionnaireResponse, "41000179103") as encounterOneCode, evaluate(questionnaireResponse, "Immunization record (record artifact)") as encounterOneText, evaluate(questionnaireResponse, "") as encounterPartOf then {
+        questionnaireResponse then extractEncounter( questionnaireResponse, referencedPatient, bundle, encounterOneCode, encounterOneText, encounterPartOf) "rule_encounter_one";
+    } "rule_encounter_one";
+}
+
+group extractEncounter(source questionnaireResponse : QuestionnaireResponse, source referencedPatient : Reference, target bundle: Bundle, source encounterCode : String, source encounterText : String, source encounterPartOf : Encounter) {
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = '903ac7cf-663d-43d5-8d1e-ae23a3d68d0d').answer.value.toString()) as immunizationCode,
+        evaluate(questionnaireResponse, $this.item.where(linkId = '8baf36fb-0529-4678-b19d-933211faf3a2').answer.value.toString()) as immunizationCodeDisplay then {
+
+        questionnaireResponse -> bundle.entry as entry, entry.resource = create('Encounter') as encounter then {
+            questionnaireResponse -> encounter.id = uuid() "rule_encounter_id";
+            questionnaireResponse -> encounter.status = 'finished' "rule_encounter_status";
+            questionnaireResponse -> encounter.class = c("http://terminology.hl7.org/CodeSystem/v3-ActCode", "HH", "home health") "rule_encounter_class";
+
+            //OpenSRP Type of Encounter
+            questionnaireResponse -> encounter.type = create('CodeableConcept') as concept then {
+                questionnaireResponse -> concept.coding = c("https://smartregister.org/", "child_immunization") as coding then {
+                    questionnaireResponse -> coding.display = "Child Immunization" "rule_encounter_type_one_coding_display";
+                } "rule_encounter_type_one_coding";
+                questionnaireResponse -> concept.text = "Child Immunization" "rule_encounter_type_one_text";
+            } "rule_encounter_one_type";
+
+            //Type of Encounter
+            questionnaireResponse -> encounter.type = create('CodeableConcept') as concept then {
+                questionnaireResponse -> concept.coding = c("http://snomed.info/sct", encounterCode) as coding then {
+                    questionnaireResponse -> coding.display = encounterText "rule_encounter_type_two_coding_display";
+                } "rule_encounter_type_two_coding";
+                questionnaireResponse -> concept.text = encounterText "rule_encounter_type_two_text";
+            } "rule_encounter_two_type";
+
+            questionnaireResponse -> encounter.priority = create('CodeableConcept') as priority then {
+                questionnaireResponse -> priority.coding = c("http://terminology.hl7.org/ValueSet/v3-ActPriority", "EL") as priorityCoding then {
+                    questionnaireResponse -> priorityCoding.display = "Elective" "rule_encounter_priority_coding_display";
+                } "rule_encounter_priority_coding";
+                questionnaireResponse -> priority.text = "Elective" "rule_encounter_priority_text";
+            } "rule_encounter_priority";
+            questionnaireResponse.subject as subject -> encounter.subject = referencedPatient "rule_encounter_subject";
+            questionnaireResponse -> encounter.period = create('Period') as period then {
+                questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "rule_encounter_period_start";
+                questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "rule_encounter_period_end";
+            } "rule_encounter_period";
+
+            // OpenSRP Reason for Encounter
+            questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as reason then {
+                questionnaireResponse -> reason.text = "Child Immunization" "rule_encounter_reason_text";
+                questionnaireResponse -> reason.coding = c("https://smartregister.org/", "child_immunization") as opensrpReasonCode then {
+                    questionnaireResponse -> opensrpReasonCode.display = "Child Immunization" "rule_encounter_reason_coding_display";
+                } "rule_encounter_reason_coding";
+            } "rule_encounter_reason";
+
+            // Reason for Encounter
+            questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as reason then {
+                questionnaireResponse -> reason.text = immunizationCodeDisplay "rule_encounter_reason_text";
+                questionnaireResponse -> reason.coding = c("http://snomed.info/sct", immunizationCode) as reasonCode then {
+                    questionnaireResponse -> reasonCode.display = immunizationCodeDisplay "rule_encounter_reason_coding_display";
+                } "rule_encounter_reason_coding";
+            } "rule_encounter_reason";
+
+            questionnaireResponse where(encounterPartOf.empty().not()) then {
+                questionnaireResponse -> encounter.partOf = reference(encounterPartOf) "rule_encounter_partOf_reference";
+                questionnaireResponse then extractImmunization(questionnaireResponse, referencedPatient, bundle, encounterPartOf, encounter) "rule_extract_mmunization";
+            } "rule_encounter_partOf_exists";
+
+            questionnaireResponse where(encounterPartOf.empty()) then {
+                questionnaireResponse -> evaluate(questionnaireResponse, "33879002") as encounterTwoCode, evaluate(questionnaireResponse, "Administration of vaccine to produce active immunity (procedure)") as encounterTwoText then {
+                    questionnaireResponse then extractEncounter( questionnaireResponse, referencedPatient, bundle, encounterTwoCode, encounterTwoText, encounter) "rule_encounter_two";
+                } "rule_encounter_two";
+            } "rule_encounter_partOf_not_exists";
+        } "rule_encounter";
+    } "rule_immunization_code";
+}
+
+group extractImmunization(source questionnaireResponse : QuestionnaireResponse, source referencedPatient : Reference, target bundle: Bundle, source encounterPartOf : Encounter, source encounter : Encounter) {
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = '903ac7cf-663d-43d5-8d1e-ae23a3d68d0d').answer.value.toString()) as immunizationCode,
+        evaluate(questionnaireResponse, $this.item.where(linkId = '8baf36fb-0529-4678-b19d-933211faf3a2').answer.value.toString()) as immunizationCodeDisplay then {
+
+        questionnaireResponse -> bundle.entry as entry, entry.resource = create('Immunization') as immunization then {
+            questionnaireResponse -> immunization.id = uuid() "rule_immunization_id";
+            questionnaireResponse -> immunization.status = 'completed' "rule_immunization_status";
+
+            questionnaireResponse -> immunization.vaccineCode = create('CodeableConcept') as vaccineCode then {
+                questionnaireResponse -> vaccineCode.coding = c("http://snomed.info/sct", immunizationCode) as vaccineCodeCoding then {
+                    questionnaireResponse -> vaccineCodeCoding.display = immunizationCodeDisplay "rule_immunization_vaccineCode_coding_display";
+                } "rule_immunization_vaccineCode_coding";
+                questionnaireResponse -> vaccineCode.text = immunizationCodeDisplay "rule_immunization_vaccineCode_text";
+            } "rule_immunization_vaccineCode";
+
+            questionnaireResponse -> immunization.reasonCode = create('CodeableConcept') as reasonCode then {
+                questionnaireResponse -> reasonCode.coding = c("http://snomed.info/sct", "33879002") as reasonCodeCoding then {
+                    questionnaireResponse -> reasonCodeCoding.display = "Administration of vaccine to produce active immunity (procedure)" "rule_immunization_reasonCode_coding_display";
+                } "rule_immunization_reasonCode_coding";
+                questionnaireResponse -> reasonCode.text = "Administration of vaccine to produce active immunity (procedure)" "rule_immunization_reasonCode_text";
+            } "rule_immunization_reasonCode";
+
+            //adding the dosage number from QR to the immunization protocol applied[x].doseNumber
+            questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = 'vaccine-dose-number').answer.value.exists()) then {
+              questionnaireResponse -> immunization.protocolApplied = create('Immunization_AppliedProtocol') as pa then {
+               questionnaireResponse -> pa.doseNumber = evaluate(questionnaireResponse, $this.item.where(linkId = 'vaccine-dose-number').answer.value) "rule_protocol_applied_dosage_number";
+             } "rule_protocol_applied_value";
+            } "rule_protocol_applied";
+
+            questionnaireResponse -> immunization.patient = referencedPatient "rule_immunization_patient";
+            questionnaireResponse -> immunization.occurrence = evaluate(questionnaireResponse, $this.item.where(linkId = '1e1f0f3b-58de-41b4-8db0-6c4b033cce57').answer.value.toString() + 'T00:00:00.00Z') "rule_immunization_occurrenceDateTime";
+            questionnaireResponse -> immunization.encounter = reference(encounter) "rule_immunization_encounter_reference";
+
+            questionnaireResponse then extractTaskOutput( questionnaireResponse, bundle, encounterPartOf, encounter, immunization) "rule_output_two";
+        } "rule_immunization";
+    } "rule_immunization_code"; 
+}
+
+group extractTaskOutput(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source encounterPartOf : Encounter, source encounter : Encounter, source immunization : Immunization) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Task') as task then {
+        questionnaireResponse -> task.id = create('id') as id then {
+            questionnaireResponse -> id.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'ccc7ec06-f61d-4bec-a9ad-93cd644a0da2').answer.value.toString()) "rule_task_id";
+        } "rule_update_task";
+
+        // Task Encounter Output one
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(encounterPartOf) "rule_task_output_reference";
+        } "rule_task_output";
+
+        // Task Encounter Output two
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(encounter) "rule_task_output_reference";
+        } "rule_task_output";
+
+        // Task Immunization Output
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(immunization) "rule_task_output_reference";
+        } "rule_task_output";
+    } "rule_task";
+}

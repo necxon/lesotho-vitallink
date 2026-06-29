@@ -1,0 +1,648 @@
+{
+  "resourceType": "Questionnaire",
+  "language": "en-GB",
+  "id": "5458ecb6-835a-4f11-873f-2abfdfeec93c",
+  "title": "Household Routine Visit.",
+  "description": "Household Routine Visit.",
+  "version": "0.0.1",
+  "status": "active",
+  "publisher": "ONA",
+  "meta": {
+    "profile": [
+      "http://ehelse.no/fhir/StructureDefinition/sdf-Questionnaire"
+    ],
+    "tag": [
+      {
+        "system": "urn:ietf:bcp:47",
+        "code": "en-GB",
+        "display": "English"
+      }
+    ]
+  },
+  "useContext": [
+    {
+      "code": {
+        "system": "http://hl7.org/fhir/ValueSet/usage-context-type",
+        "code": "focus",
+        "display": "Clinical Focus"
+      },
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "urn:oid:2.16.578.1.12.4.1.1.8655",
+            "display": "Household Routine Visit."
+          }
+        ]
+      }
+    }
+  ],
+  "contact": [
+    {
+      "name": "https://www.smartregister.org/"
+    }
+  ],
+  "subjectType": [
+    "Group"
+  ],
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+      "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/690b7313-ab5a-4c5f-8323-916c0025d804"
+    }
+  ],
+  "date": "2022-08-07T00:00:00Z",
+  "item": [
+    {
+      "linkId": "22f6c700-daf0-40a7-9ed4-6319c4e6466a",
+      "type": "choice",
+      "text": "Is anybody in the household sick?",
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "5350c995-e4ff-4099-dbcb-3d133b521b46",
+            "code": "yes",
+            "system": "urn:uuid:7fd0265a-c988-4274-c1ee-52566eae678d",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "d1f70931-3298-41a1-b4f8-dbac8a47a1ac",
+            "code": "no",
+            "system": "urn:uuid:7fd0265a-c988-4274-c1ee-52566eae678d",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "a815f663-0898-452f-899a-57197310389c",
+      "type": "choice",
+      "item": [
+        {
+          "linkId": "1216c402-ad0e-4125-c1d4-b088e339ebf9",
+          "type": "display",
+          "text": "Fill in the sick child form",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "a815f663-0898-452f-899a-57197310389c",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+                "code": "child-under-5"
+              }
+            }
+          ]
+        },
+        {
+          "linkId": "cf26530b-40bd-40e3-875f-0af2d7fda3e2",
+          "type": "display",
+          "text": "Fill in the urgent referral form.",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "a815f663-0898-452f-899a-57197310389c",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+                "code": "person-over-5-years"
+              }
+            }
+          ]
+        },
+        {
+          "linkId": "8c3242cb-9f6c-4e44-8224-951976e47f29",
+          "type": "display",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "text": "Fill in a sick child form for a child under 5 and an urgent referral form for another person",
+          "enableWhen": [
+            {
+              "question": "a815f663-0898-452f-899a-57197310389c",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+                "code": "child-and-adult"
+              }
+            }
+          ]
+        }
+      ],
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "a7cae6ef-e3df-4309-8bc9-c45770bc994d",
+            "code": "child-under-5",
+            "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+            "display": "Child under 5"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "e2e2da9e-bd09-4dca-8773-17fbe269ddab",
+            "code": "person-over-5-years",
+            "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+            "display": "Person over 5 years"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "83fece6f-6d28-4f93-9d1c-c8c6ea4af519",
+            "code": "child-and-adult",
+            "system": "urn:uuid:e121ec90-bd45-4cc4-8620-d832f4cb5b7f",
+            "display": "Child and adult"
+          }
+        }
+      ],
+      "text": "Who is sick?",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ],
+      "enableWhen": [
+        {
+          "question": "22f6c700-daf0-40a7-9ed4-6319c4e6466a",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:7fd0265a-c988-4274-c1ee-52566eae678d",
+            "code": "yes"
+          }
+        }
+      ],
+      "enableBehavior": "any"
+    },
+    {
+      "linkId": "0fb469e5-73cf-4fb9-9ba3-7bba79e22fa0",
+      "type": "choice",
+      "text": "Are there any new births?",
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "440cea4c-fda4-40ae-aaaf-39809f14edd9",
+            "code": "yes",
+            "system": "urn:uuid:53977bbb-e340-4ec8-a172-5adba106c5e5",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "3fcb7d06-1296-4196-ef0e-e751a32a5fc8",
+            "code": "no",
+            "system": "urn:uuid:53977bbb-e340-4ec8-a172-5adba106c5e5",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "12a28bf2-6e29-4f31-cdc7-b3a6c797da23",
+      "type": "integer",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+          "valueInteger": 1
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+          "valueInteger": 5
+        },
+        {
+          "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+          "valueString": "Enter a number between 1 and 5"
+        }
+      ],
+      "item": [
+        {
+          "linkId": "2a024e71-4f4e-4fc4-d270-1cdf6bf160d5",
+          "type": "display",
+          "text": "\nRegister a new born on the family member registration form. \n",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "12a28bf2-6e29-4f31-cdc7-b3a6c797da23",
+              "operator": "exists",
+              "answerBoolean": true
+            }
+          ]
+        }
+      ],
+      "text": "How many?",
+      "enableWhen": [
+        {
+          "question": "0fb469e5-73cf-4fb9-9ba3-7bba79e22fa0",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:53977bbb-e340-4ec8-a172-5adba106c5e5",
+            "code": "yes"
+          }
+        }
+      ],
+      "enableBehavior": "any"
+    },
+    {
+      "linkId": "0910a547-9706-4eae-8d10-151cf75b0eee",
+      "type": "choice",
+      "text": "Are there any other new members in the household?",
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "52f64903-0e08-45c3-b608-3d0e7b362e09",
+            "code": "yes",
+            "system": "urn:uuid:ebb591de-3d7e-4bd8-8eb9-c2f37fa932ae",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "7dc00506-85ea-4539-85a2-72b040115400",
+            "code": "no",
+            "system": "urn:uuid:ebb591de-3d7e-4bd8-8eb9-c2f37fa932ae",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "77450e32-fea0-4197-d3ad-1fee3306ac3f",
+      "type": "integer",
+      "item": [
+        {
+          "linkId": "f5be56c6-a565-4e1c-84c2-63242dbc10ef",
+          "type": "display",
+          "text": "Register the new family member(s) on the family member registration form. ",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "0910a547-9706-4eae-8d10-151cf75b0eee",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:ebb591de-3d7e-4bd8-8eb9-c2f37fa932ae",
+                "code": "yes"
+              }
+            }
+          ]
+        }
+      ],
+      "required": false,
+      "enableWhen": [
+        {
+          "question": "0910a547-9706-4eae-8d10-151cf75b0eee",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:ebb591de-3d7e-4bd8-8eb9-c2f37fa932ae",
+            "code": "yes"
+          }
+        }
+      ],
+      "enableBehavior": "any",
+      "text": "How many? "
+    },
+    {
+      "linkId": "3eecb775-8f9d-4a24-934e-1f46dc30ca73",
+      "type": "choice",
+      "text": "Is anyone in the family pregnant or suspected to be pregnant and not recorded as pregnant?",
+      "item": [
+        {
+          "linkId": "a1db72c5-f57e-442c-8599-70f635c61bcd",
+          "type": "display",
+          "text": "Record as pregnant using the enrol pregnant form. ",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "3eecb775-8f9d-4a24-934e-1f46dc30ca73",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:82528fad-3fee-49eb-e74f-09187c3edc18",
+                "code": "yes"
+              }
+            }
+          ],
+          "enableBehavior": "any"
+        }
+      ],
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "2dd4eed6-7da2-4b1c-9063-6fbd6810d43f",
+            "code": "yes",
+            "system": "urn:uuid:82528fad-3fee-49eb-e74f-09187c3edc18",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "59bca916-e74c-4ade-9999-cfd1419f5295",
+            "code": "no",
+            "system": "urn:uuid:82528fad-3fee-49eb-e74f-09187c3edc18",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "95e70961-3e7e-4116-95e8-e9270d26f08a",
+      "type": "choice",
+      "text": "Check for reproductive age women: Could anyone be interested in FP?",
+      "item": [
+        {
+          "linkId": "04392b79-7fd6-4a01-bafa-dfd8e6a62b2b",
+          "type": "display",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "text": "Enrol woman to FP using the enrol FP form. ",
+          "enableWhen": [
+            {
+              "question": "95e70961-3e7e-4116-95e8-e9270d26f08a",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:2da23718-e066-4066-8bc6-b910294d531d",
+                "code": "yes"
+              }
+            }
+          ],
+          "enableBehavior": "any"
+        }
+      ],
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "d016c8b8-b8c1-449f-8fe2-83fac07a9882",
+            "code": "yes",
+            "system": "urn:uuid:2da23718-e066-4066-8bc6-b910294d531d",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "bd928639-2249-4119-d7dd-39ee282c7569",
+            "code": "no",
+            "system": "urn:uuid:2da23718-e066-4066-8bc6-b910294d531d",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "b2e1d9b3-f82e-45e6-c27d-33c9dabc46e5",
+      "type": "choice",
+      "text": "Are there any unrecorded deaths in the household? ",
+      "item": [
+        {
+          "linkId": "802994b6-1a4a-4082-8fe9-ba9075505353",
+          "type": "display",
+          "text": "Record the death in the household using remove family member form. ",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                    "code": "highlight"
+                  }
+                ]
+              }
+            }
+          ],
+          "required": false,
+          "enableWhen": [
+            {
+              "question": "b2e1d9b3-f82e-45e6-c27d-33c9dabc46e5",
+              "operator": "=",
+              "answerCoding": {
+                "system": "urn:uuid:4ef17100-3029-419b-8328-648dc654611a",
+                "code": "yes"
+              }
+            }
+          ],
+          "enableBehavior": "any"
+        }
+      ],
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "6f94969b-2120-432f-8494-145b331583c4",
+            "code": "yes",
+            "system": "urn:uuid:4ef17100-3029-419b-8328-648dc654611a",
+            "display": "Yes"
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "76a7ee84-6cb8-4536-8565-b0cb5e3d9352",
+            "code": "no",
+            "system": "urn:uuid:4ef17100-3029-419b-8328-648dc654611a",
+            "display": "No"
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+          "valueBoolean": true
+        }
+      ],
+      "linkId": "119f0080-8b83-4df4-8fba-02608455a479",
+      "type": "string",
+      "text": "Current Task Status",
+      "required": false,
+      "readOnly": true
+    },
+    {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+          "valueBoolean": true
+        }
+      ],
+      "linkId": "task-id",
+      "type": "string"
+    }
+  ]
+}

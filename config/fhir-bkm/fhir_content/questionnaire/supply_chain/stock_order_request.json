@@ -1,0 +1,31 @@
+{
+  "resourceType": "Questionnaire",
+  "id": "e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6",
+  "url": "https://fhir.lesotho.health/Questionnaire/qn-stock-order",
+  "name": "StockOrderRequest",
+  "title": "Order Supplies",
+  "status": "active",
+  "subjectType": [ "Group" ],
+  "date": "2024-01-01T00:00:00Z",
+  "publisher": "BKM",
+  "item": [
+    {
+      "linkId": "d-commodity-name",
+      "text": "Medicine",
+      "type": "string",
+      "readOnly": true
+    },
+    {
+      "linkId": "stock_on_hand",
+      "text": "Currently Available",
+      "type": "integer",
+      "readOnly": true
+    },
+    {
+      "linkId": "quantity_ordered",
+      "text": "Quantity to Order",
+      "type": "integer",
+      "required": true
+    }
+  ]
+}

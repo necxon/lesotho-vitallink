@@ -1,0 +1,407 @@
+{
+  "district": {
+    "name": "Mafeteng District",
+    "code": "MFT",
+    "lmisGeoZoneId": "38ca9928-a357-5398-aad5-06924405f878",
+    "fhirLocationId": "loc-mafeteng-district",
+    "dhis2Ou": "MFIsWMQEg5P"
+  },
+  "facilities": [
+    {
+      "name": "Mafeteng Hospital",
+      "code": "MFT01",
+      "type": "hospital",
+      "slug": "mafeteng-hospital",
+      "lmisFacilityId": "565674bc-791c-5baf-8ad8-44203a4291de",
+      "fhirOrgId": "org-mafeteng-hospital",
+      "fhirLocationId": "loc-mafeteng-hospital",
+      "dhis2Ou": "MhVktPWEah5",
+      "users": [
+        {
+          "username": "sm.mafeteng-hospital",
+          "role": "store_manager",
+          "kcId": "1fc3b1cd-b10c-5071-9095-b39cc24f9f80"
+        },
+        {
+          "username": "co.mafeteng-hospital",
+          "role": "coordinator",
+          "kcId": "407eee95-5d78-54b4-ad54-05801d245d8b"
+        }
+      ]
+    },
+    {
+      "name": "Samaria HC",
+      "code": "MFT02",
+      "type": "health_center",
+      "slug": "samaria",
+      "lmisFacilityId": "88a0ba9b-285a-56d0-a5d9-b16f0371d37f",
+      "fhirOrgId": "org-samaria",
+      "fhirLocationId": "loc-samaria",
+      "dhis2Ou": "MxDywFDTRp9",
+      "users": [
+        {
+          "username": "sm.samaria",
+          "role": "store_manager",
+          "kcId": "6be32603-b865-5997-a843-d36d754957a9"
+        },
+        {
+          "username": "co.samaria",
+          "role": "coordinator",
+          "kcId": "d080a89f-ad6c-5f09-bb4a-6838f9204962"
+        }
+      ]
+    },
+    {
+      "name": "Mt Tabor HC",
+      "code": "MFT03",
+      "type": "health_center",
+      "slug": "mt-tabor",
+      "lmisFacilityId": "5f86b62d-8d9a-5da5-8515-b896835b6d81",
+      "fhirOrgId": "org-mt-tabor",
+      "fhirLocationId": "loc-mt-tabor",
+      "dhis2Ou": "M08eNfUcluG",
+      "users": [
+        {
+          "username": "sm.mt-tabor",
+          "role": "store_manager",
+          "kcId": "48c04c39-3269-5829-ad0d-7a36015fc382"
+        },
+        {
+          "username": "co.mt-tabor",
+          "role": "coordinator",
+          "kcId": "d93e3a1d-564b-5d6b-9cab-ac34f158aa78"
+        }
+      ]
+    },
+    {
+      "name": "Thabana-Morena HC",
+      "code": "MFT04",
+      "type": "health_center",
+      "slug": "thabana-morena",
+      "lmisFacilityId": "75d31b75-8678-53f4-9275-f47d64c33e3d",
+      "fhirOrgId": "org-thabana-morena",
+      "fhirLocationId": "loc-thabana-morena",
+      "dhis2Ou": "MXUJeJpd527",
+      "users": [
+        {
+          "username": "sm.thabana-morena",
+          "role": "store_manager",
+          "kcId": "e0ae961f-c446-5b53-beda-dc79e2f19a85"
+        },
+        {
+          "username": "co.thabana-morena",
+          "role": "coordinator",
+          "kcId": "893c0287-9c95-58cd-ad95-14a07637453c"
+        }
+      ]
+    },
+    {
+      "name": "Mt Olivet HC",
+      "code": "MFT05",
+      "type": "health_center",
+      "slug": "mt-olivet",
+      "lmisFacilityId": "a5558f08-4ea7-502f-8d72-e3d3322c2f47",
+      "fhirOrgId": "org-mt-olivet",
+      "fhirLocationId": "loc-mt-olivet",
+      "dhis2Ou": "Mpm3anAFHbG",
+      "users": [
+        {
+          "username": "sm.mt-olivet",
+          "role": "store_manager",
+          "kcId": "c2c03759-2948-5d9c-ac97-a520adeb3ed6"
+        },
+        {
+          "username": "co.mt-olivet",
+          "role": "coordinator",
+          "kcId": "b0381ebc-a890-5215-933a-aefe284bcb92"
+        }
+      ]
+    },
+    {
+      "name": "Thaba-Tsoeu HC",
+      "code": "MFT06",
+      "type": "health_center",
+      "slug": "thaba-tsoeu",
+      "lmisFacilityId": "6bf59525-e671-5e5b-9053-1de926bf222f",
+      "fhirOrgId": "org-thaba-tsoeu",
+      "fhirLocationId": "loc-thaba-tsoeu",
+      "dhis2Ou": "MTmalx6GDQh",
+      "users": [
+        {
+          "username": "sm.thaba-tsoeu",
+          "role": "store_manager",
+          "kcId": "c202dc05-1f27-50ec-96e7-2ee9692ff833"
+        },
+        {
+          "username": "co.thaba-tsoeu",
+          "role": "coordinator",
+          "kcId": "b23ffb42-13fa-5d17-97cd-86bd1309abb1"
+        }
+      ]
+    },
+    {
+      "name": "Kolo HC",
+      "code": "MFT07",
+      "type": "health_center",
+      "slug": "kolo",
+      "lmisFacilityId": "6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872",
+      "fhirOrgId": "org-kolo",
+      "fhirLocationId": "loc-kolo",
+      "dhis2Ou": "MoRm4JeA36j",
+      "users": [
+        {
+          "username": "sm.kolo",
+          "role": "store_manager",
+          "kcId": "38fab8da-b7bd-5a10-a782-67da3ee093e4"
+        },
+        {
+          "username": "co.kolo",
+          "role": "coordinator",
+          "kcId": "f1b0423e-d21a-5f9b-9cdc-b8190c8173c9"
+        }
+      ]
+    },
+    {
+      "name": "Sekameng HC",
+      "code": "MFT08",
+      "type": "health_center",
+      "slug": "sekameng",
+      "lmisFacilityId": "364d604f-8749-521d-b1dc-858e59f84b4a",
+      "fhirOrgId": "org-sekameng",
+      "fhirLocationId": "loc-sekameng",
+      "dhis2Ou": "M6QoWeMH7eE",
+      "users": [
+        {
+          "username": "sm.sekameng",
+          "role": "store_manager",
+          "kcId": "835278eb-0899-599a-ad85-d754480ced9d"
+        },
+        {
+          "username": "co.sekameng",
+          "role": "coordinator",
+          "kcId": "ef483396-1d8e-5564-acb0-ca2998cb0f0d"
+        }
+      ]
+    },
+    {
+      "name": "Tsakholo HC",
+      "code": "MFT09",
+      "type": "health_center",
+      "slug": "tsakholo",
+      "lmisFacilityId": "1e2443d7-cb1c-5c38-8011-ee70c9fb693d",
+      "fhirOrgId": "org-tsakholo",
+      "fhirLocationId": "loc-tsakholo",
+      "dhis2Ou": "M2X6u3DJHnD",
+      "users": [
+        {
+          "username": "sm.tsakholo",
+          "role": "store_manager",
+          "kcId": "341fc1fa-0ed7-568f-936d-f929b4a5d7ff"
+        },
+        {
+          "username": "co.tsakholo",
+          "role": "coordinator",
+          "kcId": "b810784f-6367-531f-8842-b5cf3a051245"
+        }
+      ]
+    },
+    {
+      "name": "Litsoeneng HC",
+      "code": "MFT10",
+      "type": "health_center",
+      "slug": "litsoeneng",
+      "lmisFacilityId": "59dc144f-206c-5062-bb7e-01a6d8283dbc",
+      "fhirOrgId": "org-litsoeneng",
+      "fhirLocationId": "loc-litsoeneng",
+      "dhis2Ou": "MPIlF8CgTor",
+      "users": [
+        {
+          "username": "sm.litsoeneng",
+          "role": "store_manager",
+          "kcId": "1158c5b3-cbc0-59fc-be33-bf83f173f1b5"
+        },
+        {
+          "username": "co.litsoeneng",
+          "role": "coordinator",
+          "kcId": "7db5c2b2-efe8-5b13-84c0-a41d33d0bcd6"
+        }
+      ]
+    },
+    {
+      "name": "Ribaneng HC",
+      "code": "MFT11",
+      "type": "health_center",
+      "slug": "ribaneng",
+      "lmisFacilityId": "b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2",
+      "fhirOrgId": "org-ribaneng",
+      "fhirLocationId": "loc-ribaneng",
+      "dhis2Ou": "MTL8jPRRuz6",
+      "users": [
+        {
+          "username": "sm.ribaneng",
+          "role": "store_manager",
+          "kcId": "0016fbbf-03e8-5f2d-9e6b-2122d5e39af7"
+        },
+        {
+          "username": "co.ribaneng",
+          "role": "coordinator",
+          "kcId": "bcdf0826-4054-57e9-81c4-b4886ea3cc36"
+        }
+      ]
+    },
+    {
+      "name": "Masemouse HC",
+      "code": "MFT12",
+      "type": "health_center",
+      "slug": "masemouse",
+      "lmisFacilityId": "e61834df-cffb-5e03-8469-8f4d791a3ff4",
+      "fhirOrgId": "org-masemouse",
+      "fhirLocationId": "loc-masemouse",
+      "dhis2Ou": "M5kgucFmUvb",
+      "users": [
+        {
+          "username": "sm.masemouse",
+          "role": "store_manager",
+          "kcId": "76a94180-565f-51cd-a30c-887cb605a60c"
+        },
+        {
+          "username": "co.masemouse",
+          "role": "coordinator",
+          "kcId": "883be84a-a191-57d9-919f-35d1be225707"
+        }
+      ]
+    },
+    {
+      "name": "St. Andrews HC",
+      "code": "MFT13",
+      "type": "health_center",
+      "slug": "st-andrews",
+      "lmisFacilityId": "04a8e13d-f434-50d7-96d6-26edc264f327",
+      "fhirOrgId": "org-st-andrews",
+      "fhirLocationId": "loc-st-andrews",
+      "dhis2Ou": "MprL0Q9KK5s",
+      "users": [
+        {
+          "username": "sm.st-andrews",
+          "role": "store_manager",
+          "kcId": "a358b1ba-bfa0-5598-b4ec-b8ff521b6c4c"
+        },
+        {
+          "username": "co.st-andrews",
+          "role": "coordinator",
+          "kcId": "1aca3bc6-f288-5fc5-87b4-39d8b71ca796"
+        }
+      ]
+    },
+    {
+      "name": "Emmause HC",
+      "code": "MFT14",
+      "type": "health_center",
+      "slug": "emmause",
+      "lmisFacilityId": "f1acc7fa-a085-5743-be4a-8e467e6f6ec2",
+      "fhirOrgId": "org-emmause",
+      "fhirLocationId": "loc-emmause",
+      "dhis2Ou": "MTYfpHurTt7",
+      "users": [
+        {
+          "username": "sm.emmause",
+          "role": "store_manager",
+          "kcId": "0057e20d-e2dd-5414-ab2c-969e996dcb8f"
+        },
+        {
+          "username": "co.emmause",
+          "role": "coordinator",
+          "kcId": "a223f92c-4403-5a35-b38a-12963778d5b9"
+        }
+      ]
+    },
+    {
+      "name": "Matelile HC",
+      "code": "MFT15",
+      "type": "health_center",
+      "slug": "matelile",
+      "lmisFacilityId": "ce613609-d766-58cf-a9ee-b59a6c2ac295",
+      "fhirOrgId": "org-matelile",
+      "fhirLocationId": "loc-matelile",
+      "dhis2Ou": "MXoJ83iRlEx",
+      "users": [
+        {
+          "username": "sm.matelile",
+          "role": "store_manager",
+          "kcId": "017337da-4eea-5695-b445-a1b86b907566"
+        },
+        {
+          "username": "co.matelile",
+          "role": "coordinator",
+          "kcId": "295ae25f-b453-5cb9-bb70-68ae71836f9c"
+        }
+      ]
+    },
+    {
+      "name": "Malealea HC",
+      "code": "MFT16",
+      "type": "health_center",
+      "slug": "malealea",
+      "lmisFacilityId": "5184d3d1-de9a-54e2-a52a-424eedf0c717",
+      "fhirOrgId": "org-malealea",
+      "fhirLocationId": "loc-malealea",
+      "dhis2Ou": "MSJuHbEkMai",
+      "users": [
+        {
+          "username": "sm.malealea",
+          "role": "store_manager",
+          "kcId": "f4c79874-6b51-5ed4-9adb-37b0baffd4ce"
+        },
+        {
+          "username": "co.malealea",
+          "role": "coordinator",
+          "kcId": "94fd2db6-7b27-51e1-ada7-6a7df9206678"
+        }
+      ]
+    },
+    {
+      "name": "Motsekuoa HC",
+      "code": "MFT17",
+      "type": "health_center",
+      "slug": "motsekuoa",
+      "lmisFacilityId": "f0d9855b-0a6d-5716-909b-171af1687764",
+      "fhirOrgId": "org-motsekuoa",
+      "fhirLocationId": "loc-motsekuoa",
+      "dhis2Ou": "MdrVFmVscxi",
+      "users": [
+        {
+          "username": "sm.motsekuoa",
+          "role": "store_manager",
+          "kcId": "67b5af26-f2a2-5ac7-aa04-ed8414e3e516"
+        },
+        {
+          "username": "co.motsekuoa",
+          "role": "coordinator",
+          "kcId": "3642ca50-23f4-50ee-b321-ac0d672f9d2a"
+        }
+      ]
+    },
+    {
+      "name": "Lecoop HC",
+      "code": "MFT18",
+      "type": "health_center",
+      "slug": "lecoop",
+      "lmisFacilityId": "75605da0-dc3f-5a6f-9569-ce1a4dfd74d2",
+      "fhirOrgId": "org-lecoop",
+      "fhirLocationId": "loc-lecoop",
+      "dhis2Ou": "MDt7yKbmU1b",
+      "users": [
+        {
+          "username": "sm.lecoop",
+          "role": "store_manager",
+          "kcId": "64f8eb66-35cd-501c-a0e0-3d48adfb918d"
+        },
+        {
+          "username": "co.lecoop",
+          "role": "coordinator",
+          "kcId": "d6834bb5-8987-580b-b5e2-77d1deb8c3aa"
+        }
+      ]
+    }
+  ]
+}

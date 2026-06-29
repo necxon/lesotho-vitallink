@@ -1,0 +1,497 @@
+{
+  "_README_agreedRoleFormat": {
+    "note": "JSON has no comment syntax. This _-prefixed field is documentation only; Keycloak's realm import ignores unknown top-level keys, so it is safe to leave in.",
+    "agreedRoleFormat_meaning": [
+      "1. The claim - realm roles must appear in 'realm_access.roles' in the login token. The standard Keycloak realm-roles mapper does this and is included in this export.",
+      "2. The names - the 4 workflow roles (admin / store_manager / coordinator / vhw) AND the resource roles (OPENMRS, ALL_EVENTS, MANAGE_*) must be the EXACT strings the apps expect. A role named anything else is silently ignored (user gets 403 / no permissions).",
+      "3. Brokering / federation (options B, C, D) - the partner IdP groups or AD groups must be mapped onto these role names, and a mapper must emit them into 'realm_access.roles'. If the IdP sends roles in a custom claim (e.g. 'groups' or 'https://gov.ls/roles') or under different names, we add a mapper to translate them - but that mapping must be agreed up front."
+    ],
+    "seeAlso": "docs/keycloak-integration-options-email.md"
+  },
+  "id": "opensrp",
+  "realm": "opensrp",
+  "enabled": true,
+  "editUsernameAllowed": true,
+  "sslRequired": "none",
+  "loginTheme": "keycloak",
+  "displayName": "BKM Health",
+  "displayNameHtml": "<b>BKM Health</b>",
+  "clients": [
+    {
+      "clientId": "opensrp-web",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://184.168.122.221:9901/*",
+        "http://localhost:9901/*",
+        "https://opensrp.lesotho-bkm.xyz/*"
+      ],
+      "webOrigins": [
+        "http://184.168.122.221:9901",
+        "http://localhost:9901",
+        "https://opensrp.lesotho-bkm.xyz"
+      ]
+    },
+    {
+      "clientId": "bkm-mediator",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "__REDACTED__",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "clientAuthenticatorType": "client-secret"
+    },
+    {
+      "clientId": "bkm-web",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:9902/*",
+        "http://localhost:9902/",
+        "http://localhost:9902",
+        "http://184.168.122.221:9902/*",
+        "http://184.168.122.221:9902/",
+        "http://184.168.122.221:9902",
+        "https://lesotho-bkm.xyz/*",
+        "https://lesotho-bkm.xyz/",
+        "https://lesotho-bkm.xyz"
+      ],
+      "webOrigins": [
+        "http://localhost:9902",
+        "http://184.168.122.221:9902",
+        "https://lesotho-bkm.xyz"
+      ]
+    },
+    {
+      "clientId": "opensrp-client",
+      "name": "OpenSRP Android App",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "org.smartregister.opensrp://*",
+        "org.smartregister.opensrp://oauth2redirect",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "bkm-app",
+      "name": "BKM Android App",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "org.smartregister.opensrp://*",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {}
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "OPENMRS",
+        "description": "OpenSRP REST API access"
+      },
+      {
+        "name": "ALL_EVENTS",
+        "description": "OpenSRP event getAll access"
+      },
+      {
+        "name": "MANAGE_Patient",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Practitioner",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_PractitionerRole",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Group",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Organization",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_OrganizationAffiliation",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_HealthcareService",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Location",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Observation",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_QuestionnaireResponse",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_CareTeam",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_PlanDefinition",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Questionnaire",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_PractitionerDetail",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_List",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Binary",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Condition",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Task",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Immunization",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Encounter",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "MANAGE_Flag",
+        "description": "opensrp-web FHIR permission"
+      },
+      {
+        "name": "facility_worker",
+        "description": "Facility worker — stock and orders access only"
+      },
+      {
+        "name": "FIELD_WORKER",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "vhw",
+        "description": "Village Health Worker - Android app only, no web portal access",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "store_manager",
+        "description": "Health-centre store manager - web portal; external orders + approve/dispatch + receipts",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "coordinator",
+        "description": "Service-point coordinator - web + app; place orders, accept internal stock, allocate to VHWs",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "admin",
+        "description": "System administrator - can do everything across all facilities",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "service-account-bkm-mediator",
+      "enabled": true,
+      "serviceAccountClientId": "bkm-mediator",
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS"
+      ]
+    },
+    {
+      "id": "180bcbfc-0b2b-4f40-8f67-025d11daf70f",
+      "username": "bkm-admin",
+      "enabled": true,
+      "credentials": [],
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag",
+        "admin"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "realm-admin"
+        ]
+      },
+      "groups": [
+        "/Supervisors"
+      ]
+    },
+    {
+      "id": "8e819e71-e7bf-4c18-b40e-0a01e2c7c5a3",
+      "username": "thabo.mokoena",
+      "enabled": true,
+      "firstName": "Thabo",
+      "lastName": "Mokoena",
+      "credentials": [],
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag",
+        "FIELD_WORKER"
+      ]
+    },
+    {
+      "id": "881cdd8c-84e8-4fe0-b7b3-82c22b2aec9c",
+      "username": "lineo.nthabi",
+      "enabled": true,
+      "firstName": "Lineo",
+      "lastName": "Nthabi",
+      "credentials": [],
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag"
+      ]
+    },
+    {
+      "id": "f3a1b2c4-d5e6-4f78-9a0b-c1d2e3f4a5b6",
+      "username": "facility-worker",
+      "enabled": true,
+      "firstName": "Facility",
+      "lastName": "Worker",
+      "credentials": [],
+      "realmRoles": [
+        "coordinator"
+      ]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000001",
+      "username": "store_manager",
+      "enabled": true,
+      "firstName": "Store",
+      "lastName": "Manager",
+      "credentials": [],
+      "realmRoles": [
+        "store_manager",
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag"
+      ]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-00000000000a",
+      "username": "coordinator",
+      "enabled": true,
+      "firstName": "Coordinator",
+      "lastName": "Clinic A",
+      "credentials": [],
+      "realmRoles": [
+        "coordinator"
+      ]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-00000000000b",
+      "username": "coordinator.b",
+      "enabled": true,
+      "firstName": "Coordinator",
+      "lastName": "Clinic B",
+      "credentials": [],
+      "realmRoles": [
+        "coordinator"
+      ]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-0000000000cb",
+      "username": "vhw.clinic.b",
+      "enabled": true,
+      "firstName": "Palesa",
+      "lastName": "Sello",
+      "credentials": [],
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag",
+        "FIELD_WORKER"
+      ]
+    },
+    {
+      "id": "9c85ca56-a59e-4edd-bb84-86891a34d6e0",
+      "username": "mpho.lerotholi",
+      "enabled": true,
+      "firstName": "Mpho",
+      "lastName": "Lerotholi",
+      "credentials": [],
+      "realmRoles": [
+        "OPENMRS",
+        "ALL_EVENTS",
+        "MANAGE_Patient",
+        "MANAGE_Practitioner",
+        "MANAGE_PractitionerRole",
+        "MANAGE_Group",
+        "MANAGE_Organization",
+        "MANAGE_OrganizationAffiliation",
+        "MANAGE_HealthcareService",
+        "MANAGE_Location",
+        "MANAGE_Observation",
+        "MANAGE_QuestionnaireResponse",
+        "MANAGE_CareTeam",
+        "MANAGE_PlanDefinition",
+        "MANAGE_Questionnaire",
+        "MANAGE_PractitionerDetail",
+        "MANAGE_List",
+        "MANAGE_Binary",
+        "MANAGE_Condition",
+        "MANAGE_Task",
+        "MANAGE_Immunization",
+        "MANAGE_Encounter",
+        "MANAGE_Flag"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "Supervisors",
+      "path": "/Supervisors",
+      "subGroups": []
+    }
+  ],
+  "attributes": {}
+}

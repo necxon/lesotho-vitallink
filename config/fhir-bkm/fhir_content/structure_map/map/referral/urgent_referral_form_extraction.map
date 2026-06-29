@@ -1,0 +1,198 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/a92fbd36-baab-4670-b0bb-717f62072346" = "eCBIS Urgent Referral form Extraction"
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+
+group urgentReferralFormExtraction(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> bundle.type = "collection" "r_bundle_type";
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.subject) as patientReference then
+        extractUrgentReferralFormExtraction(questionnaireResponse, patientReference, bundle) "rule_ref";
+}
+
+group extractUrgentReferralFormExtraction(source questionnaireResponse : QuestionnaireResponse, source patientReference : Reference, target bundle: Bundle) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Encounter') as encounter then {
+        questionnaireResponse -> encounter.id = uuid() "rule_en_id";
+        questionnaireResponse -> encounter.status = 'finished' "rule_en_status";
+        questionnaireResponse -> encounter.class = c("http://terminology.hl7.org/CodeSystem/v3-ActCode", "HH", "home health") "rule_en_class";
+        questionnaireResponse -> encounter.type = create('CodeableConcept') as concept then {
+            questionnaireResponse -> concept.coding = c("https://smartregister.org/", "urgent_referral") as coding then {
+                questionnaireResponse -> coding.display = "Urgent Referral" "rule_display";
+            } "rule_en_coding";
+            questionnaireResponse -> concept.text = "Urgent Referral" "rule_text";
+        } "rule_en_type";
+        questionnaireResponse -> encounter.priority = create('CodeableConcept') as priority then {
+            questionnaireResponse -> priority.coding = c("http://terminology.hl7.org/ValueSet/v3-ActPriority", "EL") as priorityCoding then {
+                questionnaireResponse -> priorityCoding.display = "Elective" "r_en_cod_disp";
+            } "r_en_cc_cod";
+            questionnaireResponse -> priority.text = "Elective" "r_en_prio_text";
+        } "rule_priority";
+        questionnaireResponse.subject as subject -> encounter.subject = patientReference "rule_subj";
+        questionnaireResponse -> encounter.period = create('Period') as period then {
+            questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "r_per_start";
+            questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "r_per_end";
+        } "rule_period";
+        questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as reason then {
+            questionnaireResponse -> reason.text = "Urgent Referral Form" "r_en_text";
+            questionnaireResponse -> reason.coding = c("https://smartregister.org/", "urgent_referral") as coding then {
+                questionnaireResponse -> coding.display = "Urgent Referral" "rule_observation_coding_display";
+            } "rule_observation_c_coding";
+        } "rule_en_reason";
+
+        questionnaireResponse then extractObservationData(questionnaireResponse, patientReference, encounter, bundle),
+                                   updateTaskOutput(questionnaireResponse, bundle, encounter) "rule_extract_observation_data";
+
+    } "rule_encounter";
+}
+
+group extractObservationData(
+    source questionnaireResponse : QuestionnaireResponse,
+    source patientReference : Reference,
+    source encounter : Encounter,
+    target bundle: Bundle ) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+        questionnaireResponse.item as whoIsSick where((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and answer.value.exists()) then {
+
+            // Urgent Referral Observation Code
+            whoIsSick -> create('CodeableConcept') as cmntdCategoryCode,
+                evaluate(whoIsSick, "urgent_referral") as conceptCode,
+                evaluate(whoIsSick, "Urgent Referral") as conceptDisplay then {
+                    whoIsSick -> cmntdCategoryCode.coding = c("http://snomed.info/sct", conceptCode ) as coding then {
+                        whoIsSick -> coding.display = conceptDisplay "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    whoIsSick -> cmntdCategoryCode.text = conceptDisplay "r_item_obs_cc_display";
+                whoIsSick -> observation.code = cmntdCategoryCode "rule_observation_code";
+            } "rule_cmtnd_check_category";
+
+            // Pregnancy Observation Category
+            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'pregnant-woman') then {
+                whoIsSick -> create('CodeableConcept') as observationCode then {
+                    whoIsSick -> observationCode.coding = c("http://snomed.info/sct", "77386006") as coding then {
+                        whoIsSick -> coding.display = "Pregnancy (finding)" "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    whoIsSick -> observationCode.text = "Pregnancy (finding)" "rule_observation_c_coding_text";
+                    whoIsSick -> observation.category = observationCode "rule_observation_code";
+                } "rule_big_belly_category";
+            } "rule_check_big_belly";
+
+            // PNC Observation Category
+            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and (answer.value.code = 'new-born-baby-under-28days' or answer.value.code = 'new-born-mother-pnc')) then {
+                whoIsSick -> create('CodeableConcept') as observationCode then {
+                    whoIsSick -> observationCode.coding = c("http://snomed.info/sct", "234234234") as coding then {
+                        whoIsSick -> coding.display = "PNC" "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    whoIsSick -> observationCode.text = "PNC" "rule_observation_c_coding_text";
+                    whoIsSick -> observation.category = observationCode "rule_observation_code";
+                } "rule_pnc_category";
+            } "rule_check_pnc";
+
+            // FP Observation Category
+            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'woman-using-fp') then {
+                whoIsSick -> create('CodeableConcept') as observationCode then {
+                    whoIsSick -> observationCode.coding = c("http://snomed.info/sct", "99998888") as coding then {
+                        whoIsSick -> coding.display = "Family Planning" "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    whoIsSick -> observationCode.text = "Family Planning" "rule_observation_c_coding_text";
+                    whoIsSick -> observation.category = observationCode "rule_observation_code";
+                } "rule_check_fp_category";
+            } "rule_check_fp";
+
+            // CEB Observation Category
+            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'other-person') then {
+                whoIsSick -> create('CodeableConcept') as observationCode then {
+                    whoIsSick -> observationCode.coding = c("http://snomed.info/sct", "99997777") as coding then {
+                        whoIsSick -> coding.display = "CEB" "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    whoIsSick -> observationCode.text = "CEB" "rule_observation_c_coding_text";
+                    whoIsSick -> observation.category = observationCode "rule_observation_code";
+                } "rule_check_ceb_category";
+            } "rule_check_ceb";
+
+            // Other Persons & CEB Observation Category
+            questionnaireResponse.item as cmntd where(linkId = 'f5b4220e-8860-41e1-a396-449d979daf63' and answer.value.exists()) then {
+                cmntd as cmntdValue where(linkId = 'f5b4220e-8860-41e1-a396-449d979daf63') then {
+                    cmntdValue -> create('CodeableConcept') as cmntdCode,
+                        evaluate(cmntdValue, $this.answer.value.code) as conceptCode,
+                        evaluate(cmntdValue, $this.answer.value.display) as conceptDisplay then {
+                            cmntdValue -> cmntdCode.coding = c("http://snomed.info/sct", conceptCode ) as coding then {
+                                cmntdValue -> coding.display = conceptDisplay "rule_observation_coding_display";
+                            } "rule_observation_c_coding";
+                            cmntdValue -> cmntdCode.text = conceptDisplay "r_item_obs_cc_display";
+
+                        cmntdValue -> observation.category = cmntdCode "rule_observation_code";
+                    } "rule_cmtnd_check_category";
+                } "rule_cmtnd_check";
+
+                // CM-NTD Observation Code
+                cmntd -> create('CodeableConcept') as cmntdCategoryCode,
+                    evaluate(cmntd, "cmntd") as conceptCode,
+                    evaluate(cmntd, "CM-NTD") as conceptDisplay then {
+                        cmntd -> cmntdCategoryCode.coding = c("http://snomed.info/sct", conceptCode ) as coding then {
+                            cmntd -> coding.display = conceptDisplay "rule_observation_coding_display";
+                        } "rule_observation_c_coding";
+                        cmntd -> cmntdCategoryCode.text = conceptDisplay "r_item_obs_cc_display";
+                    cmntd -> observation.category = cmntdCategoryCode "rule_observation_code";
+                } "rule_cmtnd_check_category";
+            } "rule_cmtnd_check";    
+
+            // Danger Signs Observation Category
+            questionnaireResponse.item as dangerSign where(
+                (linkId = 'e4f9ee8c-109f-40c9-88ff-b17804142a84' 
+                or linkId = 'cde34ecc-a7f9-42cc-8af2-80137a7e0653' 
+                or linkId = '444ece91-98c6-4139-8957-a208edad6397'
+                or linkId = '1a7cc98a-22ad-4c68-8425-22ab237bfc5c')
+                and answer.value.exists()) then {
+                dangerSign -> create('CodeableConcept') as observationCode then {
+                    dangerSign -> observationCode.coding = c("https://smartregister.org/", "danger_signs") as coding then {
+                        dangerSign -> coding.display = "Danger Signs" "rule_observation_coding_display";
+                    } "rule_observation_c_coding";
+                    dangerSign -> observationCode.text = "Danger Signs" "rule_observation_c_coding_text";
+                    dangerSign -> observation.category = observationCode "rule_observation_code";
+                } "rule_danger_sign_category";
+            } "rule_danger_sign";
+
+            questionnaireResponse.item as referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.exists()) then {
+                referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.code = 'yes') then {
+                    referral -> observation.value = evaluate(referral, "referred") "rule_observation_value";
+                } "rule_referral_value";
+
+                referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.code = 'no') then {
+                    referral -> observation.value = evaluate(referral, "not-referred") "rule_observation_value";
+                } "rule_referral_value";
+            } "rule_referral_check";
+
+            questionnaireResponse then extractObservation(questionnaireResponse, patientReference, encounter, observation, bundle) "rule_check_ceb_observation";
+        } "rule_check";
+    } "rule_observation";
+}
+
+group extractObservation(
+    source questionnaireResponse : QuestionnaireResponse,
+    source patientReference : Reference,
+    source encounter : Encounter,
+    target observation : Observation,
+    target bundle: Bundle ) {
+        questionnaireResponse -> observation.id = uuid() "r_obs_id";
+        questionnaireResponse -> observation.status = 'final' "r_status";
+        questionnaireResponse -> observation.subject = patientReference "rule_subj";
+        questionnaireResponse -> observation.encounter = reference(encounter) "rule_encounter";
+        questionnaireResponse -> observation.effective = evaluate(questionnaireResponse, now()) "r_item_reason_for_removal_obs_eff";
+}
+
+group updateTaskOutput(source src : QuestionnaireResponse, target bundle: Bundle, source encounter : Encounter) {
+    // Update the linked task with the output
+     src.item as item where(linkId = "task-id") then {
+         src -> bundle.entry as entry, entry.resource = create("Task") as task then {
+           src -> task.id = create("id") as taskId then {
+                src -> taskId.value = evaluate(item, $this.answer.value) "r_item_task_id_value";
+           } "r_task_id_val";
+           src -> task.output = create('Task_Output') as outputTask then {
+                src -> outputTask.type = create("CodeableConcept") as concept then {
+                      src-> concept.coding = c("http:snomed.info/sct","371531000") as coding then {
+                          src -> coding.display = "Report of clinical encounter (record artifact)" "r_task_output_coding_display";
+                      } "r_task_output_concept_coding";
+                } "r_task_output_codeable_concept";
+                src -> outputTask.value = reference(encounter) "r_task_output_reference";
+           } "r_task_output_val";
+         } "r_task_output";
+     } "r_task_id_output";
+}

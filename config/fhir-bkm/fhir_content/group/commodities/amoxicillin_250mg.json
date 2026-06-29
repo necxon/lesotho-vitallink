@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "f1ae20d7-a14e-57b2-94e6-58d1257c181b",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "AMOX250"
+        },
+        {
+            "use": "secondary",
+            "value": "AMOX250"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Amoxicillin 250mg",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Tablets"
+            },
+            "exclude": false
+        }
+    ]
+}

@@ -1,0 +1,70 @@
+{
+  "resourceType": "Bundle",
+  "id": "practitioner-details-bundle",
+  "type": "searchset",
+  "total": 1,
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "PractitionerDetail",
+        "id": "pd-opensrp-admin",
+        "contained": [
+          {
+            "resourceType": "Practitioner",
+            "id": "60ecaecf-5d25-4057-a502-f61aee561b47",
+            "identifier": [
+              {
+                "use": "secondary",
+                "value": "180bcbfc-0b2b-4f40-8f67-025d11daf70f"
+              }
+            ],
+            "active": true,
+            "name": [
+              {
+                "use": "official",
+                "family": "Admin",
+                "given": ["OpenSRP"]
+              }
+            ]
+          },
+          {
+            "resourceType": "Organization",
+            "id": "maseru-clinic-a",
+            "active": true,
+            "name": "Maseru District Clinic A"
+          },
+          {
+            "resourceType": "CareTeam",
+            "id": "team-maseru-north",
+            "status": "active",
+            "name": "Maseru North VHW Team",
+            "participant": [
+              {
+                "role": [{"coding": [{"code": "supervisor", "display": "Supervisor"}]}],
+                "member": {"reference": "Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47"}
+              }
+            ]
+          },
+          {
+            "resourceType": "Location",
+            "id": "loc-maseru-clinic-a",
+            "status": "active",
+            "name": "Maseru District Clinic A",
+            "mode": "instance"
+          },
+          {
+            "resourceType": "PractitionerRole",
+            "id": "21904d68-4f2a-4a34-96af-0a2f3eac5c5b",
+            "active": true,
+            "practitioner": {
+              "reference": "Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47"
+            },
+            "organization": {
+              "reference": "Organization/maseru-clinic-a"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

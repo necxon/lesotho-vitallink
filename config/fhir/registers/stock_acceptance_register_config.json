@@ -1,0 +1,176 @@
+{
+  "appId": "app",
+  "configType": "register",
+  "id": "stockAcceptanceRegister",
+  "pageSize": 20,
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Task",
+      "dataQueries": [
+        {
+          "paramName": "status",
+          "filterCriteria": [
+            {
+              "dataType": "CODE",
+              "value": {
+                "code": "requested"
+              }
+            }
+          ]
+        },
+        {
+          "paramName": "code",
+          "filterCriteria": [
+            {
+              "dataType": "CODEABLECONCEPT",
+              "value": {
+                "system": "http://snomed.info/sct",
+                "code": "373748001"
+              }
+            }
+          ]
+        }
+      ],
+      "sortConfigs": [
+        {
+          "paramName": "_lastUpdated",
+          "dataType": "DATE",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  },
+  "searchBar": {
+    "visible": false,
+    "display": "Search"
+  },
+  "registerCard": {
+    "rules": [
+      {
+        "name": "taskId",
+        "condition": "true",
+        "actions": [
+          "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+        ]
+      },
+      {
+        "name": "taskDescription",
+        "condition": "true",
+        "actions": [
+          "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+        ]
+      },
+      {
+        "name": "issuedDate",
+        "condition": "true",
+        "actions": [
+          "data.put('issuedDate', fhirPath.extractValue(Task, 'Task.authoredOn'))"
+        ]
+      },
+      {
+        "name": "issuedDateFormatted",
+        "priority": 2,
+        "condition": "true",
+        "actions": [
+          "data.put('issuedDateFormatted', data.get('issuedDate') != '' ? 'Issued: ' + service.prettifyDate(data.get('issuedDate')) : 'Date unknown')"
+        ]
+      },
+      {
+        "name": "productCode",
+        "condition": "true",
+        "actions": [
+          "data.put('productCode', fhirPath.extractValue(Task, 'Task.input[0].valueString'))"
+        ]
+      },
+      {
+        "name": "quantityIssued",
+        "condition": "true",
+        "actions": [
+          "data.put('quantityIssued', fhirPath.extractValue(Task, 'Task.input[1].valueInteger'))"
+        ]
+      }
+    ],
+    "views": [
+      {
+        "viewType": "COLUMN",
+        "children": [
+          {
+            "viewType": "SERVICE_CARD",
+            "details": [
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "@{taskDescription}",
+                "primaryTextColor": "#000000"
+              },
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "@{issuedDateFormatted}",
+                "fontSize": 14.0,
+                "primaryTextColor": "#5A5A5A"
+              },
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "Status:",
+                "primaryTextColor": "#5A5A5A",
+                "secondaryText": "Pending Acceptance",
+                "secondaryTextColor": "#FFFFFF",
+                "secondaryTextBackgroundColor": "#FFA500",
+                "secondaryTextFontWeight": "SEMI_BOLD",
+                "fontSize": 14.0
+              }
+            ],
+            "showVerticalDivider": false,
+            "serviceButton": {
+              "visible": true,
+              "text": "Accept",
+              "status": "DUE",
+              "fontSize": 14.0,
+              "buttonType": "BIG",
+              "actions": [
+                {
+                  "trigger": "ON_CLICK",
+                  "workflow": "LAUNCH_QUESTIONNAIRE",
+                  "questionnaire": {
+                    "id": "qn-stock-accept",
+                    "title": "Accept Stock",
+                    "saveButtonText": "CONFIRM ACCEPTANCE",
+                    "setPractitionerDetails": true,
+                    "setOrganizationDetails": true,
+                    "resourceIdentifier": "@{taskId}"
+                  },
+                  "params": [
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "task_id",
+                      "dataType": "STRING",
+                      "key": "taskId",
+                      "value": "@{taskId}"
+                    },
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "medication",
+                      "dataType": "STRING",
+                      "key": "productCode",
+                      "value": "@{productCode}"
+                    },
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "quantity_issued",
+                      "dataType": "INTEGER",
+                      "key": "quantityIssued",
+                      "value": "@{quantityIssued}"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "noResults": {
+    "title": "No Pending Stock",
+    "message": "No stock deliveries awaiting acceptance"
+  }
+}

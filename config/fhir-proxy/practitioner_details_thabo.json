@@ -1,0 +1,80 @@
+{
+  "resourceType": "Bundle",
+  "id": "practitioner-details-bundle",
+  "type": "searchset",
+  "total": 1,
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "PractitionerDetail",
+        "id": "pd-thabo-mokoena",
+        "contained": [
+          {
+            "resourceType": "Practitioner",
+            "id": "prac-thabo-mokoena",
+            "identifier": [
+              { "use": "secondary", "value": "8e819e71-e7bf-4c18-b40e-0a01e2c7c5a3" }
+            ],
+            "active": true,
+            "name": [
+              { "use": "official", "family": "Mokoena", "given": ["Thabo"] }
+            ]
+          },
+          {
+            "resourceType": "Organization",
+            "id": "maseru-clinic-a",
+            "active": true,
+            "name": "Maseru District Clinic A"
+          },
+          {
+            "resourceType": "CareTeam",
+            "id": "team-maseru-north",
+            "status": "active",
+            "name": "Maseru District Stock Team",
+            "participant": [
+              {
+                "role": [{ "coding": [{ "code": "FIELD_WORKER", "display": "Field Worker" }] }],
+                "member": { "reference": "Practitioner/prac-thabo-mokoena" }
+              }
+            ]
+          },
+          {
+            "resourceType": "Location",
+            "id": "loc-maseru-clinic-a",
+            "status": "active",
+            "name": "Maseru District Clinic A",
+            "mode": "instance"
+          },
+          {
+            "resourceType": "Location",
+            "id": "loc-ha-mokoena",
+            "status": "active",
+            "name": "Ha Mokoena Village",
+            "mode": "instance",
+            "type": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode", "code": "COMM", "display": "Community" }] }],
+            "physicalType": { "coding": [{ "code": "area", "display": "Area" }] },
+            "partOf": { "reference": "Location/loc-maseru-clinic-a" }
+          },
+          {
+            "resourceType": "PractitionerRole",
+            "id": "role-thabo-mokoena",
+            "active": true,
+            "practitioner": { "reference": "Practitioner/prac-thabo-mokoena" },
+            "organization": { "reference": "Organization/maseru-clinic-a" },
+            "location": [{ "reference": "Location/loc-ha-mokoena", "display": "Ha Mokoena Village" }],
+            "code": [{ "coding": [{ "system": "http://snomed.info/sct", "code": "FIELD_WORKER", "display": "Field Worker" }] }]
+          },
+          {
+            "resourceType": "Group",
+            "id": "group-ha-mokoena",
+            "type": "person",
+            "actual": true,
+            "active": true,
+            "name": "Ha Mokoena - Thabo Mokoena catchment",
+            "managingEntity": { "reference": "Practitioner/prac-thabo-mokoena" }
+          }
+        ]
+      }
+    }
+  ]
+}

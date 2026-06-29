@@ -1,0 +1,320 @@
+{
+  "appId": "bkm",
+  "configType": "profile",
+  "id": "individualPastEncountersProfile",
+  "contentBackgroundColor": "#F2F4F7",
+  "topAppBar": {
+    "title": {
+      "viewType": "COMPOUND_TEXT",
+      "primaryText": "@{patientGivenName}'s past encounters",
+      "primaryTextColor": "#FFFFFF",
+      "fontSize": 16.0,
+      "maxLines": 1,
+      "primaryTextFontWeight": "BOLD"
+    },
+    "collapsible": false
+  },
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Patient"
+    },
+    "relatedResources": [
+      {
+        "id": "availableTasks",
+        "resource": "Task",
+        "searchParameter": "subject",
+        "sortConfigs": [
+          {
+            "paramName": "period",
+            "order": "DESCENDING",
+            "dataType": "DATE"
+          }
+        ],
+        "dataQueries": [
+          {
+            "paramName": "status",
+            "operation": "OR",
+            "filterCriteria": [
+              {
+                "dataType": "CODEABLECONCEPT",
+                "value": {
+                  "code": "failed"
+                }
+              },
+              {
+                "dataType": "CODEABLECONCEPT",
+                "value": {
+                  "code": "cancelled"
+                }
+              },
+              {
+                "dataType": "CODEABLECONCEPT",
+                "value": {
+                  "code": "completed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {
+      "name": "patientGivenName",
+      "condition": "true",
+      "actions": [
+        "data.put('patientGivenName', fhirPath.extractValue(Patient, 'Patient.name.given'))"
+      ]
+    }
+  ],
+  "views": [
+    {
+      "viewType": "CARD",
+      "padding": 16,
+      "header": {
+        "viewType": "COMPOUND_TEXT",
+        "primaryText": "Past Visits",
+        "primaryTextColor": "#6F7274",
+        "fontSize": 18.0,
+        "padding": 16
+      },
+      "content": [
+        {
+          "viewType": "LIST",
+          "id": "previousScreeningsList",
+          "resources": [
+            {
+              "id": "availableTask",
+              "relatedResourceId": "availableTasks",
+              "resourceType": "Task",
+              "conditionalFhirPathExpression": "Task.status = 'completed'",
+              "relatedResources": [
+                {
+                  "id": "availableImmunizations",
+                  "relatedResourceId": "availableImmunizations",
+                  "resourceType": "Immunization"
+                }
+              ]
+            }
+          ],
+          "emptyList": {
+            "message": "No past encounters recorded for this patient at the moment"
+          },
+          "registerCard": {
+            "rules": [
+              {
+                "name": "taskExecutionEndDate",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskExecutionEndDate', fhirPath.extractValue(availableTask, 'Task.executionPeriod.end'))"
+                ]
+              },
+              {
+                "name": "taskPeriodEndDate",
+                "condition": "true",
+                "priority": 2,
+                "actions": [
+                  "data.put('taskPeriodEndDate', service.formatDate(data.get('taskExecutionEndDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                ]
+              },
+              {
+                "name": "taskDescription",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskDescription', fhirPath.extractValue(availableTask, 'Task.description'))"
+                ]
+              }
+            ],
+            "views": [
+              {
+                "viewType": "ROW",
+                "fillMaxWidth": true,
+                "padding": 16,
+                "children": [
+                  {
+                    "viewType": "IMAGE",
+                    "tint": "#FFFFFF",
+                    "size": 28,
+                    "imageConfig": {
+                      "type": "local",
+                      "reference": "ic_check_circled"
+                    },
+                    "shape": "CIRCLE",
+                    "backgroundColor": "PersonalDataBackgroundColor"
+                  },
+                  {
+                    "viewType": "SPACER",
+                    "width": 8
+                  },
+                  {
+                    "viewType": "COLUMN",
+                    "fillMaxWidth": true,
+                    "children": [
+                      {
+                        "viewType": "ROW",
+                        "fillMaxWidth": true,
+                        "arrangement": "SPACE_BETWEEN",
+                        "children": [
+                          {
+                            "viewType": "COMPOUND_TEXT",
+                            "primaryText": "@{taskPeriodEndDate}",
+                            "primaryTextColor": "#6F7274",
+                            "fontSize": 14.0
+                          },
+                          {
+                            "viewType": "COMPOUND_TEXT",
+                            "primaryText": "Administered",
+                            "primaryTextColor": "#6F7274",
+                            "fontSize": 14.0,
+                            "textCase": "TITLE_CASE"
+                          }
+                        ]
+                      },
+                      {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "@{taskDescription}",
+                        "primaryTextColor": "#000000",
+                        "fontSize": 16.0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "viewType": "CARD",
+      "padding": 16,
+      "header": {
+        "viewType": "COMPOUND_TEXT",
+        "primaryText": "Missed Visits",
+        "primaryTextColor": "#6F7274",
+        "fontSize": 18.0,
+        "padding": 16
+      },
+      "content": [
+        {
+          "viewType": "LIST",
+          "id": "missedScreeningsList",
+          "resources": [
+            {
+              "id": "availableTasks",
+              "relatedResourceId": "availableTasks",
+              "resourceType": "Task",
+              "conditionalFhirPathExpression": "Task.status = 'failed' or Task.status = 'cancelled'"
+            }
+          ],
+          "emptyList": {
+            "message": "No missed visits for this patient at the moment"
+          },
+          "registerCard": {
+            "rules": [
+              {
+                "name": "taskStatus",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskStatus', fhirPath.extractValue(availableTasks, 'Task.status'))"
+                ]
+              },
+              {
+                "name": "taskExecutionStartDate",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskExecutionStartDate', fhirPath.extractValue(availableTasks, 'Task.executionPeriod.start'))"
+                ]
+              },
+              {
+                "name": "taskPeriodDueDate",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                ]
+              },
+              {
+                "name": "taskDescription",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskDescription', fhirPath.extractValue(availableTasks, 'Task.description'))"
+                ]
+              },
+              {
+                "name": "taskStatusIcon",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskStatusIcon', data.get('taskStatus').equals('ready') ? 'ic_add' : data.get('taskStatus').equals('failed') || data.get('taskStatus').equals('cancelled') ? 'ic_cancel' : data.get('taskStatus').equals('requested') ? 'ic_add' : data.get('taskStatus').equals('completed') ? 'ic_check_circled' : 'ic_add')"
+                ]
+              },
+              {
+                "name": "taskStatusColorCodeToTint",
+                "condition": "true",
+                "actions": [
+                  "data.put('taskStatusColorCodeToTint',  data.get('taskStatus').equals('ready') ? 'warningColor' : data.get('taskStatus').equals('failed') || data.get('taskStatus').equals('cancelled') ? 'dangerColor' : data.get('taskStatus').equals('requested') ? 'warningColor' : data.get('taskStatus').equals('completed') ? 'successColor' : 'warningColor')"
+                ]
+              }
+            ],
+            "views": [
+              {
+                "viewType": "ROW",
+                "fillMaxWidth": true,
+                "padding": 16,
+                "children": [
+                  {
+                    "viewType": "IMAGE",
+                    "tint": "#FFFFFF",
+                    "size": 28,
+                    "imageConfig": {
+                      "type": "local",
+                      "reference": "@{taskStatusIcon}"
+                    },
+                    "shape": "CIRCLE",
+                    "backgroundColor": "@{taskStatusColorCodeToTint}"
+                  },
+                  {
+                    "viewType": "SPACER",
+                    "width": 8
+                  },
+                  {
+                    "viewType": "COLUMN",
+                    "fillMaxWidth": true,
+                    "children": [
+                      {
+                        "viewType": "ROW",
+                        "fillMaxWidth": true,
+                        "arrangement": "SPACE_BETWEEN",
+                        "children": [
+                          {
+                            "viewType": "COMPOUND_TEXT",
+                            "primaryText": "@{taskPeriodDueDate}",
+                            "primaryTextColor": "#6F7274",
+                            "fontSize": 14.0
+                          },
+                          {
+                            "viewType": "COMPOUND_TEXT",
+                            "primaryText": "@{taskStatus}",
+                            "primaryTextColor": "#6F7274",
+                            "fontSize": 14.0,
+                            "textCase": "TITLE_CASE"
+                          }
+                        ]
+                      },
+                      {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "@{taskDescription}",
+                        "primaryTextColor": "#000000",
+                        "fontSize": 16.0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

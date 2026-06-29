@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Blue top stripe -->
+  <rect width="32" height="11" y="0" fill="#1B4DB7"/>
+  <!-- White middle stripe -->
+  <rect width="32" height="10" y="11" fill="#FFFFFF"/>
+  <!-- Green bottom stripe -->
+  <rect width="32" height="11" y="21" fill="#009A44"/>
+  <!-- Mokorotlo (Basotho hat) — black, centred, spans all three stripes -->
+  <!-- Brim -->
+  <ellipse cx="16" cy="22.5" rx="9.5" ry="2.8" fill="#000000"/>
+  <!-- Cone body -->
+  <polygon points="16,7 7.5,22.5 24.5,22.5" fill="#000000"/>
+  <!-- Top knob -->
+  <circle cx="16" cy="7.2" r="1.8" fill="#000000"/>
+</svg>

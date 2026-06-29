@@ -1,0 +1,1496 @@
+{
+  "resourceType": "StructureMap",
+  "id": "febf0030-262f-443d-95b4-e002d437cfd0",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/febf0030-262f-443d-95b4-e002d437cfd0&quot; = 'BKM Add Family Member Registration'\r\n\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse&quot; as source\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/Patient&quot; as target\r\n\r\ngroup eCBISAddFamilyMemberRegistration(source src : QuestionnaireResponse, target bundle: Bundle) {\r\n    src -&gt; bundle.id = uuid() &quot;rule_bundle_id&quot;;\r\n    src -&gt; bundle.type = 'collection' &quot;rule_bundle_type&quot;;\r\n    src -&gt; bundle.entry as entry, entry.resource = create('Patient') as patient then\r\n        MarkSickConditionAsInactive(src, bundle), ExtractPatient(src, patient, bundle) &quot;rule_bundle_entries&quot;;\r\n}\r\n\r\ngroup MarkSickConditionAsInactive(source src: QuestionnaireResponse, target bundle: Bundle) {\r\n    src.item as item where(linkId = '0e2d8659-22ee-44ca-8c26-bf81cca6b012' and answer.value.exists()) then {\r\n       src-&gt;bundle.entry as entry,\r\n       entry.resource = create(&quot;Condition&quot;) as cnd then {\r\n           src-&gt;cnd.id = create(&quot;id&quot;) as cnd_id then {\r\n               src-&gt;cnd_id.value = evaluate(item, $this.answer.value) &quot;r_item_cnd_id_value&quot;;\r\n           } &quot;r_item_cnd_id&quot;;\r\n          src -&gt; cnd.clinicalStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-clinical&quot;, &quot;inactive&quot;) &quot;r_cnd_clinical_status&quot;;\r\n          src -&gt; cnd.abatement = evaluate(src, now()) &quot;r_cnd_clinical_status_abatement&quot;;\r\n       } &quot;r_cnd&quot;;\r\n   } &quot;r_item&quot;;\r\n}\r\n\r\ngroup ExtractPatient(source src : QuestionnaireResponse, target patient : Patient, target bundle : Bundle){\r\n       src -&gt; patient.id = uuid() &quot;rule_patient_id_generation&quot;;\r\n\r\n       src -&gt; patient.name = create('HumanName') as patientName then {\r\n           src -&gt; patientName.family = evaluate(src, $this.item.where(linkId = '8fb87910-d900-4eea-dbba-dcf76ee6806d').answer.value) &quot;rule_patient_family_name&quot;;\r\n           src -&gt; patientName.given = evaluate(src, $this.item.where(linkId = 'e6306275-b989-4375-8527-3a56092081b8').answer.value) &quot;rule_patient_given_name&quot;;\r\n           src -&gt; patientName.text = evaluate(src, $this.item.where(linkId = '597f4425-72b3-4bc4-8f38-b742aa3e99cd').answer.value) &quot;rule_patient_middle_name&quot;;\r\n           src -&gt; patientName.use = 'official' &quot;rule_patient_name_use&quot;;\r\n       } &quot;rule_patient_name&quot;;\r\n\r\n       src -&gt; patient.identifier = create('Identifier') as patientIdentifierOpenSRPId then {\r\n          src -&gt; patientIdentifierOpenSRPId.value = evaluate(src, $this.item.where(linkId = 'ed77104e-c279-4030-ab20-8cd99ca99ca9').answer.value)\r\n          &quot;rule_patient_identifier_opensrp_id_value&quot;;\r\n          src -&gt; patientIdentifierOpenSRPId.use = &quot;official&quot; &quot;rule_patient_identifier_opensrp_id_use&quot;;\r\n          src -&gt; patientIdentifierOpenSRPId.period = create('Period') as period, period.start = evaluate(src, $this.authored) &quot;rule_patient_identifier_period&quot;;\r\n       } &quot;rule_patient_identifier_opensrp&quot;;\r\n\r\n       src -&gt; patient.identifier = create('Identifier') as patientIdentifierNationalId then {\r\n         src -&gt; patientIdentifierNationalId.value = evaluate(src, $this.item.where(linkId = '88fca69d-9cea-4cb1-9edd-a35c7e907b90').answer.value)\r\n         &quot;rule_patient_identifier_national_id_value&quot;;\r\n         src -&gt; patientIdentifierNationalId.use = &quot;usual&quot; &quot;rule_patient_identifier_national_id_use&quot;;\r\n         src -&gt; patientIdentifierNationalId.period = create('Period') as period, period.start = evaluate(src, $this.authored) &quot;rule_patient_identifier_period&quot;;\r\n       } &quot;rule_patient_identifier_national_id&quot;;\r\n\r\n       src -&gt; patient.identifier = create('Identifier') as patientIdentifier then {\r\n           src -&gt; patientIdentifier.value = uuid() &quot;rule_patient_identifier_value&quot;;\r\n           src -&gt; patientIdentifier.use = &quot;secondary&quot; &quot;rule_patient_identifier_use&quot;;\r\n           src -&gt; patientIdentifier.period = create('Period') as period, period.start = evaluate(src, $this.authored) &quot;rule_patient_identifier_period&quot;;\r\n       } &quot;rule_patient_identifier&quot;;\r\n\r\n       src -&gt; patient.gender = evaluate(src, $this.item.where(linkId = '77e32953-0679-48b5-f004-1ab4a4ac0271').answer.value.code) &quot;rule_patient_gender&quot;;\r\n\r\n        src.item as patient_dob where(linkId = 'cd8e3d6d-e9ff-458d-d122-57070bebffaf') then {\r\n                 patient_dob.answer first as patientBirthDateAnswer then {\r\n                         patientBirthDateAnswer.value as val -&gt; patient.birthDate = val &quot;rule_patient_dob_answer&quot;;\r\n\r\n                         src.item as calculate_new_date_today -&gt; evaluate(src, (today() - ((365 * 15).toString() + &quot; days&quot;).toQuantity())) as new_date then {\r\n                            calculate_new_date_today as patient_date_of_birth where(linkId = 'cd8e3d6d-e9ff-458d-d122-57070bebffaf') then {\r\n                                patient_date_of_birth.answer first as patient_date_of_birth_answer then {\r\n                                     patient_date_of_birth_answer.value as patient_date_of_birth_answer_value then {\r\n                                         patient_date_of_birth_answer_value as patient_age_compare_with_today where(patient_date_of_birth_answer_value &lt;= new_date) then {\r\n                                             src.item as head_of_household_check where(linkId ='1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c' and answer.value.code = 'yes') then {\r\n                                                 head_of_household_check -&gt; bundle.entry as entry, entry.resource = create('RelatedPerson') as relatedPerson then {\r\n                                                     src then ExtractRelatedPerson(patient, relatedPerson) &quot;rule_related_person_reference&quot;;\r\n                                                 } &quot;rule_related_person_creation&quot;;\r\n                                             } &quot;household_head_trigger_check&quot;;\r\n                                         } &quot;rule_patient_age_compare_with_today&quot;;\r\n                                     } &quot;rule_patient_date_of_birth_answer_value&quot;;\r\n                                } &quot;rule_patient_date_of_birth_answer&quot;;\r\n                            } &quot;rule_patient_date_of_birth&quot;;\r\n                        } &quot;rule_calculate_new_date_today&quot;;\r\n\r\n                 } &quot;rule__first_patient_dob&quot;;\r\n        } &quot;rule_patient_dob&quot;;\r\n\r\n        src.item as patient_age where(linkId = '8460d986-ef71-4997-80ee-7887d8c345e7' and answer.value &gt; 0) -&gt; patient\r\n               .birthDate = evaluate(patient_age, today() - (($this.answer.value * 365.5).toString() + &quot; days&quot;).toQuantity())\r\n               &quot;rule_patient_age&quot;;\r\n\r\n        src.item as patient_age where(linkId = '8460d986-ef71-4997-80ee-7887d8c345e7' and answer.value &gt; 0) then {\r\n            patient_age as age -&gt; evaluate(patient_age, today() - (($this.answer.value * 365.5).toString() + &quot; days&quot;).toQuantity()) as actual_dob then {\r\n                patient_age as calculate_new_date_today -&gt; evaluate(src, (today() - ((365 * 15).toString() + &quot; days&quot;).toQuantity())) as new_date then {\r\n                    patient_age as patient_age_compare_with_today where(actual_dob &lt;= new_date) then {\r\n                         src.item as head_of_household_check where(linkId ='1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c' and answer.value.code = 'yes') then {\r\n                             head_of_household_check -&gt; bundle.entry as entry, entry.resource = create('RelatedPerson') as relatedPerson then {\r\n                                 src then ExtractRelatedPerson(patient, relatedPerson) &quot;rule_related_person_reference&quot;;\r\n                             } &quot;rule_related_person_creation&quot;;\r\n                         } &quot;household_head_trigger_check&quot;;\r\n                    } &quot;rule_patient_age_compare_with_today&quot;;\r\n                } &quot;rule_calculate_new_date_today&quot;;\r\n            } &quot;r_actual_dob&quot;;\r\n        } &quot;r_patient_age&quot;;\r\n\r\n\r\n       src -&gt; patient.active = true &quot;rule_patient_active&quot;;\r\n\r\n       src -&gt; patient.telecom = create('ContactPoint') as patientContact then {\r\n          src -&gt; patientContact.value = evaluate(src, $this.item.where(linkId = 'd89beb49-6c37-4acc-996c-84f4892276b8').answer.value) &quot;r_p_tel_num&quot;;\r\n          src -&gt; patientContact.system = &quot;phone&quot; &quot;r_p_tel_sys&quot;;\r\n       } &quot;r_p_tel&quot;;\r\n\r\n       src -&gt; patient.address = create('Address') as patientAddress then {\r\n          src -&gt; patientAddress.city = evaluate(src, $this.item.where(linkId ='7d9dba4c-7407-4eb2-d791-2d1834b6afcc').answer.value) &quot;rule_patient_address_district&quot;;\r\n          src -&gt; patientAddress.country = &quot;LS&quot; &quot;rule_patient_address_use&quot;;\r\n          src -&gt; patientAddress.use = &quot;home&quot; &quot;rule_patient_address_use&quot;;\r\n          src -&gt; patientAddress.type = &quot;physical&quot; &quot;rule_patient_address_type&quot;;\r\n       } &quot;rule_patient_address&quot;;\r\n\r\n       src then ExtractEncounter(patient, bundle, src) &quot;rule_encounter_reference&quot;;\r\n }\r\n\r\ngroup ExtractRelatedPerson(source src : Patient, target relatedPerson : RelatedPerson) {\r\n     src -&gt; relatedPerson.id = uuid() &quot;rule_related_person&quot;;\r\n     src -&gt; relatedPerson.identifier = create('Identifier') as relatedPersonIdentifier then {\r\n          src -&gt; relatedPersonIdentifier.value = uuid() &quot;rule_related_person_identifier_value&quot;;\r\n          src -&gt; relatedPersonIdentifier.use = &quot;secondary&quot; &quot;rule_related_person_identifier_use&quot;;\r\n     } &quot;rule_related_person_identifier&quot;;\r\n     src -&gt; relatedPerson.name = create('HumanName') as relatedPersonName then {\r\n          src -&gt; relatedPersonName.family = evaluate(src, $this.name.family) &quot;rule_related_person_family_name&quot;;\r\n          src -&gt; relatedPersonName.given = evaluate(src,  $this.name.given) &quot;rule_related_person_given_name&quot;;\r\n          src -&gt; relatedPersonName.text = evaluate(src,  $this.name.text) &quot;rule_related_person_middle_name&quot;;\r\n          src -&gt; relatedPersonName.use = 'official' &quot;rule_related_person_name_use&quot;;\r\n     } &quot;rule_related_person_name&quot;;\r\n     src -&gt; relatedPerson.active = true &quot;rule_related_person_active&quot;;\r\n     src -&gt; relatedPerson.relationship = create('CodeableConcept') as concept then {\r\n                src -&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;, &quot;99990006&quot;) as coding then {\r\n                src -&gt; coding.display = 'Family Head' &quot;r_en_cod_disp&quot;;\r\n            } &quot;r_en_cc_cod&quot;;\r\n        } &quot;rule_related_person_relationship&quot;;\r\n     src -&gt; relatedPerson.patient = create('Reference') as ref then {\r\n          src -&gt; ref.reference = evaluate(src, 'Patient/' + $this.id) &quot;rule_related_person_patient_ref&quot;;\r\n          src -&gt; ref.display = evaluate(src, relatedPerson.name.given + &quot; &quot; + relatedPerson.name.text + &quot; &quot; + relatedPerson.name.family) &quot;rule_related_person_patient_ref_display&quot;;\r\n     } &quot;rule_related_person_patient&quot;;\r\n}\r\n\r\ngroup ExtractEncounter(source src : Patient, target bundle: Bundle, source questReponse : QuestionnaireReponse) {\r\n    src -&gt; bundle.entry as entry, entry.resource = create('Encounter') as encounter then {\r\n        src -&gt; encounter.id = uuid() &quot;r_en_id&quot;;\r\n        src -&gt; encounter.status = 'finished' &quot;r_en_st&quot;;\r\n        src -&gt; encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;, &quot;Home Health&quot;) &quot;r_en_cls&quot;;\r\n        src -&gt; encounter.type = create('CodeableConcept') as concept then {\r\n            src -&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;, &quot;77386006&quot;) as coding then {\r\n                src -&gt; coding.display = 'Consultation' &quot;r_en_cod_disp&quot;;\r\n            } &quot;r_en_cc_cod&quot;;\r\n            src -&gt; concept.text = 'Consultation' &quot;r_en_typ_text&quot;;\r\n        } &quot;r_en_typ&quot;;\r\n        src -&gt; encounter.priority = create('CodeableConcept') as concept then {\r\n            src -&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;, &quot;17621005&quot;) as coding then {\r\n                src -&gt; coding.display = 'Normal' &quot;r_en_cod_disp&quot;;\r\n            } &quot;r_en_cc_cod&quot;;\r\n            src -&gt; concept.text = 'Normal' &quot;r_en_prio_text&quot;;\r\n        } &quot;r_en_prio&quot;;\r\n        questReponse -&gt; encounter.subject = create('Reference') as ref then {\r\n            questReponse -&gt; ref.reference = evaluate(questReponse, $this.subject.reference) &quot;rule_related_person_patient_ref&quot;;\r\n        } &quot;rule_encounter_subject&quot;;\r\n        src -&gt; encounter.period = create('Period') as enPeriod then {\r\n            src -&gt; enPeriod.start = evaluate(src, now()) &quot;r_en_per_start&quot;;\r\n            src -&gt; enPeriod.end = evaluate(src, now()) &quot;r_en_per_end&quot;;\r\n        } &quot;r_en_per&quot;;\r\n        src -&gt; encounter.reasonCode = create('CodeableConcept') as concept then {\r\n            src -&gt; concept.coding = c(&quot;http://smartregsiter.org/&quot;, &quot;family_member_registration&quot;) as coding then {\r\n                src -&gt; coding.display = 'eCBIS Family Member Registration' &quot;r_en_rc_cod_disp&quot;;\r\n            } &quot;r_en_rc_cod&quot;;\r\n            src -&gt; concept.text = 'eCBIS Family Member Registration' &quot;r_en_text&quot;;\r\n        } &quot;r_en_reason&quot;;\r\n    } &quot;r_en&quot;;\r\n}\r\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/febf0030-262f-443d-95b4-e002d437cfd0",
+  "name": "BKM Add Family Member Registration",
+  "structure": [ {
+    "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+    "mode": "source"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+    "mode": "target"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Patient",
+    "mode": "target"
+  } ],
+  "group": [ {
+    "name": "eCBISAddFamilyMemberRegistration",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_bundle_id",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "id",
+        "transform": "uuid"
+      } ]
+    }, {
+      "name": "rule_bundle_type",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "type",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "collection"
+        } ]
+      } ]
+    }, {
+      "name": "rule_bundle_entries",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "patient",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Patient"
+        } ]
+      } ],
+      "dependent": [ {
+        "name": "MarkSickConditionAsInactive",
+        "variable": [ "src", "bundle" ]
+      }, {
+        "name": "ExtractPatient",
+        "variable": [ "src", "patient", "bundle" ]
+      } ]
+    } ]
+  }, {
+    "name": "MarkSickConditionAsInactive",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_item",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item",
+        "condition": "((linkId = '0e2d8659-22ee-44ca-8c26-bf81cca6b012') and answer.value.exists())"
+      } ],
+      "rule": [ {
+        "name": "r_cnd",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "cnd",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Condition"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_item_cnd_id",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "cnd",
+            "contextType": "variable",
+            "element": "id",
+            "variable": "cnd_id",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "id"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_item_cnd_id_value",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "cnd_id",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "item"
+              }, {
+                "valueString": "$this.answer.value"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_cnd_clinical_status",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "cnd",
+            "contextType": "variable",
+            "element": "clinicalStatus",
+            "transform": "cc",
+            "parameter": [ {
+              "valueString": "http://terminology.hl7.org/CodeSystem/condition-clinical"
+            }, {
+              "valueString": "inactive"
+            } ]
+          } ]
+        }, {
+          "name": "r_cnd_clinical_status_abatement",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "cnd",
+            "contextType": "variable",
+            "element": "abatement",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "ExtractPatient",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "patient",
+      "type": "Patient",
+      "mode": "target"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_patient_id_generation",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "id",
+        "transform": "uuid"
+      } ]
+    }, {
+      "name": "rule_patient_name",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "name",
+        "variable": "patientName",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "HumanName"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_patient_family_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientName",
+          "contextType": "variable",
+          "element": "family",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = '8fb87910-d900-4eea-dbba-dcf76ee6806d').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_given_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientName",
+          "contextType": "variable",
+          "element": "given",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = 'e6306275-b989-4375-8527-3a56092081b8').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_middle_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientName",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = '597f4425-72b3-4bc4-8f38-b742aa3e99cd').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_name_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientName",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "official"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_identifier_opensrp",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "identifier",
+        "variable": "patientIdentifierOpenSRPId",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Identifier"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_patient_identifier_opensrp_id_value",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierOpenSRPId",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = 'ed77104e-c279-4030-ab20-8cd99ca99ca9').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_identifier_opensrp_id_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierOpenSRPId",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "official"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_identifier_period",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierOpenSRPId",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        }, {
+          "context": "period",
+          "contextType": "variable",
+          "element": "start",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.authored"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_identifier_national_id",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "identifier",
+        "variable": "patientIdentifierNationalId",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Identifier"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_patient_identifier_national_id_value",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierNationalId",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = '88fca69d-9cea-4cb1-9edd-a35c7e907b90').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_identifier_national_id_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierNationalId",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "usual"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_identifier_period",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifierNationalId",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        }, {
+          "context": "period",
+          "contextType": "variable",
+          "element": "start",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.authored"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_identifier",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "identifier",
+        "variable": "patientIdentifier",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Identifier"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_patient_identifier_value",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifier",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "rule_patient_identifier_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifier",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "secondary"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_identifier_period",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientIdentifier",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        }, {
+          "context": "period",
+          "contextType": "variable",
+          "element": "start",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.authored"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_gender",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "gender",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "src"
+        }, {
+          "valueString": "$this.item.where(linkId = '77e32953-0679-48b5-f004-1ab4a4ac0271').answer.value.code"
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_dob",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "patient_dob",
+        "condition": "(linkId = 'cd8e3d6d-e9ff-458d-d122-57070bebffaf')"
+      } ],
+      "rule": [ {
+        "name": "rule__first_patient_dob",
+        "source": [ {
+          "context": "patient_dob",
+          "element": "answer",
+          "listMode": "first",
+          "variable": "patientBirthDateAnswer"
+        } ],
+        "rule": [ {
+          "name": "rule_patient_dob_answer",
+          "source": [ {
+            "context": "patientBirthDateAnswer",
+            "element": "value",
+            "variable": "val"
+          } ],
+          "target": [ {
+            "context": "patient",
+            "contextType": "variable",
+            "element": "birthDate",
+            "transform": "copy",
+            "parameter": [ {
+              "valueId": "val"
+            } ]
+          } ]
+        }, {
+          "name": "rule_calculate_new_date_today",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "calculate_new_date_today"
+          } ],
+          "target": [ {
+            "variable": "new_date",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "(today() - ((365 * 15).toString() + ' days').toQuantity())"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_patient_date_of_birth",
+            "source": [ {
+              "context": "calculate_new_date_today",
+              "variable": "patient_date_of_birth",
+              "condition": "(linkId = 'cd8e3d6d-e9ff-458d-d122-57070bebffaf')"
+            } ],
+            "rule": [ {
+              "name": "rule_patient_date_of_birth_answer",
+              "source": [ {
+                "context": "patient_date_of_birth",
+                "element": "answer",
+                "listMode": "first",
+                "variable": "patient_date_of_birth_answer"
+              } ],
+              "rule": [ {
+                "name": "rule_patient_date_of_birth_answer_value",
+                "source": [ {
+                  "context": "patient_date_of_birth_answer",
+                  "element": "value",
+                  "variable": "patient_date_of_birth_answer_value"
+                } ],
+                "rule": [ {
+                  "name": "rule_patient_age_compare_with_today",
+                  "source": [ {
+                    "context": "patient_date_of_birth_answer_value",
+                    "variable": "patient_age_compare_with_today",
+                    "condition": "(patient_date_of_birth_answer_value <= new_date)"
+                  } ],
+                  "rule": [ {
+                    "name": "household_head_trigger_check",
+                    "source": [ {
+                      "context": "src",
+                      "element": "item",
+                      "variable": "head_of_household_check",
+                      "condition": "((linkId = '1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c') and (answer.value.code = 'yes'))"
+                    } ],
+                    "rule": [ {
+                      "name": "rule_related_person_creation",
+                      "source": [ {
+                        "context": "head_of_household_check"
+                      } ],
+                      "target": [ {
+                        "context": "bundle",
+                        "contextType": "variable",
+                        "element": "entry",
+                        "variable": "entry"
+                      }, {
+                        "context": "entry",
+                        "contextType": "variable",
+                        "element": "resource",
+                        "variable": "relatedPerson",
+                        "transform": "create",
+                        "parameter": [ {
+                          "valueString": "RelatedPerson"
+                        } ]
+                      } ],
+                      "rule": [ {
+                        "name": "rule_related_person_reference",
+                        "source": [ {
+                          "context": "src"
+                        } ],
+                        "dependent": [ {
+                          "name": "ExtractRelatedPerson",
+                          "variable": [ "patient", "relatedPerson" ]
+                        } ]
+                      } ]
+                    } ]
+                  } ]
+                } ]
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_age",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "patient_age",
+        "condition": "((linkId = '8460d986-ef71-4997-80ee-7887d8c345e7') and (answer.value > 0))"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "birthDate",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "patient_age"
+        }, {
+          "valueString": "today() - (($this.answer.value * 365.5).toString() + ' days').toQuantity()"
+        } ]
+      } ]
+    }, {
+      "name": "r_patient_age",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "patient_age",
+        "condition": "((linkId = '8460d986-ef71-4997-80ee-7887d8c345e7') and (answer.value > 0))"
+      } ],
+      "rule": [ {
+        "name": "r_actual_dob",
+        "source": [ {
+          "context": "patient_age",
+          "variable": "age"
+        } ],
+        "target": [ {
+          "variable": "actual_dob",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "patient_age"
+          }, {
+            "valueString": "today() - (($this.answer.value * 365.5).toString() + ' days').toQuantity()"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_calculate_new_date_today",
+          "source": [ {
+            "context": "patient_age",
+            "variable": "calculate_new_date_today"
+          } ],
+          "target": [ {
+            "variable": "new_date",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "(today() - ((365 * 15).toString() + ' days').toQuantity())"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_patient_age_compare_with_today",
+            "source": [ {
+              "context": "patient_age",
+              "variable": "patient_age_compare_with_today",
+              "condition": "(actual_dob <= new_date)"
+            } ],
+            "rule": [ {
+              "name": "household_head_trigger_check",
+              "source": [ {
+                "context": "src",
+                "element": "item",
+                "variable": "head_of_household_check",
+                "condition": "((linkId = '1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c') and (answer.value.code = 'yes'))"
+              } ],
+              "rule": [ {
+                "name": "rule_related_person_creation",
+                "source": [ {
+                  "context": "head_of_household_check"
+                } ],
+                "target": [ {
+                  "context": "bundle",
+                  "contextType": "variable",
+                  "element": "entry",
+                  "variable": "entry"
+                }, {
+                  "context": "entry",
+                  "contextType": "variable",
+                  "element": "resource",
+                  "variable": "relatedPerson",
+                  "transform": "create",
+                  "parameter": [ {
+                    "valueString": "RelatedPerson"
+                  } ]
+                } ],
+                "rule": [ {
+                  "name": "rule_related_person_reference",
+                  "source": [ {
+                    "context": "src"
+                  } ],
+                  "dependent": [ {
+                    "name": "ExtractRelatedPerson",
+                    "variable": [ "patient", "relatedPerson" ]
+                  } ]
+                } ]
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_active",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "active",
+        "transform": "copy",
+        "parameter": [ {
+          "valueBoolean": true
+        } ]
+      } ]
+    }, {
+      "name": "r_p_tel",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "telecom",
+        "variable": "patientContact",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "ContactPoint"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_p_tel_num",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientContact",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = 'd89beb49-6c37-4acc-996c-84f4892276b8').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "r_p_tel_sys",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientContact",
+          "contextType": "variable",
+          "element": "system",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "phone"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_patient_address",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "patient",
+        "contextType": "variable",
+        "element": "address",
+        "variable": "patientAddress",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Address"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_patient_address_district",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientAddress",
+          "contextType": "variable",
+          "element": "city",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.item.where(linkId = '7d9dba4c-7407-4eb2-d791-2d1834b6afcc').answer.value"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_address_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientAddress",
+          "contextType": "variable",
+          "element": "country",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "LS"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_address_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientAddress",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "home"
+          } ]
+        } ]
+      }, {
+        "name": "rule_patient_address_type",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "patientAddress",
+          "contextType": "variable",
+          "element": "type",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "physical"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_encounter_reference",
+      "source": [ {
+        "context": "src"
+      } ],
+      "dependent": [ {
+        "name": "ExtractEncounter",
+        "variable": [ "patient", "bundle", "src" ]
+      } ]
+    } ]
+  }, {
+    "name": "ExtractRelatedPerson",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "relatedPerson",
+      "type": "RelatedPerson",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_related_person",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "id",
+        "transform": "uuid"
+      } ]
+    }, {
+      "name": "rule_related_person_identifier",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "identifier",
+        "variable": "relatedPersonIdentifier",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Identifier"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_related_person_identifier_value",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonIdentifier",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "rule_related_person_identifier_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonIdentifier",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "secondary"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_related_person_name",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "name",
+        "variable": "relatedPersonName",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "HumanName"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_related_person_family_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonName",
+          "contextType": "variable",
+          "element": "family",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.name.family"
+          } ]
+        } ]
+      }, {
+        "name": "rule_related_person_given_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonName",
+          "contextType": "variable",
+          "element": "given",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.name.given"
+          } ]
+        } ]
+      }, {
+        "name": "rule_related_person_middle_name",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonName",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.name.text"
+          } ]
+        } ]
+      }, {
+        "name": "rule_related_person_name_use",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "relatedPersonName",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "official"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_related_person_active",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "active",
+        "transform": "copy",
+        "parameter": [ {
+          "valueBoolean": true
+        } ]
+      } ]
+    }, {
+      "name": "rule_related_person_relationship",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "relationship",
+        "variable": "concept",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CodeableConcept"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_en_cc_cod",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "concept",
+          "contextType": "variable",
+          "element": "coding",
+          "variable": "coding",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://snomed.info/sct"
+          }, {
+            "valueString": "99990006"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_cod_disp",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "coding",
+            "contextType": "variable",
+            "element": "display",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Family Head"
+            } ]
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_related_person_patient",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "relatedPerson",
+        "contextType": "variable",
+        "element": "patient",
+        "variable": "ref",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Reference"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_related_person_patient_ref",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "'Patient/' + $this.id"
+          } ]
+        } ]
+      }, {
+        "name": "rule_related_person_patient_ref_display",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "display",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "relatedPerson.name.given + ' ' + relatedPerson.name.text + ' ' + relatedPerson.name.family"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "ExtractEncounter",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "questReponse",
+      "type": "QuestionnaireReponse",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_en",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "encounter",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Encounter"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_en_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_en_st",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "finished"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_cls",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "class",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+          }, {
+            "valueString": "HH"
+          }, {
+            "valueString": "Home Health"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_typ",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "type",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_cc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            }, {
+              "valueString": "77386006"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Consultation"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_typ_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Consultation"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_prio",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "priority",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_cc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            }, {
+              "valueString": "17621005"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Normal"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_prio_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Normal"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_encounter_subject",
+        "source": [ {
+          "context": "questReponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "subject",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_related_person_patient_ref",
+          "source": [ {
+            "context": "questReponse"
+          } ],
+          "target": [ {
+            "context": "ref",
+            "contextType": "variable",
+            "element": "reference",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questReponse"
+            }, {
+              "valueString": "$this.subject.reference"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_per",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "enPeriod",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_per_start",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "enPeriod",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "r_en_per_end",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "enPeriod",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_reason",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "reasonCode",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_rc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://smartregsiter.org/"
+            }, {
+              "valueString": "family_member_registration"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_rc_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "eCBIS Family Member Registration"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "eCBIS Family Member Registration"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  } ]
+}

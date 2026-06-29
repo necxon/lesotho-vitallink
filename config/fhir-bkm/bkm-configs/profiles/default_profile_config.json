@@ -1,0 +1,3185 @@
+{
+  "appId": "bkm",
+  "configType": "profile",
+  "id": "defaultProfile",
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Patient"
+    },
+    "relatedResources": [
+      {
+        "id": "availableConditions",
+        "resource": "Condition",
+        "searchParameter": "subject"
+      },
+      {
+        "id": "patientTasks",
+        "resource": "Task",
+        "searchParameter": "subject",
+        "sortConfigs": [
+          {
+            "paramName": "period",
+            "dataType": "DATE"
+          }
+        ]
+      },
+      {
+        "id": "availableImmunizations",
+        "resource": "Immunization",
+        "searchParameter": "patient"
+      },
+      {
+        "resource": "RelatedPerson",
+        "searchParameter": "patient"
+      }
+    ]
+  },
+  "secondaryResources": [
+    {
+      "baseResource": {
+        "id": "commodities",
+        "resource": "Group",
+        "dataQueries": [
+          {
+            "paramName": "code",
+            "filterCriteria": [
+              {
+                "dataType": "CODE",
+                "value": {
+                  "system": "http://snomed.info/sct",
+                  "code": "386452003"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "relatedResources": [
+        {
+          "id": "stockObservations",
+          "resource": "Observation",
+          "searchParameter": "subject"
+        },
+        {
+          "id": "stockOutFlags",
+          "resource": "Flag",
+          "searchParameter": "subject"
+        }
+      ]
+    }
+  ],
+  "topAppBar": {
+    "title": {
+      "viewType": "COMPOUND_TEXT",
+      "primaryText": "@{patientName} profile",
+      "primaryTextColor": "#FFFFFF",
+      "fontSize": 16.0,
+      "maxLines": 1,
+      "primaryTextFontWeight": "BOLD"
+    },
+    "collapsible": false
+  },
+  "rules": [
+    {
+      "name": "activeConditions",
+      "condition": "true",
+      "actions": [
+        "data.put('activeConditions', service.filterResources(availableConditions, \"Condition.clinicalStatus.coding.code = 'active'\"))"
+      ]
+    },
+    {
+      "name": "patientFirstName",
+      "condition": "true",
+      "actions": [
+        "data.put('patientFirstName', fhirPath.extractValue(Patient, \"Patient.name[0].select(given[0])\"))"
+      ]
+    },
+    {
+      "name": "patientMiddleName",
+      "condition": "true",
+      "actions": [
+        "data.put('patientMiddleName', fhirPath.extractValue(Patient, \"Patient.name[0].select(text)\"))"
+      ]
+    },
+    {
+      "name": "patientLastName",
+      "condition": "true",
+      "actions": [
+        "data.put('patientLastName', fhirPath.extractValue(Patient, \"Patient.name[0].select(family)\"))"
+      ]
+    },
+    {
+      "name": "patientName",
+      "condition": "true",
+      "priority": 2,
+      "actions": [
+        "data.put('patientName', data.get('patientFirstName') + ' ' + data.get('patientMiddleName') + ' ' + data.get('patientLastName'))"
+      ]
+    },
+    {
+      "name": "patientActive",
+      "condition": "true",
+      "actions": [
+        "data.put('patientActive', fhirPath.extractValue(Patient, 'Patient.active'))"
+      ]
+    },
+    {
+      "name": "patientTextColor",
+      "condition": "true",
+      "actions": [
+        "data.put('patientTextColor', Patient.active ? '#000000' : 'DefaultColor')"
+      ]
+    },
+    {
+      "name": "patientIdentifier",
+      "condition": "true",
+      "actions": [
+        "data.put('patientIdentifier', fhirPath.extractValue(Patient, 'Patient.identifier[0].value'))"
+      ]
+    },
+    {
+      "name": "nationalIdentifier",
+      "condition": "true",
+      "actions": [
+        "data.put('nationalIdentifier', fhirPath.extractValue(Patient, \"Patient.identifier.where(use='usual').value\"))"
+      ]
+    },
+    {
+      "name": "patientId",
+      "condition": "true",
+      "actions": [
+        "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+      ]
+    },
+    {
+      "name": "patientAge",
+      "condition": "true",
+      "actions": [
+        "data.put('patientAge', service.extractAge(Patient))"
+      ]
+    },
+    {
+      "name": "childCardVisible",
+      "condition": "true",
+      "actions": [
+        "data.put('childCardVisible', data.get('patientAge') == 'true' && data.get('patientAge')<=5)"
+      ]
+    },
+    {
+      "name": "patientGender",
+      "condition": "true",
+      "actions": [
+        "data.put('patientGender', service.extractGender(Patient))"
+      ]
+    },
+    {
+      "name": "patientDOB",
+      "condition": "true",
+      "actions": [
+        "data.put('patientDOB', service.extractDOB(Patient, 'dd/MM/yyyy'))"
+      ]
+    },
+    {
+      "name": "birthDate",
+      "condition": "true",
+      "priority": 1,
+      "actions": [
+        "data.put('birthDate', fhirPath.extractValue(Patient, 'Patient.birthDate'))"
+      ]
+    },
+    {
+      "name": "todayDate",
+      "condition": "true",
+      "priority": 1,
+      "actions": [
+        "data.put('todayDate', fhirPath.extractValue(Patient, 'today()'))"
+      ]
+    },
+    {
+      "name": "isChild",
+      "condition": "true",
+      "actions": [
+        "data.put('isChild', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate >= today() - 5 'years')\"))"
+      ]
+    },
+    {
+      "name": "isAdult",
+      "condition": "true",
+      "actions": [
+        "data.put('isAdult', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate <= today() - 6 'years')\"))"
+      ]
+    },
+    {
+      "name": "canBearChild",
+      "condition": "true",
+      "actions": [
+        "data.put('canBearChild',  fhirPath.extractValue(Patient, \"Patient.active and Patient.gender = 'female' and ((Patient.birthDate <= today() - 15 'years') and (Patient.birthDate >= today() - 49 'years'))\"))"
+      ]
+    },
+    {
+      "name": "activeConditions",
+      "condition": "true",
+      "actions": [
+        "data.put('activeConditions', service.filterResources(Condition, \"Condition.clinicalStatus.coding.code = 'active'\"))"
+      ]
+    },
+    {
+      "name": "isPregnant",
+      "condition": "true",
+      "priority": 2,
+      "actions": [
+        "data.put('isPregnant', service.evaluateToBoolean(data.get('activeConditions'), \"Condition.code.coding.code = '77386006' and Condition.clinicalStatus.coding.code = 'active'\", false))"
+      ]
+    },
+    {
+      "name": "canRegisterPregnancy",
+      "condition": "true",
+      "priority": 3,
+      "actions": [
+        "data.put('canRegisterPregnancy', data.get('canBearChild') && !data.get('isPregnant'))"
+      ]
+    },
+    {
+      "name": "isEligibleForFP",
+      "condition": "true",
+      "actions": [
+        "data.put('isEligibleForFP',  fhirPath.extractValue(Patient, \"Patient.active and ((Patient.birthDate <= today() - 15 'years') and (Patient.birthDate >= today() - 49 'years'))\"))"
+      ]
+    },
+    {
+      "name": "isPregnant",
+      "condition": "true",
+      "actions": [
+        "data.put('isPregnant', service.evaluateToBoolean(availableConditions, \"Condition.code.coding.code = '77386006' and Condition.clinicalStatus.coding.code = 'active'\", false))"
+      ]
+    },
+    {
+      "name": "canRegisterPregnancy",
+      "condition": "true",
+      "priority": 2,
+      "actions": [
+        "data.put('canRegisterPregnancy', data.get('canBearChild') && !data.get('isPregnant'))"
+      ]
+    },
+    {
+      "name": "canEnrollToFp",
+      "condition": "true",
+      "priority": 3,
+      "actions": [
+        "data.put('canEnrollToFp', data.get('isEligibleForFP') && !data.get('isPregnant'))"
+      ]
+    },
+    {
+      "name": "isChildUnder2months",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildUnder2months', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate > today() - 2 'months')\"))"
+      ]
+    },
+    {
+      "name": "isChildOver2months",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildOver2months', fhirPath.extractValue(Patient, \"Patient.active and ((Patient.birthDate <= today() - 2 'months') and (Patient.birthDate >= today() - 5 'years'))\"))"
+      ]
+    },
+    {
+      "name": "ancConditionId",
+      "condition": "true",
+      "actions": [
+        "data.put('ancConditionId', fhirPath.extractValue(service.filterResources(data.get('activeConditions'), 'Condition.code.coding.code=\"77386006\"').get(0), 'Condition.id.replace(\"Condition/\",\"\")') )"
+      ]
+    },
+    {
+      "name": "fpConditionId",
+      "condition": "true",
+      "actions": [
+        "data.put('fpConditionId', fhirPath.extractValue(service.filterResources(data.get('activeConditions'), 'Condition.code.coding.code=\"99998888\"').get(0), 'Condition.id.replace(\"Condition/\",\"\")') )"
+      ]
+    },
+    {
+      "name": "familyHeadStatus",
+      "condition": "true",
+      "actions": [
+        "data.put('familyHeadStatus', size(RelatedPerson)>0  ? 'Family Head' : '' )"
+      ]
+    },
+    {
+      "name": "canDeliver",
+      "condition": "true",
+      "priority": 3,
+      "actions": [
+        "data.put('canDeliver', data.get('canBearChild') && data.get('isPregnant'))"
+      ]
+    },
+    {
+      "name": "isChildUnder2months",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildUnder2months', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate > today() - 2 'months')\"))"
+      ]
+    },
+    {
+      "name": "isChildOver2months",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildOver2months', fhirPath.extractValue(Patient, \"Patient.active and ((Patient.birthDate <= today() - 2 'months') and (Patient.birthDate >= today() - 5 'years'))\"))"
+      ]
+    },
+    {
+      "name": "isChildUnder5years",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildUnder5years', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate > today() - 59 'months')\"))"
+      ]
+    },
+    {
+      "name": "isChildUnder1years",
+      "condition": "true",
+      "actions": [
+        "data.put('isChildUnder1years', fhirPath.extractValue(Patient, \"Patient.active and (Patient.birthDate > today() - 12 'months')\"))"
+      ]
+    },
+    {
+      "name": "latestObservations",
+      "priority": 1,
+      "condition": "true",
+      "actions": [
+        "data.put('latestObservations', service.filterResources(stockObservations, \"Observation.status = 'preliminary'\"))"
+      ]
+    },
+    {
+      "name": "activeFlags",
+      "condition": "true",
+      "actions": [
+        "data.put('activeFlags', service.filterResources(stockOutFlags, \"Flag.status = 'active'\"))"
+      ]
+    },
+    {
+      "name": "maleCondomObservation",
+      "priority": 2,
+      "condition": "true",
+      "actions": [
+        "data.put('maleCondomObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/651ef234-b303-4ba5-b135-bd4a1f9eb2c0'\").get(0) )"
+      ]
+    },
+    {
+      "name": "maleCondomObservationId",
+      "priority": 3,
+      "condition": "true",
+      "actions": [
+        "data.put('maleCondomObservationId', fhirPath.extractValue(data.get('maleCondomObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "maleCondomPreviousBalance",
+      "priority": 3,
+      "condition": "true",
+      "actions": [
+        "data.put('maleCondomPreviousBalance', fhirPath.extractValue(data.get('maleCondomObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "maleCondomStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('maleCondomStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/651ef234-b303-4ba5-b135-bd4a1f9eb2c0'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "femaleCondomObservation",
+      "priority": 3,
+      "condition": "true",
+      "actions": [
+        "data.put('femaleCondomObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/7ec6e766-e5dc-4abf-b19a-a403f696d3e2'\").get(0) )"
+      ]
+    },
+    {
+      "name": "femaleCondomObservationId",
+      "priority": 4,
+      "condition": "true",
+      "actions": [
+        "data.put('femaleCondomObservationId', fhirPath.extractValue(data.get('femaleCondomObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "femaleCondomPreviousBalance",
+      "priority": 4,
+      "condition": "true",
+      "actions": [
+        "data.put('femaleCondomPreviousBalance', fhirPath.extractValue(data.get('femaleCondomObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "femaleCondomStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('femaleCondomStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/7ec6e766-e5dc-4abf-b19a-a403f696d3e2'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "latestTask",
+      "condition": "true",
+      "actions": [
+        "data.put('latestTask', service.sortResources(patientTasks, 'Task.executionPeriod.start', 'DATETIME', 'DESCENDING').get(0))"
+      ]
+    },
+    {
+      "name": "isCovidVaccinated",
+      "condition": "true",
+      "actions": [
+        "data.put('isCovidVaccinated', service.evaluateToBoolean(patientTasks, \"Task.code.coding.code='840534001'\", false))"
+      ]
+    },
+    {
+      "name": "sortedPreviousVaccine",
+      "condition": "true",
+      "actions": [
+        "data.put('sortedPreviousVaccine', service.sortResources(availableImmunizations, 'Immunization.occurrence', 'DATETIME', 'DESCENDING'))"
+      ]
+    },
+    {
+      "name": "previousVaccine",
+      "condition": "true",
+      "priority": 2,
+      "actions": [
+        "data.put('previousVaccine', empty(data.get('sortedPreviousVaccine')) ? null : data.get('sortedPreviousVaccine').get(0))"
+      ]
+    },
+    {
+      "name": "previousVaccineText",
+      "condition": "true",
+      "priority": 3,
+      "actions": [
+        "data.put('previousVaccineText', fhirPath.extractValue(data.get('previousVaccine'), 'Immunization.vaccineCode.text'))"
+      ]
+    },
+    {
+      "name": "mnpObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('mnpObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/3af23539-850a-44ed-8fb1-d4999e2145ff'\").get(0) )"
+      ]
+    },
+    {
+      "name": "mnpObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('mnpObservationId', fhirPath.extractValue(data.get('mnpObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "mnpPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('mnpPreviousBalance', fhirPath.extractValue(data.get('mnpObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "mnpStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('mnpStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/3af23539-850a-44ed-8fb1-d4999e2145ff'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "albendazole400mgObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('albendazole400mgObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/3af23539-850a-44ed-8fb1-d4999e2145ff'\").get(0) )"
+      ]
+    },
+    {
+      "name": "albendazole400mgObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('albendazole400mgObservationId', fhirPath.extractValue(data.get('albendazole400mgObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "albendazole400mgPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('albendazole400mgPreviousBalance', fhirPath.extractValue(data.get('albendazole400mgObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "albendazole400mgStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('albendazole400mgStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/3af23539-850a-44ed-8fb1-d4999e2145ff'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "microgynonObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('microgynonObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/f2734756-a6bb-4e90-bbc6-1c34f51d3d5c'\").get(0) )"
+      ]
+    },
+    {
+      "name": "microgynonObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('microgynonObservationId', fhirPath.extractValue(data.get('microgynonObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "microgynonPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('microgynonPreviousBalance', fhirPath.extractValue(data.get('microgynonObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "microgynonStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('microgynonStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/f2734756-a6bb-4e90-bbc6-1c34f51d3d5c'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "microlutObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('microlutObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/9738f1b3-dac8-4c71-bcaf-f1d7959b0681'\").get(0) )"
+      ]
+    },
+    {
+      "name": "microlutObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('microlutObservationId', fhirPath.extractValue(data.get('microlutObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "microlutPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('microlutPreviousBalance', fhirPath.extractValue(data.get('microlutObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "microlutStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('microlutStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/9738f1b3-dac8-4c71-bcaf-f1d7959b0681'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "sayanaPressObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('sayanaPressObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/2265f6c0-610d-45f4-b023-c5b7fd5eb546'\").get(0) )"
+      ]
+    },
+    {
+      "name": "sayanaPressObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('sayanaPressObservationId', fhirPath.extractValue(data.get('sayanaPressObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "sayanaPressPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('sayanaPressPreviousBalance', fhirPath.extractValue(data.get('sayanaPressObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "sayanaPressStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('sayanaPressStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/2265f6c0-610d-45f4-b023-c5b7fd5eb546'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "paracetamol100mgObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('paracetamol100mgObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/b339a63b-84db-45e8-b357-7fcce3bddc34'\").get(0) )"
+      ]
+    },
+    {
+      "name": "paracetamol100mgObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('paracetamol100mgObservationId', fhirPath.extractValue(data.get('paracetamol100mgObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "paracetamol100mgPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('paracetamol100mgPreviousBalance', fhirPath.extractValue(data.get('paracetamol100mgObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "paracetamol100mgStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('paracetamol100mgStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/567ec5f2-db90-4fac-b578-6e07df3f48de'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "ors3SacketsObservation",
+      "condition": "true",
+      "actions": [
+        "data.put('ors3SacketsObservation', service.filterResources(data.get('latestObservations'), \"Observation.subject.reference = 'Group/b339a63b-84db-45e8-b357-7fcce3bddc34'\").get(0) )"
+      ]
+    },
+    {
+      "name": "ors3SacketsObservationId",
+      "condition": "true",
+      "actions": [
+        "data.put('ors3SacketsObservationId', fhirPath.extractValue(data.get('ors3SacketsObservation'), 'Observation.id').replace(\"Observation/\",\"\").split(\"/\").get(0) )"
+      ]
+    },
+    {
+      "name": "ors3SacketsPreviousBalance",
+      "condition": "true",
+      "actions": [
+        "data.put('ors3SacketsPreviousBalance', fhirPath.extractValue(data.get('ors3SacketsObservation'), 'Observation.component.value.value') )"
+      ]
+    },
+    {
+      "name": "ors3SacketsStockOutFlagId",
+      "condition": "true",
+      "actions": [
+        "data.put('ors3SacketsStockOutFlagId', fhirPath.extractValue(service.filterResources(data.get('activeFlags'), \"Flag.subject.reference = 'Group/6a59c142-1c87-11ed-861d-0242ac120002'\").get(0), 'Flag.id').replace(\"Flag/\",\"\").split(\"/\").get(0) )"
+      ]
+    }
+  ],
+  "views": [
+    {
+      "viewType": "COLUMN",
+      "children": [
+        {
+          "viewType": "CARD",
+          "padding": 0,
+          "content": [
+            {
+              "viewType": "COLUMN",
+              "children": [
+                {
+                  "viewType": "COMPOUND_TEXT",
+                  "primaryText": "@{patientName}",
+                  "primaryTextColor": "#000000"
+                },
+                {
+                  "viewType": "COMPOUND_TEXT",
+                  "primaryText": "@{familyHeadStatus}",
+                  "primaryTextColor": "#939596"
+                },
+                {
+                  "viewType": "LIST",
+                  "id": "statusList",
+                  "resources": [
+                    {
+                      "id": "availableConditions",
+                      "relatedResourceId": "availableConditions",
+                      "resourceType": "Condition",
+                      "conditionalFhirPathExpression": "Condition.where(clinicalStatus.coding.where(code = 'active').exists()).exists()"
+                    }
+                  ],
+                  "orientation": "HORIZONTAL",
+                  "registerCard": {
+                    "rules": [
+                      {
+                        "name": "conditionTitle",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('conditionTitle', fhirPath.extractValue(availableConditions, \"Condition.where(clinicalStatus.coding.where(code = 'active').exists()).code.text\"))"
+                        ]
+                      }
+                    ],
+                    "views": [
+                      {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryTextBackgroundColor": "#F5F5F5",
+                        "primaryText": "@{conditionTitle}",
+                        "primaryTextColor": "#6F7274",
+                        "fontSize": 15,
+                        "padding": 4,
+                        "borderRadius": 6
+                      }
+                    ]
+                  }
+                },
+                {
+                  "viewType": "COMPOUND_TEXT",
+                  "primaryText": "ID: #@{patientIdentifier}",
+                  "primaryTextColor": "#000000"
+                },
+                {
+                  "viewType": "COMPOUND_TEXT",
+                  "primaryText": "National ID: #@{nationalIdentifier}",
+                  "primaryTextColor": "#000000"
+                },
+                {
+                  "viewType": "SPACER",
+                  "height": 10
+                },
+                {
+                  "viewType": "PERSONAL_DATA",
+                  "personalDataItems": [
+                    {
+                      "label": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "Sex",
+                        "primaryTextColor": "#000000",
+                        "primaryTextFontWeight": "SEMI_BOLD"
+                      },
+                      "displayValue": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "@{patientGender}",
+                        "fontSize": 14,
+                        "primaryTextColor": "#000000"
+                      }
+                    },
+                    {
+                      "label": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "Age",
+                        "primaryTextColor": "#000000",
+                        "primaryTextFontWeight": "SEMI_BOLD"
+                      },
+                      "displayValue": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "@{patientAge}",
+                        "fontSize": 14,
+                        "primaryTextColor": "#000000"
+                      }
+                    },
+                    {
+                      "label": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "DOB (DD/MM/YYYY)",
+                        "primaryTextColor": "#000000",
+                        "primaryTextFontWeight": "SEMI_BOLD"
+                      },
+                      "displayValue": {
+                        "viewType": "COMPOUND_TEXT",
+                        "primaryText": "@{patientDOB}",
+                        "fontSize": 14,
+                        "primaryTextColor": "#000000"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "viewType": "SPACER",
+          "height": 8
+        },
+        {
+          "viewType": "CARD",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "ROUTINE VISITS",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "patientVisitTask",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = 'child_routine_visit'",
+                  "sortConfig": {
+                    "dataType": "DATETIME",
+                    "fhirPathExpression": "Task.executionPeriod.start",
+                    "order": "ASCENDING"
+                  }
+                }
+              ],
+              "emptyList": {
+                "message": "No routine visits for the patient"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceType": "Patient",
+                          "resourceIdentifier": "@{taskFor}"
+                        },
+                        "params": [
+                          {
+                            "paramType": "QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE",
+                            "resourceType": "Patient",
+                            "value": "@{patientId}",
+                            "key": "resourcePatient",
+                            "dataType": "STRING"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "25cc8d26-ac42-475f-be79-6f1d62a44881",
+                            "dataType": "INTEGER",
+                            "key": "maleCondomPreviousBalance",
+                            "value": "@{maleCondomPreviousBalance}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "48245462-0198-48ab-f5c4-ca4ca3da5403",
+                            "dataType": "INTEGER",
+                            "key": "femaleCondomPreviousBalance",
+                            "value": "@{femaleCondomPreviousBalance}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "56577a66-15ae-4612-bee9-a2d4168082e8",
+                            "dataType": "STRING",
+                            "key": "maleCondomStockOutFlagId",
+                            "value": "@{maleCondomStockOutFlagId}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "30be53b9-6a9c-49fd-8ae7-6e8ff1da8830",
+                            "dataType": "STRING",
+                            "key": "femaleCondomStockOutFlagId",
+                            "value": "@{femaleCondomStockOutFlagId}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "ad68508d-2bfd-400c-b3f8-4d4a01174f81",
+                            "dataType": "STRING",
+                            "key": "birthDate",
+                            "value": "@{birthDate}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "3eb6994b-ec42-49b8-b19d-e491642efeee",
+                            "dataType": "STRING",
+                            "key": "todayDate",
+                            "value": "@{todayDate}"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isPregnant}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "VHW Pregnancy VISITS",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "ancVisitTasks",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = 'big_belly'"
+                }
+              ],
+              "emptyList": {
+                "message": "No VHW ANC visit tasks for the patient"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isAdult}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Covid Vaccines",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "covidVaccineList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.reasonCode.coding.first().code = '840534001'"
+                }
+              ],
+              "emptyList": {
+                "message": "No covid vaccines related tasks for the patient"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at Birth",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "atBirthTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '0_d'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 6 weeks",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at6WeeksTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '6_wk'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 10 weeks",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at10WeeksTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '10_wk'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 14 weeks",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at14WeeksTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '14_wk'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 6 months",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at6MonthsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '6_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 9 months",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at9MonthsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '9_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 12 months",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at12MonthsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '12_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskName",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskName', fhirPath.extractValue(Task, 'Task.reasonCode.coding.first().display'))"
+                    ]
+                  },
+                  {
+                    "name": "taskCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskCode', fhirPath.extractValue(Task, 'Task.code.coding.first().code'))"
+                    ]
+                  },
+                  {
+                    "name": "taskReasonCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskReasonCode', fhirPath.extractValue(Task, 'Task.reasonCode.coding.first().code'))"
+                    ]
+                  },
+                  {
+                    "name": "taskCarePlan",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskCarePlan', fhirPath.extractValue(Task, 'Task.basedOn.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskGroupIdentifier",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskGroupIdentifier', fhirPath.extractValue(Task, 'Task.groupIdentifier.value'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "DUE",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        },
+                        "params": [
+                          {
+                            "paramType": "QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE",
+                            "resourceType": "Patient",
+                            "value": "@{patientId}",
+                            "key": "resourcePatient",
+                            "dataType": "STRING"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-name",
+                            "dataType": "STRING",
+                            "key": "taskName",
+                            "value": "@{taskName}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-code",
+                            "dataType": "STRING",
+                            "key": "taskCode",
+                            "value": "@{taskCode}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-id",
+                            "dataType": "STRING",
+                            "key": "taskId",
+                            "value": "@{taskId}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-reason-code",
+                            "dataType": "STRING",
+                            "key": "taskReasonCode",
+                            "value": "@{taskReasonCode}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-careplan",
+                            "dataType": "STRING",
+                            "key": "taskCarePlan",
+                            "value": "@{taskCarePlan}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-group-id",
+                            "dataType": "STRING",
+                            "key": "taskGroupIdentifier",
+                            "value": "@{taskGroupIdentifier}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "task-description",
+                            "dataType": "STRING",
+                            "key": "taskDescription",
+                            "value": "@{taskDescription}"
+                          },
+                          {
+                            "paramType": "PREPOPULATE",
+                            "linkId": "patient_birthdate",
+                            "dataType": "DATE",
+                            "key": "patient-birthdate",
+                            "value": "@{birthDate}"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 18 months",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at18MonthsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '18_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 6 years",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at6YearsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '72_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "viewType": "CARD",
+          "visible": "@{isChild}",
+          "padding": 16,
+          "header": {
+            "viewType": "COMPOUND_TEXT",
+            "primaryText": "Immunizations at 9 years",
+            "primaryTextColor": "#6F7274",
+            "fontSize": 18.0,
+            "padding": 16
+          },
+          "content": [
+            {
+              "viewType": "LIST",
+              "id": "at9yearsTaskList",
+              "resources": [
+                {
+                  "relatedResourceId": "patientTasks",
+                  "resourceType": "Task",
+                  "conditionalFhirPathExpression": "Task.groupIdentifier.value = '108_mo'"
+                }
+              ],
+              "emptyList": {
+                "message": "No visit tasks available for this patient at the moment"
+              },
+              "registerCard": {
+                "rules": [
+                  {
+                    "name": "taskStatus",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatus', fhirPath.extractValue(Task, 'Task.status'))"
+                    ]
+                  },
+                  {
+                    "name": "taskStatusColorCode",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskStatusColorCode',  service.generateTaskServiceStatus(Task))"
+                    ]
+                  },
+                  {
+                    "name": "taskExecutionStartDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskExecutionStartDate', fhirPath.extractValue(Task, 'Task.executionPeriod.start'))"
+                    ]
+                  },
+                  {
+                    "name": "taskPeriodDueDate",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskPeriodDueDate', service.formatDate(data.get('taskExecutionStartDate'), \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\", \"dd MMM yyyy\"))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescription",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+                    ]
+                  },
+                  {
+                    "name": "taskDescriptionWithStartDate",
+                    "condition": "true",
+                    "priority": 2,
+                    "actions": [
+                      "data.put('taskDescriptionWithStartDate', data.get('taskDescription') + ' ' + 'due on' + ' ' + data.get('taskPeriodDueDate'))"
+                    ]
+                  },
+                  {
+                    "name": "taskId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+                    ]
+                  },
+                  {
+                    "name": "taskFor",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskFor', fhirPath.extractValue(Task, 'Task.for.reference'))"
+                    ]
+                  },
+                  {
+                    "name": "taskQuestionnaireId",
+                    "condition": "true",
+                    "actions": [
+                      "data.put('taskQuestionnaireId', fhirPath.extractValue(Task, 'Task.reasonReference.reference'))"
+                    ]
+                  }
+                ],
+                "views": [
+                  {
+                    "viewType": "BUTTON",
+                    "text": "@{taskDescriptionWithStartDate}",
+                    "status": "@{taskStatusColorCode}",
+                    "visible": "true",
+                    "enabled": "@{patientActive}",
+                    "actions": [
+                      {
+                        "trigger": "ON_CLICK",
+                        "workflow": "LAUNCH_QUESTIONNAIRE",
+                        "questionnaire": {
+                          "id": "@{taskQuestionnaireId}",
+                          "title": "@{taskDescription}",
+                          "saveButtonText": "Save",
+                          "taskId": "@{taskId}",
+                          "resourceIdentifier": "@{taskFor}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "overFlowMenuItems": [
+    {
+      "title": "{{registration.information}}",
+      "titleColor": "@{patientTextColor}",
+      "visible": "true",
+      "enabled": "@{patientActive}",
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_QUESTIONNAIRE",
+          "questionnaire": {
+            "id": "e5155788-8831-4916-a3f5-486915ce34b2",
+            "title": "Member registration info",
+            "saveButtonText": "Update registration",
+            "setPractitionerDetails": true,
+            "setOrganizationDetails": true,
+            "type": "EDIT",
+            "resourceIdentifier": "@{patientId}",
+            "planDefinitions": [
+              "9fac39bd-9750-4c1d-b355-1961de4e37f3",
+              "e994ab6f-30a5-4450-9a90-691c8199f379"
+            ],
+            "params": [
+              {
+                "key": "familyLogicalId",
+                "value": "@{familyLogicalId}",
+                "paramType": "UPDATE_DATE_ON_EDIT"
+              },
+              {
+                "paramType": "PREPOPULATE",
+                "linkId": "652a752f-280a-4560-aac8-fa3196449961",
+                "dataType": "INTEGER",
+                "key": "isFamilyHeadExists",
+                "value": "@{isFamilyHeadExists}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "{{past.encounters}}",
+      "titleColor": "@{patientTextColor}",
+      "visible": "true",
+      "enabled": "true",
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_PROFILE",
+          "id": "individualPastEncountersProfile"
+        }
+      ]
+    },
+    {
+      "title": "{{upcoming.encounters}}",
+      "titleColor": "@{patientTextColor}",
+      "visible": "true",
+      "enabled": "true",
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_PROFILE",
+          "id": "individualUpcomingEncountersProfile"
+        }
+      ]
+    },
+    {
+      "title": "Dispense Medicine",
+      "titleColor": "@{patientTextColor}",
+      "visible": "true",
+      "enabled": "@{patientActive}",
+      "showSeparator": "true",
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_QUESTIONNAIRE",
+          "questionnaire": {
+            "id": "patient-dispense-medicine",
+            "title": "Dispense Medicine",
+            "resourceIdentifier": "@{patientId}",
+            "resourceType": "Patient",
+            "params": [
+              {
+                "paramType": "PREPOPULATE",
+                "linkId": "patient-id",
+                "dataType": "STRING",
+                "key": "patient-id",
+                "value": "@{patientId}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "{{remove.family.member}}",
+      "titleColor": "#FF0000",
+      "visible": "@{patientActive}",
+      "enabled": "@{patientActive}",
+      "showSeparator": "true",
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_QUESTIONNAIRE",
+          "questionnaire": {
+            "id": "7f1960ac-81b5-42a2-8813-97222de5745a",
+            "resourceIdentifier": "@{patientId}",
+            "title": "{{remove.family.member}}",
+            "saveButtonText": "Update registration",
+            "refreshContent": true,
+            "eventWorkflows": [
+              {
+                "eventType": "RESOURCE_CLOSURE",
+                "triggerConditions": [
+                  {
+                    "eventResourceId": "counterReferralCarePlanClosure",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "fpCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "fpConditionToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "ancCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "ancConditionToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "pncConditionToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "diseasesCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "diseasesConditionToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "sickChildCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "sickChildConditionToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "childImmunizationCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  },
+                  {
+                    "eventResourceId": "childRoutineVisitCarePlanToBeClosed",
+                    "matchAll": false,
+                    "conditionalFhirPathExpressions": [
+                      "true"
+                    ]
+                  }
+                ],
+                "eventResources": [
+                  {
+                    "id": "counterReferralCarePlanClosure",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/d6263f2d-2ebe-456c-bbb7-786dabd3ea22"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "fpCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/cd39380b-2359-4b98-8ab9-df7f90fe9392"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "fpConditionToBeClosed",
+                    "resource": "Condition",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "code",
+                        "filterCriteria": [
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99998888"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ancCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/a881d53a-590c-4d52-ae0f-c87b7ff04148"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ancConditionToBeClosed",
+                    "resource": "Condition",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "code",
+                        "filterCriteria": [
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "77386006"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "pncConditionToBeClosed",
+                    "resource": "Condition",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "code",
+                        "filterCriteria": [
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "234234234"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "diseasesCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/55d89227-3a06-4a9a-b526-2819dcb1d301"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "diseasesConditionToBeClosed",
+                    "resource": "Condition",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "code",
+                        "operation": "OR",
+                        "filterCriteria": [
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990003"
+                            }
+                          },
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990005"
+                            }
+                          },
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990004"
+                            }
+                          },
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990000"
+                            }
+                          },
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990001"
+                            }
+                          },
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "99990002"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sickChildCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/4ac4f9d6-6fc7-45bf-9a29-398798fc3134"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sickChildConditionToBeClosed",
+                    "resource": "Condition",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "code",
+                        "filterCriteria": [
+                          {
+                            "dataType": "CODEABLECONCEPT",
+                            "value": {
+                              "system": "http://snomed.info/sct",
+                              "code": "275142008"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "childImmunizationCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/e994ab6f-30a5-4450-9a90-691c8199f379"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "childRoutineVisitCarePlanToBeClosed",
+                    "resource": "CarePlan",
+                    "configRules": [
+                      {
+                        "name": "patientId",
+                        "condition": "true",
+                        "actions": [
+                          "data.put('patientId', fhirPath.extractValue(Patient, 'Patient.id'))"
+                        ]
+                      }
+                    ],
+                    "dataQueries": [
+                      {
+                        "paramName": "instantiates-canonical",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "value": "PlanDefinition/9fac39bd-9750-4c1d-b355-1961de4e37f3"
+                          }
+                        ]
+                      },
+                      {
+                        "paramName": "subject",
+                        "filterCriteria": [
+                          {
+                            "dataType": "REFERENCE",
+                            "computedRule": "patientId"
+                          }
+                        ]
+                      }
+                    ],
+                    "relatedResources": [
+                      {
+                        "resource": "Task",
+                        "searchParameter": "based-on"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "params": [
+            {
+              "paramType": "PREPOPULATE",
+              "linkId": "a11ebb0d-acb3-4038-956b-293a41acb85b",
+              "dataType": "STRING",
+              "key": "patientId",
+              "value": "@{patientId}"
+            },
+            {
+              "paramType": "PREPOPULATE",
+              "linkId": "ad68508d-2bfd-400c-b3f8-4d4a01174f81",
+              "dataType": "STRING",
+              "key": "birthDate",
+              "value": "@{birthDate}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

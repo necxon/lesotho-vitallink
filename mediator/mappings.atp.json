@@ -1,0 +1,96 @@
+{
+  "performers": [
+    {
+      "sourceId": "Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47",
+      "aliases": ["Practitioner/opensrp-admin"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26658765432",
+      "email": "opensrp-admin@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Facility Admin",
+      "role": "admin",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    },
+    {
+      "sourceId": "Practitioner/prac-supervisor",
+      "aliases": ["Practitioner/a0000000-0000-4000-8000-000000000001"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000010",
+      "email": "supervisor@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "District Supervisor",
+      "role": "store_manager",
+      "locationId": "loc-maseru-district",
+      "locationName": "Maseru District"
+    },
+    {
+      "sourceId": "Practitioner/prac-fw-clinic-a",
+      "aliases": ["Practitioner/a0000000-0000-4000-8000-00000000000a"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000011",
+      "email": "fw.clinic.a@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Facility Worker A",
+      "role": "coordinator",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    },
+    {
+      "sourceId": "Practitioner/prac-thabo-mokoena",
+      "aliases": ["Practitioner/8e819e71-e7bf-4c18-b40e-0a01e2c7c5a3", "Practitioner/93b47b21-7311-416a-a6a4-7be8426b1fc3"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000001",
+      "email": "thabo@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Thabo Mokoena",
+      "role": "vhw",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    },
+    {
+      "sourceId": "Practitioner/prac-fw-clinic-b",
+      "aliases": ["Practitioner/a0000000-0000-4000-8000-00000000000b"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120e",
+      "facilityName": "Maseru District Clinic B",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000012",
+      "email": "fw.clinic.b@lesotho.health",
+      "dhis2OrgUnit": "MasClinicB1",
+      "name": "Facility Worker B",
+      "role": "coordinator",
+      "locationId": "loc-maseru-clinic-b",
+      "locationName": "Maseru District Clinic B"
+    },
+    {
+      "sourceId": "Practitioner/prac-vhw-clinic-b",
+      "aliases": ["Practitioner/a0000000-0000-4000-8000-0000000000cb"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120e",
+      "facilityName": "Maseru District Clinic B",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000013",
+      "email": "palesa@lesotho.health",
+      "dhis2OrgUnit": "MasClinicB1",
+      "name": "Palesa Sello",
+      "role": "vhw",
+      "locationId": "loc-maseru-clinic-b",
+      "locationName": "Maseru District Clinic B"
+    }
+  ],
+  "medications": [
+    { "sourceId": "Oxytocin 10 IU",    "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02056" },
+    { "sourceId": "OXYTOCIN10IU",      "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02056" },
+    { "sourceId": "Amoxicillin 250mg", "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02002" },
+    { "sourceId": "AMOX250",           "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02002" },
+    { "sourceId": "Paracetamol Syrup", "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02004" },
+    { "sourceId": "PARASYR",           "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02004" }
+  ]
+}

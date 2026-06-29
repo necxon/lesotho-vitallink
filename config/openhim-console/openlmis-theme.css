@@ -1,0 +1,321 @@
+/*
+ * OpenHIM Console — OpenLMIS-inspired theme
+ * Primary: #3A95BC | Accent: #49baeb | Dark: #356b6f
+ * Font: Roboto (matches OpenLMIS)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+/* ── Global ───────────────────────────────────────────── */
+body, html {
+  font-family: Roboto, Arial, Helvetica, sans-serif !important;
+  font-size: 14px;
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+a { color: #3A95BC; }
+a:hover, a:focus { color: #356b6f; }
+
+/* ── Top Header Bar ───────────────────────────────────── */
+#header {
+  background-color: #fff;
+  border-bottom: 1px solid #e4e4e4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+#header .header {
+  background-color: #fff;
+  padding: 0;
+}
+
+/* OpenHIM wraps logo + nav in .navbar.navbar-inverse — strip the dark style */
+#header .navbar,
+#header .navbar.navbar-inverse {
+  background-color: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+
+/* Logo title */
+#header .logo h1 a {
+  color: #3A95BC !important;
+  font-weight: 500;
+  font-size: 20px;
+  text-decoration: none;
+}
+
+#header .logo h1 a:hover {
+  color: #356b6f !important;
+}
+
+.logo-title {
+  color: #3A95BC !important;
+}
+
+/* ── Top Nav Links ────────────────────────────────────── */
+#header .navbar-nav > li > a,
+#header .navbar-collapse .nav > li > a {
+  color: #4d4d4d !important;
+  font-weight: 400;
+  padding: 15px 14px;
+  transition: color 0.15s, background 0.15s;
+}
+
+#header .navbar-nav > li > a:hover,
+#header .navbar-nav > li > a:focus {
+  color: #3A95BC !important;
+  background-color: #f5f5f5 !important;
+}
+
+#header .navbar-nav > .open > a,
+#header .navbar-nav > .open > a:hover,
+#header .navbar-nav > .open > a:focus {
+  color: #3A95BC !important;
+  background-color: #f0f0f0 !important;
+}
+
+/* Dropdown menu */
+#header .dropdown-menu {
+  border: 1px solid #e4e4e4;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  padding: 4px 0;
+}
+
+#header .dropdown-menu > li > a {
+  color: #4d4d4d !important;
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+#header .dropdown-menu > li > a:hover {
+  background-color: #f0f0f0 !important;
+  color: #3A95BC !important;
+}
+
+/* Toggle button (hamburger) */
+#header .navbar-toggle {
+  border-color: #ccc !important;
+}
+#header .navbar-toggle .icon-bar {
+  background-color: #777 !important;
+}
+
+/* ── Page Body / Content Area ─────────────────────────── */
+#body {
+  background-color: #f0f0f0;
+  padding: 20px 0;
+  min-height: calc(100vh - 120px);
+}
+
+/* ── Panel / Card Styling ─────────────────────────────── */
+.panel {
+  border-radius: 2px;
+  border: 1px solid #e4e4e4;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.panel-default > .panel-heading {
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e4e4e4;
+  color: #333;
+  font-weight: 500;
+}
+
+.panel-primary > .panel-heading {
+  background-color: #3A95BC;
+  border-color: #3A95BC;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn-primary {
+  background-color: #3A95BC;
+  border-color: #3A95BC;
+  color: #fff;
+  font-weight: 500;
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+  background-color: #2e7ea3;
+  border-color: #2e7ea3;
+  color: #fff;
+}
+
+.btn-default {
+  border-color: #bebebe;
+  color: #4d4d4d;
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.btn-default:hover {
+  border-color: #3A95BC;
+  color: #3A95BC;
+  background-color: #f5f5f5;
+}
+
+.btn-success {
+  background-color: #356b6f;
+  border-color: #356b6f;
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.btn-success:hover {
+  background-color: #2a5558;
+  border-color: #2a5558;
+}
+
+.btn-danger {
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.btn-warning {
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+/* ── Tables ───────────────────────────────────────────── */
+.table {
+  font-size: 13px;
+  background-color: #fff;
+}
+
+.table > thead > tr > th {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #e4e4e4;
+  color: #58585a;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+}
+
+.table > tbody > tr > td {
+  padding: 10px 12px;
+  border-top: 1px solid #f0f0f0;
+  vertical-align: middle;
+  color: #333;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #fafafa;
+}
+
+.table > tbody > tr:hover {
+  background-color: #e8f4f9 !important;
+}
+
+/* ── Forms ────────────────────────────────────────────── */
+.form-control {
+  border-radius: 2px;
+  border-color: #bebebe;
+  box-shadow: none;
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  height: 36px;
+}
+
+.form-control:focus {
+  border-color: #3A95BC;
+  box-shadow: 0 0 0 2px rgba(58,149,188,0.18);
+}
+
+label {
+  font-weight: 500;
+  color: #4d4d4d;
+  font-size: 13px;
+}
+
+/* ── Labels / Badges ──────────────────────────────────── */
+.label-primary  { background-color: #3A95BC; }
+.label-success  { background-color: #356b6f; }
+.label-default  { background-color: #9d9d9d; }
+
+/* Status pills used in transaction list */
+.label {
+  border-radius: 2px;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 3px 7px;
+}
+
+/* ── Alerts ───────────────────────────────────────────── */
+.alert { border-radius: 2px; border-left-width: 4px; }
+.alert-info    { border-left-color: #3A95BC; }
+.alert-success { border-left-color: #356b6f; }
+.alert-warning { border-left-color: #8a6d3b; }
+.alert-danger  { border-left-color: #a94442; }
+
+/* ── Pagination ───────────────────────────────────────── */
+.pagination > li > a,
+.pagination > li > span {
+  color: #3A95BC;
+  border-color: #e4e4e4;
+  font-size: 13px;
+}
+
+.pagination > li > a:hover {
+  background-color: #e8f4f9;
+  border-color: #3A95BC;
+  color: #3A95BC;
+}
+
+.pagination > .active > a,
+.pagination > .active > span,
+.pagination > .active > a:hover,
+.pagination > .active > span:hover {
+  background-color: #3A95BC;
+  border-color: #3A95BC;
+}
+
+/* ── Date-picker / Inputs ─────────────────────────────── */
+.input-group-addon {
+  background-color: #f5f5f5;
+  border-color: #bebebe;
+  color: #4d4d4d;
+}
+
+/* ── Headings ─────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+  font-weight: 400;
+  color: #333;
+}
+
+h3 { font-size: 20px; }
+h4 { font-size: 16px; font-weight: 500; }
+
+/* ── Footer ───────────────────────────────────────────── */
+footer {
+  background-color: #fff;
+  border-top: 1px solid #e4e4e4;
+  padding: 12px 0;
+  color: #777;
+  font-size: 12px;
+}
+
+footer a { color: #3A95BC; }
+
+/* ── Scrollbars (Webkit) ──────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f0f0; }
+::-webkit-scrollbar-thumb { background: #bebebe; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3A95BC; }

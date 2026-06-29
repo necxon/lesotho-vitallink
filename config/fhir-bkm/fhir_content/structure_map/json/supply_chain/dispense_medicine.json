@@ -1,0 +1,1868 @@
+{
+    "resourceType": "StructureMap",
+    "id": "f7a8b9c0-d1e2-3f4a-5b6c-7d8e9f0a1b2c",
+    "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/f7a8b9c0-d1e2-3f4a-5b6c-7d8e9f0a1b2c",
+    "name": "Dispense Medicine",
+    "status": "active",
+    "structure": [
+        {
+            "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse",
+            "mode": "source"
+        },
+        {
+            "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+            "mode": "target"
+        }
+    ],
+    "group": [
+        {
+            "name": "dispenseMedicine",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_bundle_id",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "id",
+                            "transform": "uuid"
+                        }
+                    ]
+                },
+                {
+                    "name": "rule_bundle_type",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "type",
+                            "transform": "copy",
+                            "parameter": [
+                                {
+                                    "valueString": "collection"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "rule_bundle_entries",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "variable": "commodityGroupReference",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.subject"
+                                }
+                            ]
+                        }
+                    ],
+                    "dependent": [
+                        {
+                            "name": "extractDispense",
+                            "variable": [
+                                "questionnaireResponse",
+                                "commodityGroupReference",
+                                "bundle"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "extractDispense",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "commodityGroupReference",
+                    "type": "Reference",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_quantities",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "variable": "currentBalance",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.item.where(linkId = 'd-current-balance').answer.value"
+                                }
+                            ]
+                        },
+                        {
+                            "variable": "dispensedQty",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.item.where(linkId = 'd-quantity').answer.value"
+                                }
+                            ]
+                        },
+                        {
+                            "variable": "patientId",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.item.where(linkId = 'd-patient-id').answer.value"
+                                }
+                            ]
+                        },
+                        {
+                            "variable": "commodityName",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.item.where(linkId = 'd-commodity-name').answer.value"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_new_balance",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "variable": "newBalance",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "(currentBalance - dispensedQty)"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_new_obs",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "bundle",
+                                            "contextType": "variable",
+                                            "element": "entry",
+                                            "variable": "entry"
+                                        },
+                                        {
+                                            "context": "entry",
+                                            "contextType": "variable",
+                                            "element": "resource",
+                                            "variable": "observation",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Observation"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_obs_id",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "id",
+                                                    "transform": "uuid"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_status",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "status",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "preliminary"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_cat",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "category",
+                                                    "transform": "cc",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "http://snomed.info/sct"
+                                                        },
+                                                        {
+                                                            "valueString": "386452003"
+                                                        },
+                                                        {
+                                                            "valueString": "Supply management"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_code",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "code",
+                                                    "transform": "create",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "CodeableConcept"
+                                                        }
+                                                    ],
+                                                    "variable": "code"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_obs_coding",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "code",
+                                                            "contextType": "variable",
+                                                            "element": "coding",
+                                                            "transform": "create",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "Coding"
+                                                                }
+                                                            ],
+                                                            "variable": "coding"
+                                                        }
+                                                    ],
+                                                    "rule": [
+                                                        {
+                                                            "name": "rule_obs_code_sys",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "coding",
+                                                                    "contextType": "variable",
+                                                                    "element": "system",
+                                                                    "transform": "copy",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueString": "https://smartregister.org/"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "rule_obs_code_cod",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "coding",
+                                                                    "contextType": "variable",
+                                                                    "element": "code",
+                                                                    "transform": "copy",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueString": "balance-after-dispense"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "rule_obs_code_disp",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "coding",
+                                                                    "contextType": "variable",
+                                                                    "element": "display",
+                                                                    "transform": "copy",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueString": "balance-after-dispense"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "rule_obs_code_text",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "code",
+                                                            "contextType": "variable",
+                                                            "element": "text",
+                                                            "transform": "copy",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "balance-after-dispense"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_subject",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "subject",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueId": "commodityGroupReference"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_effective",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "variable": "current",
+                                                    "transform": "evaluate",
+                                                    "parameter": [
+                                                        {
+                                                            "valueId": "questionnaireResponse"
+                                                        },
+                                                        {
+                                                            "valueString": "now()"
+                                                        }
+                                                    ]
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_obs_effective_val",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "observation",
+                                                            "contextType": "variable",
+                                                            "element": "effective",
+                                                            "transform": "create",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "dateTime"
+                                                                }
+                                                            ],
+                                                            "variable": "dt"
+                                                        },
+                                                        {
+                                                            "transform": "evaluate",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "current"
+                                                                },
+                                                                {
+                                                                    "valueString": "$this.value.substring(0,10) + 'T00:00:00+00:00'"
+                                                                }
+                                                            ],
+                                                            "context": "dt",
+                                                            "contextType": "variable",
+                                                            "element": "value"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_performer",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "transform": "evaluate",
+                                                    "parameter": [
+                                                        {
+                                                            "valueId": "questionnaireResponse"
+                                                        },
+                                                        {
+                                                            "valueString": "$this.generalPractitioner.first()"
+                                                        }
+                                                    ],
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "performer"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_value",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "value",
+                                                    "transform": "create",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Quantity"
+                                                        }
+                                                    ],
+                                                    "variable": "qty"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_obs_qty_val",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "qty",
+                                                            "contextType": "variable",
+                                                            "element": "value",
+                                                            "transform": "copy",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "newBalance"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_obs_component",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "observation",
+                                                    "contextType": "variable",
+                                                    "element": "component",
+                                                    "variable": "component"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_comp_code",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "component",
+                                                            "contextType": "variable",
+                                                            "element": "code",
+                                                            "transform": "create",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "CodeableConcept"
+                                                                }
+                                                            ],
+                                                            "variable": "compCC"
+                                                        }
+                                                    ],
+                                                    "rule": [
+                                                        {
+                                                            "name": "rule_comp_coding",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "compCC",
+                                                                    "contextType": "variable",
+                                                                    "element": "coding",
+                                                                    "transform": "create",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueString": "Coding"
+                                                                        }
+                                                                    ],
+                                                                    "variable": "compCoding"
+                                                                }
+                                                            ],
+                                                            "rule": [
+                                                                {
+                                                                    "name": "rule_comp_sys",
+                                                                    "source": [
+                                                                        {
+                                                                            "context": "questionnaireResponse"
+                                                                        }
+                                                                    ],
+                                                                    "target": [
+                                                                        {
+                                                                            "context": "compCoding",
+                                                                            "contextType": "variable",
+                                                                            "element": "system",
+                                                                            "transform": "copy",
+                                                                            "parameter": [
+                                                                                {
+                                                                                    "valueString": "http://snomed.info/sct"
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "name": "rule_comp_cod",
+                                                                    "source": [
+                                                                        {
+                                                                            "context": "questionnaireResponse"
+                                                                        }
+                                                                    ],
+                                                                    "target": [
+                                                                        {
+                                                                            "context": "compCoding",
+                                                                            "contextType": "variable",
+                                                                            "element": "code",
+                                                                            "transform": "copy",
+                                                                            "parameter": [
+                                                                                {
+                                                                                    "valueString": "255619001"
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "name": "rule_comp_disp",
+                                                                    "source": [
+                                                                        {
+                                                                            "context": "questionnaireResponse"
+                                                                        }
+                                                                    ],
+                                                                    "target": [
+                                                                        {
+                                                                            "context": "compCoding",
+                                                                            "contextType": "variable",
+                                                                            "element": "display",
+                                                                            "transform": "copy",
+                                                                            "parameter": [
+                                                                                {
+                                                                                    "valueString": "Total"
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "rule_comp_text",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "compCC",
+                                                                    "contextType": "variable",
+                                                                    "element": "text",
+                                                                    "transform": "copy",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueString": "Running total/Cumulative sum"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "rule_comp_qty",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "component",
+                                                            "contextType": "variable",
+                                                            "element": "value",
+                                                            "transform": "create",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "Quantity"
+                                                                }
+                                                            ],
+                                                            "variable": "compQty"
+                                                        }
+                                                    ],
+                                                    "rule": [
+                                                        {
+                                                            "name": "rule_comp_qty_val",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse"
+                                                                }
+                                                            ],
+                                                            "target": [
+                                                                {
+                                                                    "context": "compQty",
+                                                                    "contextType": "variable",
+                                                                    "element": "value",
+                                                                    "transform": "copy",
+                                                                    "parameter": [
+                                                                        {
+                                                                            "valueId": "newBalance"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "rule_balance_zero",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse",
+                                            "variable": "stockOut",
+                                            "condition": "(newBalance = 0)"
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_no_flag",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse",
+                                                    "element": "item",
+                                                    "variable": "noFlag",
+                                                    "condition": "((linkId = 'd-flag-id') and (answer.value.empty()))"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_create_stockout_flag",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "dependent": [
+                                                        {
+                                                            "name": "createStockOutFlag",
+                                                            "variable": [
+                                                                "questionnaireResponse",
+                                                                "bundle",
+                                                                "commodityGroupReference"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "rule_balance_positive",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse",
+                                            "variable": "endStockOut",
+                                            "condition": "(newBalance > 0)"
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_flag_exists",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse",
+                                                    "element": "item",
+                                                    "variable": "flagExists",
+                                                    "condition": "((linkId = 'd-flag-id') and (answer.value.exists()))"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_flag_id",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "variable": "flagId",
+                                                            "transform": "evaluate",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "questionnaireResponse"
+                                                                },
+                                                                {
+                                                                    "valueString": "$this.item.where(linkId = 'd-flag-id').answer.value"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "rule": [
+                                                        {
+                                                            "name": "rule_flag_start_check",
+                                                            "source": [
+                                                                {
+                                                                    "context": "questionnaireResponse",
+                                                                    "element": "item",
+                                                                    "variable": "flagStartCheck",
+                                                                    "condition": "((linkId = 'd-flag-start-date') and (answer.value.exists()))"
+                                                                }
+                                                            ],
+                                                            "rule": [
+                                                                {
+                                                                    "name": "rule_update_stockout_flag",
+                                                                    "source": [
+                                                                        {
+                                                                            "context": "questionnaireResponse"
+                                                                        }
+                                                                    ],
+                                                                    "target": [
+                                                                        {
+                                                                            "variable": "flagStart",
+                                                                            "transform": "evaluate",
+                                                                            "parameter": [
+                                                                                {
+                                                                                    "valueId": "questionnaireResponse"
+                                                                                },
+                                                                                {
+                                                                                    "valueString": "$this.item.where(linkId = 'd-flag-start-date').answer.value"
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ],
+                                                                    "dependent": [
+                                                                        {
+                                                                            "name": "updateStockOutFlag",
+                                                                            "variable": [
+                                                                                "questionnaireResponse",
+                                                                                "bundle",
+                                                                                "flagId",
+                                                                                "flagStart"
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "rule_md",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "bundle",
+                                            "contextType": "variable",
+                                            "element": "entry",
+                                            "variable": "entry"
+                                        },
+                                        {
+                                            "context": "entry",
+                                            "contextType": "variable",
+                                            "element": "resource",
+                                            "variable": "md",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "MedicationDispense"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_md_id",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "id",
+                                                    "transform": "uuid"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_status",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "status",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "completed"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_medication",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "medication",
+                                                    "transform": "create",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "CodeableConcept"
+                                                        }
+                                                    ],
+                                                    "variable": "medCC"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_md_med_text",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "medCC",
+                                                            "contextType": "variable",
+                                                            "element": "text",
+                                                            "transform": "copy",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "commodityName"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_subject",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "subject",
+                                                    "transform": "create",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Reference"
+                                                        }
+                                                    ],
+                                                    "variable": "subRef"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_md_sub_ref",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "transform": "evaluate",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "questionnaireResponse"
+                                                                },
+                                                                {
+                                                                    "valueString": "'Patient/' + patientId"
+                                                                }
+                                                            ],
+                                                            "context": "subRef",
+                                                            "contextType": "variable",
+                                                            "element": "reference"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_performer",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "performer",
+                                                    "variable": "perf"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_md_actor",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "transform": "evaluate",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "questionnaireResponse"
+                                                                },
+                                                                {
+                                                                    "valueString": "$this.generalPractitioner.first()"
+                                                                }
+                                                            ],
+                                                            "context": "perf",
+                                                            "contextType": "variable",
+                                                            "element": "actor"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_quantity",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "quantity",
+                                                    "transform": "create",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Quantity"
+                                                        }
+                                                    ],
+                                                    "variable": "mdQty"
+                                                }
+                                            ],
+                                            "rule": [
+                                                {
+                                                    "name": "rule_md_qty_val",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "mdQty",
+                                                            "contextType": "variable",
+                                                            "element": "value",
+                                                            "transform": "copy",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueId": "dispensedQty"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "rule_md_qty_unit",
+                                                    "source": [
+                                                        {
+                                                            "context": "questionnaireResponse"
+                                                        }
+                                                    ],
+                                                    "target": [
+                                                        {
+                                                            "context": "mdQty",
+                                                            "contextType": "variable",
+                                                            "element": "unit",
+                                                            "transform": "copy",
+                                                            "parameter": [
+                                                                {
+                                                                    "valueString": "units"
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_md_when",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "transform": "evaluate",
+                                                    "parameter": [
+                                                        {
+                                                            "valueId": "questionnaireResponse"
+                                                        },
+                                                        {
+                                                            "valueString": "now()"
+                                                        }
+                                                    ],
+                                                    "context": "md",
+                                                    "contextType": "variable",
+                                                    "element": "whenHandedOver"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "rule_check_latest_obs",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse",
+                            "element": "item",
+                            "variable": "latestObs",
+                            "condition": "((linkId = 'd-observation-id') and (answer.value.exists()))"
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_update_obs",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "variable": "latestObsId",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "$this.item.where(linkId = 'd-observation-id').answer.value"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "dependent": [
+                                {
+                                    "name": "updateLatestObservation",
+                                    "variable": [
+                                        "questionnaireResponse",
+                                        "bundle",
+                                        "latestObsId"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "updateLatestObservation",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "latestObservationId",
+                    "type": "String",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_update_obs",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "observation",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Observation"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_update_obs_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "id"
+                                        }
+                                    ],
+                                    "variable": "obsId"
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_update_obs_id_val",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "obsId",
+                                            "contextType": "variable",
+                                            "element": "value",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "latestObservationId"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_update_obs_status",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "final"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_update_obs_effective",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "variable": "current",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "now()"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_update_obs_effective_val",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "observation",
+                                            "contextType": "variable",
+                                            "element": "effective",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "dateTime"
+                                                }
+                                            ],
+                                            "variable": "dt"
+                                        },
+                                        {
+                                            "transform": "evaluate",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "current"
+                                                },
+                                                {
+                                                    "valueString": "$this.value.substring(0,10) + 'T00:00:00+00:00'"
+                                                }
+                                            ],
+                                            "context": "dt",
+                                            "contextType": "variable",
+                                            "element": "value"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "createStockOutFlag",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "commodityGroupReference",
+                    "type": "Reference",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_flag",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "flag",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Flag"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_flag_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "uuid"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_flag_status",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "active"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_flag_cat",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "category",
+                                    "transform": "cc",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://snomed.info/sct"
+                                        },
+                                        {
+                                            "valueString": "386452003"
+                                        },
+                                        {
+                                            "valueString": "Supply management"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_flag_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "code",
+                                    "transform": "cc",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://snomed.info/sct"
+                                        },
+                                        {
+                                            "valueString": "419182006"
+                                        },
+                                        {
+                                            "valueString": " Supplies not available"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_flag_subject",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "subject",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueId": "commodityGroupReference"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_flag_period",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "period",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "Period"
+                                        }
+                                    ],
+                                    "variable": "period"
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_flag_period_start",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "transform": "evaluate",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "questionnaireResponse"
+                                                },
+                                                {
+                                                    "valueString": "now()"
+                                                }
+                                            ],
+                                            "context": "period",
+                                            "contextType": "variable",
+                                            "element": "start"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "updateStockOutFlag",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "flagId",
+                    "type": "String",
+                    "mode": "source"
+                },
+                {
+                    "name": "flagPeriodStart",
+                    "type": "DateTime",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_update_flag",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "flag",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Flag"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_update_flag_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "id"
+                                        }
+                                    ],
+                                    "variable": "flagIdEl"
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_update_flag_id_val",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "flagIdEl",
+                                            "contextType": "variable",
+                                            "element": "value",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "flagId"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_update_flag_status",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "inactive"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_update_flag_period",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "flag",
+                                    "contextType": "variable",
+                                    "element": "period",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "Period"
+                                        }
+                                    ],
+                                    "variable": "period"
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_update_flag_period_start",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "period",
+                                            "contextType": "variable",
+                                            "element": "start",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "dateTime"
+                                                }
+                                            ],
+                                            "variable": "startDate"
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_update_flag_start_val",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "startDate",
+                                                    "contextType": "variable",
+                                                    "element": "value",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueId": "flagPeriodStart"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "rule_update_flag_period_end",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "transform": "evaluate",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "questionnaireResponse"
+                                                },
+                                                {
+                                                    "valueString": "now()"
+                                                }
+                                            ],
+                                            "context": "period",
+                                            "contextType": "variable",
+                                            "element": "end"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

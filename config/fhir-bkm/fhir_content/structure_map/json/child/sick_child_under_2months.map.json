@@ -1,0 +1,1711 @@
+{
+    "resourceType": "StructureMap",
+    "id": "6a1748d8-6595-11ed-9022-0242ac120002",
+    "meta": {
+        "versionId": "1",
+        "lastUpdated": "2025-03-12T08:34:45.121+00:00",
+        "source": "#KmAj100YluW3tFMs"
+    },
+    "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/6a1748d8-6595-11ed-9022-0242ac120002",
+    "name": "eCBIS Under 2 Months Sick Child Registration",
+    "structure": [
+        {
+            "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+            "mode": "source"
+        },
+        {
+            "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+            "mode": "target"
+        }
+    ],
+    "group": [
+        {
+            "name": "SickChild",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "r_bundle_type",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "type",
+                            "transform": "copy",
+                            "parameter": [
+                                {
+                                    "valueString": "collection"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "r_bundle_entries",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "variable": "patientReference",
+                            "transform": "evaluate",
+                            "parameter": [
+                                {
+                                    "valueId": "questionnaireResponse"
+                                },
+                                {
+                                    "valueString": "$this.subject"
+                                }
+                            ]
+                        }
+                    ],
+                    "dependent": [
+                        {
+                            "name": "extractEncounter",
+                            "variable": [
+                                "questionnaireResponse",
+                                "bundle",
+                                "patientReference"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "extractEncounter",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "patientReference",
+                    "type": "Reference",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "r_en",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "encounter",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Encounter"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "r_en_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "uuid"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_st",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "finished"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_cls",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "class",
+                                    "transform": "c",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                                        },
+                                        {
+                                            "valueString": "HH"
+                                        },
+                                        {
+                                            "valueString": "home health"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_typ",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "type",
+                                    "variable": "concept",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_en_cc_cod",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "c",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "https://smartregister.org/"
+                                                },
+                                                {
+                                                    "valueString": "under2months_sick_child"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "r_en_cod_disp",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Under 2 months sick child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "r_en_typ_text",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "text",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Under 2 months sick child"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_prio",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "priority",
+                                    "variable": "concept",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_en_cc_cod",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "c",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+                                                },
+                                                {
+                                                    "valueString": "EL"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "r_en_cod_disp",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Elective"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "r_en_prio_text",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "text",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Elective"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_sub",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse",
+                                    "element": "subject",
+                                    "variable": "subject"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "subject",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueId": "subject"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_per",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "period",
+                                    "variable": "enPeriod",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "Period"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_en_per_start",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "enPeriod",
+                                            "contextType": "variable",
+                                            "element": "start",
+                                            "transform": "evaluate",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "questionnaireResponse"
+                                                },
+                                                {
+                                                    "valueString": "now()"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "r_en_per_end",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "enPeriod",
+                                            "contextType": "variable",
+                                            "element": "end",
+                                            "transform": "evaluate",
+                                            "parameter": [
+                                                {
+                                                    "valueId": "questionnaireResponse"
+                                                },
+                                                {
+                                                    "valueString": "now()"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_reason",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "encounter",
+                                    "contextType": "variable",
+                                    "element": "reasonCode",
+                                    "variable": "concept",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_en_cc_cod",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "c",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "https://smartregister.org/"
+                                                },
+                                                {
+                                                    "valueString": "under2months_sick_child"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "r_en_cod_disp",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Under 2 months sick child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "r_en_text",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "concept",
+                                            "contextType": "variable",
+                                            "element": "text",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Under 2 months sick child"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_en_entries",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "dependent": [
+                                {
+                                    "name": "extractSickChildCondition",
+                                    "variable": [
+                                        "questionnaireResponse",
+                                        "bundle",
+                                        "encounter",
+                                        "patientReference"
+                                    ]
+                                },
+                                {
+                                    "name": "extractObservation",
+                                    "variable": [
+                                        "questionnaireResponse",
+                                        "bundle",
+                                        "patientReference",
+                                        "encounter"
+                                    ]
+                                },
+                                {
+                                    "name": "extractObservationForReferredToHealthFacility",
+                                    "variable": [
+                                        "questionnaireResponse",
+                                        "bundle",
+                                        "patientReference",
+                                        "encounter"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "extractSickChildCondition",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "encounter",
+                    "type": "Encounter",
+                    "mode": "target"
+                },
+                {
+                    "name": "patientReference",
+                    "type": "Reference",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "r_sickChildCondition",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "sickChildCondition",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Condition"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "r_sickChildCondition_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "uuid"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_onset_date_val",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "onset",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "now()"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_clinical_st",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "clinicalStatus",
+                                    "transform": "cc",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://terminology.hl7.org/CodeSystem/condition-clinical"
+                                        },
+                                        {
+                                            "valueString": "active"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_verif_st",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "verificationStatus",
+                                    "transform": "cc",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+                                        },
+                                        {
+                                            "valueString": "confirmed"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_category",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "category",
+                                    "transform": "cc",
+                                    "parameter": [
+                                        {
+                                            "valueString": "http://terminology.hl7.org/CodeSystem/condition-category"
+                                        },
+                                        {
+                                            "valueString": "problem-list-item"
+                                        },
+                                        {
+                                            "valueString": "Problem List Item"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_sub",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "subject",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueId": "patientReference"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_recorded",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "recordedDate",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "now()"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_encounter",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "encounter",
+                                    "transform": "reference",
+                                    "parameter": [
+                                        {
+                                            "valueId": "encounter"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_sickChildCondition_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "sickChildCondition",
+                                    "contextType": "variable",
+                                    "element": "code",
+                                    "variable": "sickChildCodeableConcept",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_sickChildCondition_code_coding",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "sickChildCodeableConcept",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "c",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "http://snomed.info/sct"
+                                                },
+                                                {
+                                                    "valueString": "275142008"
+                                                },
+                                                {
+                                                    "valueString": "Sick Child"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "context": "coding",
+                                            "contextType": "variable",
+                                            "element": "display",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Sick Child"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "r_sickChildCondition_code_text",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "sickChildCodeableConcept",
+                                            "contextType": "variable",
+                                            "element": "text",
+                                            "transform": "copy",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Sick Child"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "extractObservation",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "patientReference",
+                    "type": "Patient",
+                    "mode": "source"
+                },
+                {
+                    "name": "encounter",
+                    "type": "Encounter",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_disease_registration_observation",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "observation",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Observation"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_observation_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "uuid"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_subject",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "subject",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueId": "patientReference"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_encounter",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "encounter",
+                                    "transform": "reference",
+                                    "parameter": [
+                                        {
+                                            "valueId": "encounter"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_status",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "final"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_effective",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "effective",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "now()"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "category",
+                                    "variable": "code",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_observation_coding",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "code",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Coding"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_observation_system",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "system",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "http://snomed.info/sct"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_observation_code",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "code",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "55561003"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_observation_coding_display",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Active case find"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_obs_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "code",
+                                    "variable": "code",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_obs_c_coding",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "code",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Coding"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_observation_coding_system",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "system",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "https://smartregister.org/"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "r_obs_c_coding_code",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "code",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "under2months_sick_child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "r_obs_c_coding_display",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Under 2 months sick child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "extractObservationForReferredToHealthFacility",
+            "typeMode": "none",
+            "input": [
+                {
+                    "name": "questionnaireResponse",
+                    "type": "QuestionnaireResponse",
+                    "mode": "source"
+                },
+                {
+                    "name": "bundle",
+                    "type": "Bundle",
+                    "mode": "target"
+                },
+                {
+                    "name": "patientReference",
+                    "type": "Patient",
+                    "mode": "source"
+                },
+                {
+                    "name": "encounter",
+                    "type": "Encounter",
+                    "mode": "source"
+                }
+            ],
+            "rule": [
+                {
+                    "name": "rule_disease_registration_observation",
+                    "source": [
+                        {
+                            "context": "questionnaireResponse"
+                        }
+                    ],
+                    "target": [
+                        {
+                            "context": "bundle",
+                            "contextType": "variable",
+                            "element": "entry",
+                            "variable": "entry"
+                        },
+                        {
+                            "context": "entry",
+                            "contextType": "variable",
+                            "element": "resource",
+                            "variable": "observation",
+                            "transform": "create",
+                            "parameter": [
+                                {
+                                    "valueString": "Observation"
+                                }
+                            ]
+                        }
+                    ],
+                    "rule": [
+                        {
+                            "name": "rule_observation_id",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "id",
+                                    "transform": "uuid"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_subject",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "subject",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueId": "patientReference"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_encounter",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "encounter",
+                                    "transform": "reference",
+                                    "parameter": [
+                                        {
+                                            "valueId": "encounter"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_status",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "status",
+                                    "transform": "copy",
+                                    "parameter": [
+                                        {
+                                            "valueString": "final"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_effective",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "effective",
+                                    "transform": "evaluate",
+                                    "parameter": [
+                                        {
+                                            "valueId": "questionnaireResponse"
+                                        },
+                                        {
+                                            "valueString": "now()"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "rule_observation_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "category",
+                                    "variable": "code",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "rule_observation_coding",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "code",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Coding"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_observation_system",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "system",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "http://snomed.info/sct"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_observation_code",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "code",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "310449005"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "rule_observation_coding_display",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Active case find"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "r_obs_code",
+                            "source": [
+                                {
+                                    "context": "questionnaireResponse"
+                                }
+                            ],
+                            "target": [
+                                {
+                                    "context": "observation",
+                                    "contextType": "variable",
+                                    "element": "code",
+                                    "variable": "code",
+                                    "transform": "create",
+                                    "parameter": [
+                                        {
+                                            "valueString": "CodeableConcept"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "rule": [
+                                {
+                                    "name": "r_obs_c_coding",
+                                    "source": [
+                                        {
+                                            "context": "questionnaireResponse"
+                                        }
+                                    ],
+                                    "target": [
+                                        {
+                                            "context": "code",
+                                            "contextType": "variable",
+                                            "element": "coding",
+                                            "variable": "coding",
+                                            "transform": "create",
+                                            "parameter": [
+                                                {
+                                                    "valueString": "Coding"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "rule": [
+                                        {
+                                            "name": "rule_observation_coding_system",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "system",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "https://smartregister.org/"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "r_obs_c_coding_code",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "code",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "under2months_sick_child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "r_obs_c_coding_display",
+                                            "source": [
+                                                {
+                                                    "context": "questionnaireResponse"
+                                                }
+                                            ],
+                                            "target": [
+                                                {
+                                                    "context": "coding",
+                                                    "contextType": "variable",
+                                                    "element": "display",
+                                                    "transform": "copy",
+                                                    "parameter": [
+                                                        {
+                                                            "valueString": "Under 2 months sick child"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

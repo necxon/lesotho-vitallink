@@ -1,0 +1,1105 @@
+{
+  "resourceType": "StructureMap",
+  "id": "ef19b62e-6cbf-43d6-beb5-4c0d9d2c20b8",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/ef19b62e-6cbf-43d6-beb5-4c0d9d2c20b8&quot; = &quot;BKM Disease Registration&quot;\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse&quot; as source\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\r\n\r\ngroup DiseaseRegistration(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {\r\n    questionnaireResponse -&gt; bundle.type = &quot;collection&quot; &quot;r_bundle_type&quot;;\r\n    questionnaireResponse -&gt; evaluate(questionnaireResponse, $this.subject) as patientReference then \r\n        extractDiseaseConditions(questionnaireResponse, bundle, patientReference), \r\n        extractEncounter(questionnaireResponse, bundle, patientReference) &quot;r_bundle_entries&quot;;\r\n}\r\n\r\ngroup extractDiseaseConditions(source questionnaireResponse : QuestionnaireResponse, target bundle : Bundle, source patientReference : Reference) {\r\n    questionnaireResponse.item as questionnaireResponseItem  where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.value.exists()) then {\r\n        //Extract the hiv disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'hiv').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990003&quot;) as hivcode, evaluate(questionnaireResponse, &quot;HIV&quot;) as displayText then extractConditions(hivcode, displayText, questionnaireResponse, bundle, patientReference) &quot;rule_condition_hiv&quot;;\r\n        } &quot;rule_hiv_condition&quot;;\r\n        //Extract the tb disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'tb').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990005&quot;) as tbcode, evaluate(questionnaireResponse, &quot;TB&quot;) as displayText then extractConditions(tbcode, displayText, questionnaireResponse, bundle, patientReference) &quot;rule_condition_tb&quot;;\r\n        } &quot;rule_tb_condition&quot;;\r\n        //Extract the mental health disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'mental-health').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990004&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Mental health&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_mental_health&quot;;\r\n        } &quot;rule_mental_health_condition&quot;;\r\n\r\n        //Extract the diabetes mellitus disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'diabetes-mellitus').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990006&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Diabetes Mellitus&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_diabetes_health&quot;;\r\n        } &quot;rule_diabetes_health_condition&quot;;\r\n\r\n        //Extract the cancer disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'cancer').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990007&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Cancer&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_cancer_health&quot;;\r\n        } &quot;rule_cancer_health_condition&quot;;\r\n\r\n        //Extract the asthma disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'asthma').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990008&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Asthma&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_asthma_health&quot;;\r\n        } &quot;rule_asthma_health_condition&quot;;\r\n\r\n        //Extract the stroke disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'stroke').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990009&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Stroke&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_stroke_health&quot;;\r\n        } &quot;rule_stroke_health_condition&quot;;\r\n\r\n        //Extract the leprosy disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'leprosy').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990010&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Leprosy&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_leprosy_health&quot;;\r\n        } &quot;rule_leprosy_health_condition&quot;;\r\n\r\n        //Extract the kidney disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'kidney-disease').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990011&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Kidney Disease&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_kidney_health&quot;;\r\n        } &quot;rule_kidney_health_condition&quot;;\r\n\r\n        //Extract the hypertension disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'hypertension').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990012&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Hypertension&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_hypertension_health&quot;;\r\n        } &quot;rule_hypertension_health_condition&quot;;        \r\n\r\n        //Extract the epilepsy condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'epilepsy').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990013&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Epilepsy&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_epilepsy_health&quot;;\r\n        } &quot;rule_epilepsy_health_condition&quot;;\r\n        \r\n        //Extract the paralysis disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'paralysis').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990014&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Paralysis&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_paralysis_health&quot;;\r\n        } &quot;rule_paralysis_health_condition&quot;;\r\n\r\n        //Extract the liver disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'liver-disease').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990015&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Liver Disease&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_liver_health&quot;;\r\n        } &quot;rule_liver_disease_health_condition&quot;;        \r\n        \r\n        //Extract the goitre disease condition\r\n        questionnaireResponseItem where(linkId ='dd55485e-322a-434e-d37d-235e37dd235c' and answer.where(value.code = 'goitre').exists()) then {\r\n            questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;99990016&quot;) as mhcode, evaluate(questionnaireResponse, &quot;Goitre&quot;) as displayText then extractConditions(mhcode, displayText, questionnaireResponse, bundle, patientReference) &quot;r_condition_goitre_health&quot;;\r\n        } &quot;rule_goitre_health_condition&quot;;\r\n    } &quot;rule_disease_condition&quot;;\r\n}\r\n\r\ngroup extractConditions(source code: String, source displayText: String, source questionnaireResponse : QuestionnaireResponse, target bundle : Bundle, source patientReference : Reference) {\r\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create(&quot;Condition&quot;) as patientCondition then {\r\n            questionnaireResponse -&gt; patientCondition.id = uuid() &quot;r_condition_id&quot;;\r\n            questionnaireResponse -&gt; patientCondition.onset = evaluate(questionnaireResponse, today().toString()) &quot;rule_condition_onset_date_val&quot;;\r\n            questionnaireResponse -&gt; patientCondition.clinicalStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-clinical&quot;, &quot;active&quot;) &quot;r_condition_clinical_st&quot;;\r\n            questionnaireResponse -&gt; patientCondition.verificationStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-ver-status&quot;, &quot;confirmed&quot;) &quot;r_condition_verif_st&quot;;\r\n            questionnaireResponse -&gt; patientCondition.category = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-category&quot;, &quot;encounter-diagnosis&quot; ) &quot;r_condition_category&quot;;\r\n            questionnaireResponse -&gt; patientCondition.subject = patientReference &quot;r_condition_sub&quot;;\r\n            questionnaireResponse -&gt; patientCondition.recordedDate = evaluate(questionnaireResponse, now()) &quot;r_condition_recorded&quot;;\r\n            questionnaireResponse then extractCoding(questionnaireResponse, code, displayText, patientCondition) &quot;r_condition_c_hiv&quot;;\r\n    } &quot;r_condition_loop&quot;;\r\n}\r\n\r\ngroup extractCoding(source questionnaireResponse: QuestionnaireResponse, source code: String, source displayText: String, target condition: Condition) {\r\n    questionnaireResponse -&gt; condition.code = create(&quot;CodeableConcept&quot;) as codeableConceptDisease then {\r\n        questionnaireResponse -&gt; codeableConceptDisease.coding = c(&quot;http://snomed.info/sct&quot;, code, displayText) as coding, coding.display = displayText &quot;r_condition_code_coding&quot;;\r\n        questionnaireResponse -&gt; codeableConceptDisease.text = displayText &quot;r_condition_code_text&quot;;\r\n    } &quot;r_condition_cc&quot;;\r\n}\r\n\r\ngroup extractEncounter(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source patientReference : Reference) {\r\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('Encounter') as encounter then {\r\n        questionnaireResponse -&gt; encounter.id = uuid() &quot;rule_encounter_id&quot;;\r\n        questionnaireResponse -&gt; encounter.status = 'finished' &quot;rule_encounter_status&quot;;\r\n        questionnaireResponse -&gt; encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;, &quot;home health&quot;) &quot;rule_encounter_class&quot;;\r\n        questionnaireResponse -&gt; encounter.type = create('CodeableConcept') as concept then {\r\n            questionnaireResponse -&gt; concept.coding = c(&quot;https://smartregister.org/&quot;, &quot;disease_registration&quot;) as coding then {\r\n                questionnaireResponse -&gt; coding.display = &quot;Disease Registration&quot; &quot;rule_display&quot;;\r\n            } &quot;rule_encounter_coding&quot;;\r\n            questionnaireResponse -&gt; concept.text = &quot;Disease Registration&quot; &quot;rule_text&quot;;\r\n        } &quot;rule_encounter_type&quot;;\r\n        questionnaireResponse -&gt; encounter.priority = create('CodeableConcept') as priority then {\r\n            questionnaireResponse -&gt; priority.coding = c(&quot;http://terminology.hl7.org/ValueSet/v3-ActPriority&quot;, &quot;EL&quot;) as priorityCoding then {\r\n                questionnaireResponse -&gt; priorityCoding.display = &quot;Elective&quot; &quot;rule_encounter_cod_disp&quot;;\r\n            } &quot;rule_encounter_cc_cod&quot;;\r\n            questionnaireResponse -&gt; priority.text = &quot;Elective&quot; &quot;rule_encounter_prio_text&quot;;\r\n        } &quot;rule_priority&quot;;\r\n        questionnaireResponse -&gt; encounter.subject = patientReference &quot;rule_subject&quot;;\r\n        questionnaireResponse -&gt; encounter.period = create('Period') as period then {\r\n            questionnaireResponse -&gt; period.start = evaluate(questionnaireResponse, now()) &quot;rule_period_start&quot;;\r\n            questionnaireResponse -&gt; period.end = evaluate(questionnaireResponse, now()) &quot;rule_period_end&quot;;\r\n        } &quot;rule_period&quot;;\r\n        questionnaireResponse -&gt; encounter.reasonCode = create('CodeableConcept') as reason then {\r\n            questionnaireResponse -&gt; reason.text = &quot;Disease Registration&quot; &quot;rule_encounter_text&quot;;\r\n            questionnaireResponse -&gt; reason.coding = c(&quot;https://smartregister.org/&quot;, &quot;disease_registration&quot;) &quot;rule_encounter_reason_cd&quot;;\r\n        } &quot;rule_encounter_reason&quot;;\r\n    } &quot;rule_encountercounter&quot;;\r\n}\r\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/ef19b62e-6cbf-43d6-beb5-4c0d9d2c20b8",
+  "name": "BKM Disease Registration",
+  "structure": [ {
+    "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+    "mode": "source"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+    "mode": "target"
+  } ],
+  "group": [ {
+    "name": "DiseaseRegistration",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_bundle_type",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "type",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "collection"
+        } ]
+      } ]
+    }, {
+      "name": "r_bundle_entries",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "variable": "patientReference",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "questionnaireResponse"
+        }, {
+          "valueString": "$this.subject"
+        } ]
+      } ],
+      "dependent": [ {
+        "name": "extractDiseaseConditions",
+        "variable": [ "questionnaireResponse", "bundle", "patientReference" ]
+      }, {
+        "name": "extractEncounter",
+        "variable": [ "questionnaireResponse", "bundle", "patientReference" ]
+      } ]
+    } ]
+  }, {
+    "name": "extractDiseaseConditions",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "patientReference",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_disease_condition",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireResponseItem",
+        "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.value.exists())"
+      } ],
+      "rule": [ {
+        "name": "rule_hiv_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'hiv').exists())"
+        } ],
+        "rule": [ {
+          "name": "rule_condition_hiv",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "hivcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990003'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'HIV'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "hivcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_tb_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'tb').exists())"
+        } ],
+        "rule": [ {
+          "name": "rule_condition_tb",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "tbcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990005'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'TB'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "tbcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_mental_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'mental-health').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_mental_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990004'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Mental health'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_diabetes_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'diabetes-mellitus').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_diabetes_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990006'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Diabetes Mellitus'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_cancer_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'cancer').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_cancer_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990007'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Cancer'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_asthma_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'asthma').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_asthma_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990008'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Asthma'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_stroke_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'stroke').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_stroke_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990009'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Stroke'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_leprosy_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'leprosy').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_leprosy_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990010'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Leprosy'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_kidney_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'kidney-disease').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_kidney_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990011'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Kidney Disease'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_hypertension_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'hypertension').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_hypertension_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990012'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Hypertension'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_epilepsy_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'epilepsy').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_epilepsy_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990013'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Epilepsy'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_paralysis_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'paralysis').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_paralysis_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990014'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Paralysis'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_liver_disease_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'liver-disease').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_liver_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990015'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Liver Disease'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_goitre_health_condition",
+        "source": [ {
+          "context": "questionnaireResponseItem",
+          "condition": "((linkId = 'dd55485e-322a-434e-d37d-235e37dd235c') and answer.where(value.code = 'goitre').exists())"
+        } ],
+        "rule": [ {
+          "name": "r_condition_goitre_health",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "variable": "mhcode",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'99990016'"
+            } ]
+          }, {
+            "variable": "displayText",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Goitre'"
+            } ]
+          } ],
+          "dependent": [ {
+            "name": "extractConditions",
+            "variable": [ "mhcode", "displayText", "questionnaireResponse", "bundle", "patientReference" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractConditions",
+    "typeMode": "none",
+    "input": [ {
+      "name": "code",
+      "type": "String",
+      "mode": "source"
+    }, {
+      "name": "displayText",
+      "type": "String",
+      "mode": "source"
+    }, {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "patientReference",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_condition_loop",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "patientCondition",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Condition"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_condition_id",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "rule_condition_onset_date_val",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "onset",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "today().toString()"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_clinical_st",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "clinicalStatus",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-clinical"
+          }, {
+            "valueString": "active"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_verif_st",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "verificationStatus",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+          }, {
+            "valueString": "confirmed"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_category",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "category",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-category"
+          }, {
+            "valueString": "encounter-diagnosis"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_sub",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "patientReference"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_recorded",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "patientCondition",
+          "contextType": "variable",
+          "element": "recordedDate",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "now()"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_c_hiv",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "extractCoding",
+          "variable": [ "questionnaireResponse", "code", "displayText", "patientCondition" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractCoding",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "code",
+      "type": "String",
+      "mode": "source"
+    }, {
+      "name": "displayText",
+      "type": "String",
+      "mode": "source"
+    }, {
+      "name": "condition",
+      "type": "Condition",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_condition_cc",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "condition",
+        "contextType": "variable",
+        "element": "code",
+        "variable": "codeableConceptDisease",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CodeableConcept"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_condition_code_coding",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "codeableConceptDisease",
+          "contextType": "variable",
+          "element": "coding",
+          "variable": "coding",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://snomed.info/sct"
+          }, {
+            "valueId": "code"
+          }, {
+            "valueId": "displayText"
+          } ]
+        }, {
+          "context": "coding",
+          "contextType": "variable",
+          "element": "display",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "displayText"
+          } ]
+        } ]
+      }, {
+        "name": "r_condition_code_text",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "codeableConceptDisease",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "displayText"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractEncounter",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "patientReference",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_encountercounter",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "encounter",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Encounter"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_encounter_id",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "rule_encounter_status",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "finished"
+          } ]
+        } ]
+      }, {
+        "name": "rule_encounter_class",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "class",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+          }, {
+            "valueString": "HH"
+          }, {
+            "valueString": "home health"
+          } ]
+        } ]
+      }, {
+        "name": "rule_encounter_type",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "type",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_encounter_coding",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "disease_registration"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_display",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Disease Registration"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Disease Registration"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_priority",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "priority",
+          "variable": "priority",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_encounter_cc_cod",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "priority",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "priorityCoding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+            }, {
+              "valueString": "EL"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_encounter_cod_disp",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "priorityCoding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Elective"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_encounter_prio_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "priority",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Elective"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_subject",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "patientReference"
+          } ]
+        } ]
+      }, {
+        "name": "rule_period",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_period_start",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "rule_period_end",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_encounter_reason",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "reasonCode",
+          "variable": "reason",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_encounter_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Disease Registration"
+            } ]
+          } ]
+        }, {
+          "name": "rule_encounter_reason_cd",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "disease_registration"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  } ]
+}

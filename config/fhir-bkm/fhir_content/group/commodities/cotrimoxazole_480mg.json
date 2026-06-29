@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "cb553359-5447-58d4-9c79-f83e751252ed",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "CTX480"
+        },
+        {
+            "use": "secondary",
+            "value": "CTX480"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Cotrimoxazole 480mg",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Tablets"
+            },
+            "exclude": false
+        }
+    ]
+}

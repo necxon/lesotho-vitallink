@@ -1,0 +1,59 @@
+{
+  "resourceType": "Bundle",
+  "id": "practitioner-details-bundle",
+  "type": "searchset",
+  "total": 1,
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "PractitionerDetail",
+        "id": "pd-vhw-clinic-b",
+        "contained": [
+          {
+            "resourceType": "Practitioner",
+            "id": "prac-vhw-clinic-b",
+            "identifier": [
+              { "use": "secondary", "value": "a0000000-0000-4000-8000-0000000000cb" }
+            ],
+            "active": true,
+            "name": [
+              { "use": "official", "family": "Sello", "given": ["Palesa"] }
+            ]
+          },
+          {
+            "resourceType": "Organization",
+            "id": "maseru-clinic-b",
+            "active": true,
+            "name": "Maseru District Clinic B"
+          },
+          {
+            "resourceType": "CareTeam",
+            "id": "team-maseru-north",
+            "status": "active",
+            "name": "Maseru North VHW Team",
+            "participant": [
+              {
+                "role": [{ "coding": [{ "code": "vhw", "display": "VHW" }] }],
+                "member": { "reference": "Practitioner/prac-vhw-clinic-b" }
+              }
+            ]
+          },
+          {
+            "resourceType": "Location",
+            "id": "loc-maseru-clinic-b",
+            "status": "active",
+            "name": "Maseru District Clinic B",
+            "mode": "instance"
+          },
+          {
+            "resourceType": "PractitionerRole",
+            "id": "role-vhw-clinic-b",
+            "active": true,
+            "practitioner": { "reference": "Practitioner/prac-vhw-clinic-b" },
+            "organization": { "reference": "Organization/maseru-clinic-b" }
+          }
+        ]
+      }
+    }
+  ]
+}

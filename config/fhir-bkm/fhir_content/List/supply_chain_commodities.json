@@ -1,0 +1,36 @@
+{
+    "resourceType": "List",
+    "id": "69141df8-4984-447d-94cb-c7ac4e790323",
+    "meta": {
+        "versionId": "1",
+        "lastUpdated": "2022-11-04T17:21:07.389+00:00",
+        "source": "#520a548a69b09d6a"
+    },
+    "identifier": [
+        {
+            "use": "official",
+            "value": "ea15c35a-8e8c-47ce-8122-c347cefa1b4a"
+        }
+    ],
+    "status": "current",
+    "mode": "working",
+    "title": "Supply Chain commodities",
+    "code": {
+        "coding": [
+            {
+                "system": "http://smartregister.org/codes",
+                "code": "supply-chain",
+                "display": "Supply Chain Commodity"
+            }
+        ],
+        "text": "Supply Chain Commodity"
+    },
+    "entry": [
+        {
+            "item": {
+                "reference": "Group/c2063a18-219b-49d9-89d7-b47a8e3da1a9",
+                "display": "Oxytocin 10 IU"
+            }
+        }
+    ]
+}

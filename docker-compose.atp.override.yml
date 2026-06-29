@@ -1,0 +1,13 @@
+# ATP profile overrides — applied by `make profile-atp`, removed by `make profile-bkm`.
+# 3 medicines: Oxytocin 10 IU (02056), Amoxicillin 250mg (02002), Paracetamol Syrup (02004).
+# All DE / SOH-DE UIDs already exist in DHIS2 (created by scripts/seed.sh metadata import).
+services:
+  bkm-mediator:
+    environment:
+      # Keep the portal single-seat lock OFF under ATP (this override replaces
+      # docker-compose.override.yml, which is where SESSION_SINGLE_SEAT=false
+      # normally lives — without this line profile-atp re-enables "Portal in use").
+      - SESSION_SINGLE_SEAT=false
+      - DHIS2_ORDERABLE_DE_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02056":"ujPSJuS9pph","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"DEAmox25001","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"DEParSyr001"}
+      - OPENLMIS_LOT_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02056":"ffffffff-0000-0000-0000-000000000001","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"ffffffff-0000-0000-0000-000000000002","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"ffffffff-0000-0000-0000-000000000004"}
+      - DHIS2_ORDERABLE_SOH_DE_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02056":"StockOnHnd1","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"DEAmoxSOH01","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"DEParSOH001"}

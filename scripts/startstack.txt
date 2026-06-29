@@ -1,0 +1,7 @@
+cd /c/Users/Neels.Lotter/lesotho-vitallink && make start 2>&1
+
+& "\Program Files (x86)\GnuWin32\bin\make.exe" up
+
+
+rebuild mediatpr
+docker compose up -d --build bkm-mediator

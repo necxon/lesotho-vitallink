@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "9d0995e3-6b2f-54d1-91cd-a212d39d027e",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "PARASYR"
+        },
+        {
+            "use": "secondary",
+            "value": "PARASYR"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Paracetamol Syrup",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Bottles"
+            },
+            "exclude": false
+        }
+    ]
+}

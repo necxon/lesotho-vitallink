@@ -1,0 +1,71 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/df6d329d-aa27-4fd5-8cc4-6fbbd9b6aaf1" = 'Covid Immunization'
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+uses "http://hl7.org/fhir/StructureDefinition/CarePlan" as target
+
+
+group CovidImmunizationCarePlan(source parameter : Parameters, target careplan: CarePlan) {
+    parameter -> evaluate(parameter, $this.parameter.where(name='subject').resource) as subject,
+        evaluate(parameter, $this.parameter.where(name='definition').resource) as definition,
+        evaluate(parameter, $this.parameter.where(name='depends-on').resource.entry.where(resource is QuestionnaireResponse).resource) as questionnaireResponse,
+        evaluate(parameter, $this.parameter.where(name='period').value) as period,
+        evaluate(parameter, $this.parameter.where(name='version').value) as version then ExtractTask(period, version, subject, definition, careplan) "r_careplan";
+}
+
+group ExtractTask(
+    source period: Period, source version: Integer, source subject : Patient,
+    source definition: ActivityDefinition, target careplan: CarePlan) {
+
+    // fill task into careplan contained and add reference in activity.outcome
+    subject -> create('Task') as task then {
+        subject -> task.id = uuid(),
+            task.identifier = create('Identifier') as iden, iden.value = uuid(), iden.use = 'official',
+            task.status = 'requested',
+            task.intent = 'plan',
+            task.executionPeriod = period,
+            task.priority = 'routine',
+            // dosage[version] does not work, hence skipping the item from given index via skip.first
+            task.description = evaluate(definition, $this.product.text + ' ' + $this.dosage.skip(version).first().select(sequence.toString().replaceMatches('9999', 'Booster') + ' at ' + timing.repeat.period.toString() + ' ' + timing.repeat.periodUnit)),
+            task.for = create('Reference') as ref, ref.reference = evaluate(subject, $this.type().name + '/' + $this.id.replaceMatches('/_history/.*', '')),
+            task.basedOn = reference(careplan),
+            task.authoredOn = evaluate(subject, now()),
+            task.requester = evaluate(subject, $this.generalPractitioner.first()),
+            task.owner = evaluate(subject, $this.generalPractitioner.first()),
+            task.code = evaluate(definition, product),
+            task.reasonCode = evaluate(definition, code) "r_task_data";
+
+        subject then extractPeriod(subject, task) "rule_task_period_extraction";
+
+        subject -> task.input = create('Task_Input') as input then{
+            subject -> input.type = create("CodeableConcept") as concept "r_concept";
+            subject -> input.value = evaluate(definition,$this.product.text + ' ' +$this.dosage.skip(version).first().select((sequence).toString())) "r_input_value";
+        } "r_task_input";
+
+        // form to be filled
+        subject -> task.reasonReference = create('Reference') as ref, ref.reference = 'Questionnaire/96639cda-9273-48bc-ac94-a7d39817caac' "r_task_reason_ref";
+
+        // create activity.detail of type/kind Task for this Task if not exists
+        subject where(careplan.activity.where(detail.kind = 'Task').exists().not())
+                -> careplan.activity = create('CarePlan_Activity') as activity then {
+                   subject -> activity.detail = create('CarePlan_ActivityDetail') as det then {
+                       subject -> det.kind = 'Task' "r_act_det_data";
+                   } "r_act_det";
+               } "r_cp_acti";
+
+        // add task to careplan irrespective of its validity
+         subject -> evaluate(careplan, activity.where(detail.kind = 'Task')) as activity,
+                    activity.outcomeReference = reference(task) "r_cp_task_ref";
+         subject -> careplan.contained = task "r_add_task";
+    } "r_task";
+}
+
+group extractPeriod(source subject: Patient, target task: Task) {
+    subject -> evaluate(task, $this.executionPeriod.start) as start, evaluate(task, $this.executionPeriod.end) as end then {
+        subject -> create('Period') as period then {
+            subject -> period.start = create('dateTime') as startDateTime,
+                startDateTime.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') "rule_period_start";
+            subject -> task.executionPeriod = period "rule_execution_period";
+        } "rule_period";
+    } "rule_task_execution_period";
+}

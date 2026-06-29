@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tomcat context.xml for OpenSRP server.
+  Defines the JNDI datasource referenced in persistence_postgres.xml as
+  java:comp/env/jdbc/openSRPDB.  The driver jar is already bundled in
+  WEB-INF/lib, so we declare the resource at the per-webapp level here.
+-->
+<Context>
+    <WatchedResource>WEB-INF/web.xml</WatchedResource>
+    <WatchedResource>${catalina.base}/conf/web.xml</WatchedResource>
+
+    <Resource
+        name="jdbc/openSRPDB"
+        auth="Container"
+        type="javax.sql.DataSource"
+        driverClassName="org.postgresql.Driver"
+        url="jdbc:postgresql://db-postgres:5432/opensrp"
+        username="admin"
+        password="password123"
+        maxTotal="20"
+        maxIdle="10"
+        maxWaitMillis="10000"
+        validationQuery="SELECT 1"
+        testOnBorrow="true"
+    />
+</Context>

@@ -1,0 +1,178 @@
+{
+  "uid": "keycloak-auth",
+  "title": "Keycloak",
+  "description": "Auth events (LOGIN_ERROR/CLIENT_LOGIN_ERROR via jboss-logging), startup/restart detection, WARN+ERROR lines. Successful logins are stored in Keycloak DB only — view them at http://localhost:8083/admin/master/console/#/opensrp/events",
+  "tags": ["keycloak", "auth", "errors", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Login Errors (window)",
+      "description": "All LOGIN_ERROR events — wrong password, unknown user, disabled account",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 3 }, { "color": "red", "value": 10 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |= \"LOGIN_ERROR\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Invalid Credentials (window)",
+      "description": "Wrong password for a known user — may indicate brute-force",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |= \"invalid_user_credentials\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Unknown User Attempts (window)",
+      "description": "Login attempts for usernames that don't exist in the realm",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |= \"user_not_found\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Client Login Errors (window)",
+      "description": "OAuth client credential failures — bad client_id or client_secret",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |= \"CLIENT_LOGIN_ERROR\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Container Restarts (window)",
+      "description": "\"started in\" lines = Keycloak process restarted. H2 is in-memory — restart wipes event config.",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "orange", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |= \"started in\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "WARN / ERROR Lines (window)",
+      "description": "All WARN and ERROR log lines including startup warnings",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"keycloak\"} |~ \" (WARN|ERROR) \" [$__range]))",
+        "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Auth Event Trends", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Login Error Rate",
+      "description": "LOGIN_ERROR events over time. Spike = brute-force or misconfigured client.",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"LOGIN_ERROR\" [$__interval]))",
+          "legendFormat": "LOGIN_ERROR", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"CLIENT_LOGIN_ERROR\" [$__interval]))",
+          "legendFormat": "CLIENT_LOGIN_ERROR", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Error Reason Breakdown",
+      "description": "Which error type is occurring — helps distinguish brute-force from config mistakes",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"invalid_user_credentials\" [$__interval]))",
+          "legendFormat": "invalid_user_credentials", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"user_not_found\" [$__interval]))",
+          "legendFormat": "user_not_found", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"account_disabled\" [$__interval]))",
+          "legendFormat": "account_disabled", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"keycloak\"} |= \"account_temporarily_disabled\" [$__interval]))",
+          "legendFormat": "brute-force lockout", "refId": "D" }
+      ]
+    },
+
+    { "id": 102, "type": "row", "title": "Auth Event Log Streams", "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "logs", "title": "LOGIN_ERROR Events",
+      "description": "Structured key=value lines: type, realmId, clientId, userId, ipAddress, error, username",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"keycloak\"} |= \"keycloak.events\" |~ \"LOGIN_ERROR|CLIENT_LOGIN_ERROR|LOGOUT_ERROR\"",
+        "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Startup & Config Events", "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "type": "logs", "title": "Startup Events (restarts, realm import, schema migration)",
+      "description": "Each restart re-imports the opensrp realm from JSON. Event logging config is lost on restart — re-apply via seed.sh.",
+      "gridPos": { "x": 0, "y": 23, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"keycloak\"} |~ \"started in|Realm.*imported|KC-SERVICES0009|KC-SERVICES0050|Initializing database schema\"",
+        "refId": "A" }]
+    },
+    {
+      "id": 31, "type": "logs", "title": "WARN & ERROR Lines (excl. auth events)",
+      "description": "Config warnings (dev mode, XA recovery, Infinispan) and any unexpected errors",
+      "gridPos": { "x": 12, "y": 23, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"keycloak\"} |~ \" (WARN|ERROR) \" != \"keycloak.events\"",
+        "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "Raw Logs", "gridPos": { "x": 0, "y": 30, "w": 24, "h": 1 }, "collapsed": true,
+      "panels": [
+        {
+          "id": 40, "type": "logs", "title": "All Keycloak Logs",
+          "gridPos": { "x": 0, "y": 31, "w": 24, "h": 10 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"keycloak\"}", "refId": "A" }]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      { "hide": 2, "name": "loki_ds", "query": "loki", "refresh": 1, "type": "datasource" }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "performers": [
+    {
+      "sourceId": "Practitioner/60ecaecf-5d25-4057-a502-f61aee561b47",
+      "aliases": ["Practitioner/opensrp-admin"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26658765432",
+      "email": "opensrp-admin@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Admin OpenSRP",
+      "role": "supervisor",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    },
+    {
+      "sourceId": "Practitioner/aee97666-ad12-4436-bea4-77e8ecdb0b85",
+      "aliases": ["Practitioner/prac-facility"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000002",
+      "email": "facility@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Facility Worker",
+      "role": "facility_worker",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    },
+    {
+      "sourceId": "Practitioner/4579093b-f637-402d-9334-30e667dccb3f",
+      "aliases": ["Practitioner/prac-field"],
+      "facilityId": "28de536f-b826-4eeb-a3c4-d65221a1120d",
+      "facilityName": "Maseru District Clinic A",
+      "programId": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c",
+      "phone": "+26650000003",
+      "email": "field@lesotho.health",
+      "dhis2OrgUnit": "dwx1Yz4BwNX",
+      "name": "Field Worker",
+      "role": "vhw",
+      "locationId": "loc-maseru-clinic-a",
+      "locationName": "Maseru District Clinic A"
+    }
+  ],
+  "medications": [
+    { "sourceId": "AL-20-120",           "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02056" },
+    { "sourceId": "Amoxicillin 250mg",   "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02002" },
+    { "sourceId": "Paracetamol Syrup",   "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02004" },
+    { "sourceId": "Zinc 20mg",           "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02007" },
+    { "sourceId": "ORS Sachet",          "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02006" },
+    { "sourceId": "Male Condoms",        "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02010" },
+    { "sourceId": "Roller Bandages",     "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02009" },
+    { "sourceId": "RDT Kit",             "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02003" },
+    { "sourceId": "Cotrimoxazole 480mg", "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02005" },
+    { "sourceId": "Iron + Folic Acid",   "orderableId": "3be1d20f-6aa9-4e52-864f-4fa04aa02008" }
+  ]
+}

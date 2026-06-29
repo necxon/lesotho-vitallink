@@ -1,0 +1,1585 @@
+{
+    "resourceType": "Questionnaire",
+    "id": "e5155788-8831-4916-a3f5-486915ce34b2",
+    "meta": {
+        "versionId": "13",
+        "lastUpdated": "2025-07-07T17:44:30.182+00:00",
+        "source": "#rfObd1lndq23TBMd",
+        "profile": [
+            "http://hl7.org/fhir/4.0/StructureDefinition/Questionnaire"
+        ],
+        "tag": [
+            {
+                "system": "https://smartregister.org/organisation-tag-id",
+                "code": "1a8c80dc-c526-4da6-ac94-5333692158e9",
+                "display": "Practitioner Organization"
+            },
+            {
+                "system": "https://smartregister.org/fct-release-version",
+                "code": "2.3.14-SNAPSHOT"
+            },
+            {
+                "system": "https://smartregister.org/practitioner-tag-id",
+                "code": "aa4a2f49-cf42-41ce-99bd-3a10afa9979d",
+                "display": "Practitioner"
+            },
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "en-GB",
+                "display": "English"
+            },
+            {
+                "system": "https://smartregister.org/care-team-tag-id",
+                "code": "28922374-e95c-4a63-b815-4607fe4ba64f",
+                "display": "Practitioner CareTeam"
+            },
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "nb-NO",
+                "display": "Norsk Bokmål"
+            },
+            {
+                "system": "https://smartregister.org/location-tag-id",
+                "code": "cd0cfb48-faf6-48df-9b93-883a32754ddc",
+                "display": "Practitioner Location"
+            }
+        ]
+    },
+    "language": "en-GB",
+    "extension": [
+        {
+            "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+            "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/febf0030-262f-443d-95b4-e002d437cfd0"
+        }
+    ],
+    "version": "0.0.3",
+    "name": "BKM Add Family Member Registration ",
+    "title": "BKM Add Family Member Registration",
+    "status": "active",
+    "subjectType": [
+        "Patient",
+        "RelatedPerson"
+    ],
+    "date": "2022-02-14T00:00:00.000Z",
+    "publisher": "ona",
+    "contact": [
+        {
+            "name": "https://www.smartregister.org/"
+        }
+    ],
+    "description": "BKM Add Family Member Registration",
+    "purpose": "Family Member Registration",
+    "item": [
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+                    "valueInteger": 20000000
+                },
+                {
+                    "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+                    "valueString": "Enter the correct number between 1 and 20,000,000"
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 1
+                }
+            ],
+            "linkId": "ed77104e-c279-4030-ab20-8cd99ca99ca9",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.identifier.value",
+            "text": "BKM ID",
+            "type": "integer",
+            "required": true,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "0e2d8659-22ee-44ca-8c26-bf81cca6b012",
+            "text": "Sick Child Condition Id",
+            "type": "string",
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+                    "valueString": "Enter valid Lesotho National ID number with 12 digits, starting with 0"
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/regex",
+                    "valueString": "^0[1-9][0-9]{10}$"
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/entryFormat",
+                    "valueString": "e.g. 09XXXXXXXXX"
+                }
+            ],
+            "linkId": "88fca69d-9cea-4cb1-9edd-a35c7e907b90",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.identifier.value",
+            "text": "National ID number",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Nomoro ea boitsebiso (ID)"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": false
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Patient.name.given"
+                    }
+                }
+            ],
+            "linkId": "e6306275-b989-4375-8527-3a56092081b8",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.name.given",
+            "text": "First Name",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lebitso"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Patient.name.text"
+                    }
+                }
+            ],
+            "linkId": "597f4425-72b3-4bc4-8f38-b742aa3e99cd",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.name.text",
+            "text": "Middle name",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lebitso le mahareng"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": false
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Patient.name.family"
+                    }
+                }
+            ],
+            "linkId": "8fb87910-d900-4eea-dbba-dcf76ee6806d",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.name.family",
+            "text": "Surname",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Fane"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box",
+                                "display": "Check-box"
+                            }
+                        ],
+                        "text": "Check-box"
+                    }
+                }
+            ],
+            "linkId": "36d39dbe-00e2-4e29-f079-3ec8f0119aff",
+            "type": "choice",
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "system": "urn:uuid:d2f70cf6-9320-4f5c-ce52-02f67f2a99e2",
+                        "code": "date-of-birth-unknown",
+                        "display": "Date of Birth Unknown"
+                    }
+                }
+            ]
+        },        
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Patient.birthDate"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+                    "_valueDate": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
+                                "valueExpression": {
+                                    "language": "text/fhirpath",
+                                    "expression": "today()"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/entryFormat",
+                    "valueString": "dd/MM/yyyy"
+                }
+            ],
+            "linkId": "cd8e3d6d-e9ff-458d-d122-57070bebffaf",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.birthDate",
+            "text": "Date of birth (DOB)",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Letsatsi la tlhaho"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "date",
+            "enableWhen": [
+                {
+                    "question": "36d39dbe-00e2-4e29-f079-3ec8f0119aff",
+                    "operator": "exists",
+                    "answerBoolean": false
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+                    "valueInteger": 120
+                },
+                {
+                    "url": "http://ehelse.no/fhir/StructureDefinition/sdf-fhirpath",
+                    "valueString": "Patient.extension.where(url = 'http://helsenorge.no/fhir/StructureDefinition/sdf-age').value"
+                }
+            ],
+            "linkId": "8460d986-ef71-4997-80ee-7887d8c345e7",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.age",
+            "text": "Age",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lilemo"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "36d39dbe-00e2-4e29-f079-3ec8f0119aff",
+                    "operator": "=",
+                    "answerCoding": {
+                        "system": "urn:uuid:d2f70cf6-9320-4f5c-ce52-02f67f2a99e2",
+                        "code": "date-of-birth-unknown"
+                    }
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ],
+                        "text": "Drop down"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Patient.gender"
+                    }
+                }
+            ],
+            "linkId": "77e32953-0679-48b5-f004-1ab4a4ac0271",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.gender",
+            "text": "Sex",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Botona kapa Bot'sehali"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "code": "male",
+                        "display": "Male",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Botona"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "system": "http://hl7.org/fhir/administrative-gender",
+                        "code": "female",
+                        "display": "Female",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bot'sehali"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(%resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(5, 2).toInteger() > today().toString().substring(5, 2).toInteger(), ((today().toString().substring(5, 2).toInteger() + 12) - %resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(5, 2).toInteger() + 1), (today().toString().substring(5, 2).toInteger() - %resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(5, 2).toInteger()) + 1)"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "calculated-month",
+            "text": "calculated month",
+            "type": "integer"
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(%resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(5, 2).toInteger() > today().toString().substring(5, 2).toInteger(), (today().toString().substring(0, 4).toInteger() - 1) - %resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(0, 4).toInteger(), today().toString().substring(0, 4).toInteger() - %resource.descendants().where(linkId='cd8e3d6d-e9ff-458d-d122-57070bebffaf').answer.value.toString().substring(0, 4).toInteger())"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "calculated-year",
+            "text": "calculated year",
+            "type": "integer"
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "(((%resource.descendants().where(linkId='calculated-year').answer.value.toString().toInteger() * 365.25) + (%resource.descendants().where(linkId='calculated-month').answer.value.toString().toInteger() * 365.25 / 12)) / 365.25).toString().replaceMatches('[.]+[0-9]+', '').toInteger()"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "b5bc7f80-4a0c-486c-e5eb-32c750036f94",
+            "text": "Calculated Age",
+            "type": "integer",
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(%resource.descendants().where(linkId='36d39dbe-00e2-4e29-f079-3ec8f0119aff').answer.value.code = 'date-of-birth-unknown', %resource.descendants().where(linkId='8460d986-ef71-4997-80ee-7887d8c345e7').answer.value.toString().toInteger(), %resource.descendants().where(linkId='b5bc7f80-4a0c-486c-e5eb-32c750036f94').answer.value.toString().toInteger())"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "age",
+            "text": "Age",
+            "type": "integer",
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "toggle-is-family-head",
+            "type": "integer"
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                                "code": "radio-button",
+                                "display": "Radio Button"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "(%resource.descendants().where(linkId='toggle-is-family-head').answer.value = 0 and (%resource.descendants().where(linkId='calculated-year').answer.value >= 15 or %resource.descendants().where(linkId='age').answer.value >= 15 or %resource.descendants().where(linkId='8460d986-ef71-4997-80ee-7887d8c345e7').answer.value >= 15).exists())"
+                    }
+                }
+            ],
+            "linkId": "1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c",
+            "text": "Is family head?",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Hlooho ea Lelapa?"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "db16ca66-a958-4042-8b69-b6274d7a1cf8",
+                        "system": "urn:uuid:7b6761a6-2f3d-4cda-9155-cf089c94403a",
+                        "code": "yes",
+                        "display": "Yes",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ee"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "id": "634f6d26-73d0-4058-8a9e-d5a003ce002e",
+                        "system": "urn:uuid:7b6761a6-2f3d-4cda-9155-cf089c94403a",
+                        "code": "no",
+                        "display": "No",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Che"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "4e8219a5-3afe-4e0b-8080-b4e1a5e021fb",
+            "text": "Relationship to Household Head",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Kamano le hlooho ea lelapa"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c",
+                    "operator": "=",
+                    "answerCoding": {
+                        "id": "634f6d26-73d0-4058-8a9e-d5a003ce002e",
+                        "system": "urn:uuid:7b6761a6-2f3d-4cda-9155-cf089c94403a",
+                        "code": "no",
+                        "display": "No"
+                    }
+                },
+                {
+                    "question": "1e1a206f-1cc2-4e48-8103-b26bf4bd7c3c",
+                    "operator": "exists",
+                    "answerBoolean": false
+                }
+            ],
+            "enableBehavior": "any",
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "code": "spouse",
+                        "display": "Spouse",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Molekane"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "son",
+                        "display": "Son",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mora"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "daughter",
+                        "display": "Daughter",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Morali"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "son_in_law",
+                        "display": "Son in law",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mokhoenyana"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "daughter_in_law",
+                        "display": "Daughter in law",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ngoetsi"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "grandmother",
+                        "display": "Grandmother",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Nkhono"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "grandfather",
+                        "display": "Grandfather",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntate moholo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "grandson",
+                        "display": "Grandson",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Setloholo sa moshanyana"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "granddaughter",
+                        "display": "Granddaughter",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Setloholo sa ngoanana"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "domestic_worker",
+                        "display": "Domestic worker",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mosebetsi oa lapeng"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "herd_boy",
+                        "display": "Herd boy",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Molisana"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "other",
+                        "display": "Other (specify)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ea sieo lethathamong (hlalosa)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+                    "valueString": "Enter valid Lesotho Vodacom or Econet number"
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/regex",
+                    "valueString": "^[56][0-9]{7}$"
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "name": "patientTelecom",
+                        "language": "text/fhirpath",
+                        "expression": "Patient.telecom.value"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "((%resource.descendants().where(linkId='calculated-year').answer.value >= 25 or %resource.descendants().where(linkId='age').answer.value >= 25 or %resource.descendants().where(linkId='8460d986-ef71-4997-80ee-7887d8c345e7').answer.value >= 25).exists())"
+                    }
+                }
+            ],
+            "linkId": "d89beb49-6c37-4acc-996c-84f4892276b8",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.telecom.value",
+            "text": "Phone Number",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Nommoro ea fono"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "((%resource.descendants().where(linkId='calculated-year').answer.value < 5 or %resource.descendants().where(linkId='age').answer.value < 5 or %resource.descendants().where(linkId='8460d986-ef71-4997-80ee-7887d8c345e7').answer.value < 5).exists())"
+                    }
+                }
+            ],
+            "linkId": "6c8f02b0-2397-44e4-a4ab-f104fd85df27",
+            "text": "Mother's HIV Status",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Boemo ba  tšoaetso ea HIV ba 'M'a"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "negative",
+                        "display": "Negative",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Tšoaetso ha e eo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "positive",
+                        "display": "Positive",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Tšoaetso e teng"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/itemWeight",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "unknown",
+                        "display": "Unknown",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Boemo ba 'm'a ba tšoaetso ha bo tsebahale"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "8e7322dd-cd7d-4350-b3ac-52d9b23f62c5",
+            "text": "Does family member have any disability?",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Na setho sa lelapa sena le bokooa?"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "code": "yes",
+                        "display": "Yes",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ho joalo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "no",
+                        "display": "No",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ha ho joalo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "463a9b93-081c-4bcf-b046-539b6967471a",
+            "text": "Disability Status",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Boemo ba bokooa"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "8e7322dd-cd7d-4350-b3ac-52d9b23f62c5",
+                    "operator": "=",
+                    "answerCoding": {
+                        "code": "yes",
+                        "display": "Yes",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ho joalo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "code": "walking",
+                        "display": "Can't Walk, or Difficulty Walking",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Haa tsebe ho tsamaea kapa o tsamaea ka thata?"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "seeing",
+                        "display": "Difficulty Seeing",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bothata ba pono"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "hearing",
+                        "display": "Difficulty Hearing",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bothata ba kutlo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "remembering_concentrating",
+                        "display": "Difficulty remembering or concentrating",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bothata ba ho hopola kapa ho tsepamisa maikutlo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "selfcare",
+                        "display": "Difficulty with self-care",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bothata ba ho ithlokomela"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "communicating",
+                        "display": "Difficulty communicating",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Bothata ba ba puisano"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "other",
+                        "display": "Other difficulty",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "A mang a mathata"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "radio-button",
+                                "display": "Radio Button"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "45cff9e0-799d-463a-93d4-54641dab1f52",
+            "text": "Place of residence",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Sebaka sa bolulo"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "code": "home",
+                        "display": "At home",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Hae"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "elsewhere_in_lesotho",
+                        "display": "Elsewhere in Lesotho",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Sebakeng se seng ka hare ho Lesotho"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "valueCoding": {
+                        "code": "outside_lesotho",
+                        "display": "Outside Lesotho",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Kantle ho Lesotho"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

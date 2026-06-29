@@ -1,0 +1,2063 @@
+{
+    "resourceType": "Questionnaire",
+    "id": "f210a832-857f-49e6-93f5-399eec4f4edb",
+    "meta": {
+        "versionId": "25",
+        "lastUpdated": "2025-06-12T04:06:29.855+00:00",
+        "source": "#JFEpTLKmpxlMt1ja",
+        "profile": [
+            "http://hl7.org/fhir/4.0/StructureDefinition/Questionnaire"
+        ],
+        "tag": [
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "nb-NO",
+                "display": "Norsk Bokmål"
+            },
+            {
+                "system": "https://smartregister.org/location-tag-id",
+                "code": "cd0cfb48-faf6-48df-9b93-883a32754ddc",
+                "display": "Practitioner Location"
+            },
+            {
+                "system": "https://smartregister.org/care-team-tag-id",
+                "code": "28922374-e95c-4a63-b815-4607fe4ba64f",
+                "display": "Practitioner CareTeam"
+            },
+            {
+                "system": "https://smartregister.org/organisation-tag-id",
+                "code": "1a8c80dc-c526-4da6-ac94-5333692158e9",
+                "display": "Practitioner Organization"
+            },
+            {
+                "system": "https://smartregister.org/practitioner-tag-id",
+                "code": "aa4a2f49-cf42-41ce-99bd-3a10afa9979d",
+                "display": "Practitioner"
+            },
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "en-GB",
+                "display": "English"
+            },
+            {
+                "system": "https://smartregister.org/fct-release-version",
+                "code": "2.3.14-SNAPSHOT"
+            },
+            {
+                "code": "lhc-qnvconv-R4-to-R5",
+                "display": "Converted from R4 to R5 by the LHC Questionnaire Version Converter"
+            },
+            {
+                "code": "lhc-qnvconv-R5-to-R4",
+                "display": "Converted from R5 to R4 by the LHC Questionnaire Version Converter"
+            }
+        ]
+    },
+    "extension": [
+        {
+            "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+            "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/5667cfbd-13c4-4111-b952-7cee58bdb9d5"
+        }
+    ],
+    "version": "0.0.2",
+    "name": "BKM Family Registration ",
+    "title": "BKM Family Registration",
+    "subjectType": [
+        "Group"
+    ],
+    "date": "2022-02-14T00:00:00.000Z",
+    "publisher": "ona",
+    "contact": [
+        {
+            "name": "https://www.smartregister.org/"
+        }
+    ],
+    "description": "BKM Family Registration",
+    "useContext": [
+        {
+            "code": {
+                "system": "http://hl7.org/fhir/ValueSet/usage-context-type",
+                "code": "focus",
+                "display": "Clinical Focus"
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "urn:oid:2.16.578.1.12.4.1.1.8655"
+                    }
+                ]
+            }
+        }
+    ],
+    "purpose": "BKM Family Registration",
+    "code": [
+        {
+            "system": "https://www.snomed.org",
+            "code": "35359004",
+            "display": "Family"
+        }
+    ],
+    "item": [
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Group.name"
+                    }
+                }
+            ],
+            "linkId": "64712707-d6eb-4166-8d6e-06fa2b9fcf3e",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Group#Group.name",
+            "text": "Family Name",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lebitso la lelapa"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "Group.identifier.where(use = 'official').value.toInteger()"
+                    }
+                }
+            ],
+            "linkId": "ce49bde4-6ef9-423e-c747-efab250cd770",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Group#Group.identifier.value",
+            "text": "Household ID",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Nomoro ea boitsibiso ea Lelapa"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "integer",
+            "required": true,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(Group.characteristic.where(code.coding.code = 'hh_village').code.text.empty().not(), Group.characteristic.where(code.coding.code = 'hh_village').code.text, Group.characteristic.where(code.coding.code = 'hh_village').valueCodeableConcept.text)"
+                    }
+                }
+            ],
+            "linkId": "7d9dba4c-7407-4eb2-d791-2d1834b6afcc",
+            "definition": "http://hl7.org/fhir/StructureDefinition/Group#Group.characteristic.code.text",
+            "text": "Village or Town",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Motse"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": true,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(Group.characteristic.where(code.coding.code = 'hh_landmark').code.text.empty().not(), Group.characteristic.where(code.coding.code = 'hh_landmark').code.text, Group.characteristic.where(code.coding.code = 'hh_landmark').valueCodeableConcept.text)"
+                    }
+                }
+            ],
+            "linkId": "5de0a9a2-b4a8-4e01-89d1-7870a53b2507",
+            "text": "Landmark",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Sebaka se supang moo lelapa le lulang"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "string",
+            "required": false
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(Group.characteristic.where(code.coding.code = 'hh_drinking_water').code.text.empty().not(), Group.characteristic.where(code.coding.code = 'hh_drinking_water').code.text, Group.characteristic.where(code.coding.code = 'hh_drinking_water').valueCodeableConcept.text)"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "3a08b4c0-619f-4c14-aa39-a4905b5a74cb",
+            "text": "Source of Drinking Water",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Mohloli oa mantlha oa metsi a nooang"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "piped_into_dwelling",
+                        "display": "Piped into dwelling",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Metsi a hoketsoeng ka tlung"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "piped_to_yard",
+                        "display": "Piped to yard",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Metsi a hoketsoeng jareteng"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "neighbours_tap",
+                        "display": "Neighbour's tap",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Pompong ea mohaisane"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "public_tap",
+                        "display": "Public tap/standpipe",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Pompo ea sechaba"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 6
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "tube_well_borehole",
+                        "display": "Tube well or borehole",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Metsi a huloang fatse"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 7
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "protected_wall",
+                        "display": "Protected Well",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Seliba se sirelelitsoeng"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 8
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "unprotected_wall",
+                        "display": "Unprotected Well",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Seliba se sa sireletsoang"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 9
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "protected_spring",
+                        "display": "Protected Spring",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mohloli o sirelelitsoeng"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 10
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "unprotected_spring",
+                        "display": "Unprotected Spring",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mohloli o sa sireletsoang"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 11
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "rainwater",
+                        "display": "Rainwater",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Metsi a Pula"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 12
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "water_tanker",
+                        "display": "Water Tanker",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Metsi a tanka"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 13
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "surface_water",
+                        "display": "Surface water (River/Dam/Lake/Pond etc)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mehloli e bulehileng (noka/letamo/qanthana)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 14
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "other_specify",
+                        "display": "Other (Specify)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mehloli emeng esa hlaheng lethathamong (hlalosa)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "3a08b4c0-619f-4c14-aa39-a4905b5a74cb_helpText",
+                    "text": "Write the main source of drinking water for the household.",
+                    "_text": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                "extension": [
+                                    {
+                                        "url": "lang",
+                                        "valueCode": "st"
+                                    },
+                                    {
+                                        "url": "content",
+                                        "valueString": "Ngola mohloli oa mantlha oa metsi a nooang ka lapeng"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "linkId": "efcf8fe2-de96-4b07-9084-2fb79a5dccc5",
+            "text": "Other water source",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Mohloli o mong"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "text",
+            "enableWhen": [
+                {
+                    "question": "3a08b4c0-619f-4c14-aa39-a4905b5a74cb",
+                    "operator": "=",
+                    "answerCoding": {
+                        "code": "other_specify",
+                        "display": "Other (Specify)"
+                    }
+                },
+                {
+                    "question": "3a08b4c0-619f-4c14-aa39-a4905b5a74cb",
+                    "operator": "exists",
+                    "answerBoolean": true
+                }
+            ],
+            "enableBehavior": "all"
+        },        
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "f35b9bf9-b878-478c-b66e-d9ef89ba3dd9",
+            "text": "Type of toilet",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Mofuta oa Ntloana"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "ventilated_improved_pit_latrine",
+                        "display": "Ventilated improved pit latrine",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana e ntlafalitsoeng (VIP)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "pit_latrine_with_slab",
+                        "display": "Pit latrine with slab",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana e koahetsoeng ka setupu sa samente"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "pit_latrine_without_slab",
+                        "display": "Pit latrine without slab (open pit)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana e sa koaheloang ka setupu sa samente"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 5
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "flush_to_sewer",
+                        "display": "Flush to sewer",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana ea metsi e hoketsoeng ho marangrang a likhoerekhoere"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 6
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "flush_to_septic_tank",
+                        "display": "Flush to septic or conservancy tank",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana ea metsi e hoketsoeng tankeng ea metsi a litsila/ntloaneng ea ka ntle"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 7
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "composting_toilet",
+                        "display": "Composting toilet",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ntloana e putisang (composting toilet)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "no_toilet_facility",
+                        "display": "No toilet facility",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ha ho na ntloana"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "f35b9bf9-b878-478c-b66e-d9ef89ba3dd9_helpText",
+                    "text": "Ngola Mofuta oa ntloana o sebelisoang ke lelapa",
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "92100091-1f91-4858-8665-0d82aeda2f76",
+            "text": "Method of Ventilation",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Mokhoa oa ho kenya moea ka tlung"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "door",
+                        "display": "Door",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Monyako feela"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "door_and_open_windows",
+                        "display": "Door and open windows",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Monyako le lifesetere tse bulehang"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "mechanical_ventilation",
+                        "display": "Mechanical Ventilation",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mochini o fehlang moea"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "none",
+                        "display": "None",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ha hona mokhoa oa ho kenya moea"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "92100091-1f91-4858-8665-0d82aeda2f76_helpText",
+                    "text": "Write the main method of ventilation used by the household",
+                    "_text": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                "extension": [
+                                    {
+                                        "url": "lang",
+                                        "valueCode": "st"
+                                    },
+                                    {
+                                        "url": "content",
+                                        "valueString": "Ngola Mofuta oa ho kenya moea katlung"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "07192e94-1783-49f0-b09f-f752be3738af",
+            "text": "Method of Heating",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Mokhoa oa mantlha oa libeso"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "cow_dung",
+                        "display": "Cow dung",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Lisu"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "shrubs",
+                        "display": "Shrubs",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Litlhaka/moko/joang/lihlahla"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "paraffin",
+                        "display": "Paraffin",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Parafini"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "gas",
+                        "display": "Gas",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Khase"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 5
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "electricity",
+                        "display": "Electricity",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Motlakase"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 6
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "wood",
+                        "display": "Wood",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Patsi"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 7
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "coal",
+                        "display": "Coal",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Mashala"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 8
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Tse ling (Hlalosa)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "07192e94-1783-49f0-b09f-f752be3738af_helpText",
+                    "text": "Write the main method of heating used by the household.",
+                    "_text": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                "extension": [
+                                    {
+                                        "url": "lang",
+                                        "valueCode": "st"
+                                    },
+                                    {
+                                        "url": "content",
+                                        "valueString": "Ngola mokhoa oa mantlha oa libeso"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "linkId": "d1efa970-c963-45d3-9d9a-53443b29c6a3",
+            "text": "Other heating method",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Libeso tse ling"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "text",
+            "enableWhen": [
+                {
+                    "question": "07192e94-1783-49f0-b09f-f752be3738af",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "07192e94-1783-49f0-b09f-f752be3738af",
+                    "operator": "=",
+                    "answerCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)"
+                    }
+                }
+            ],
+            "enableBehavior": "all"
+        },        
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "e9c52de0-a159-4bab-b894-196f58b88a23",
+            "text": "Handwashing facility",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Sebaka sa ho hlapela matsoho"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "sink",
+                        "display": "Sink",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Sinki (sebaka se hloaetsoeng ho hlapa matsoho)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "tippy_tap",
+                        "display": "Tippy tap",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Boreipala (tippy-tap)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "washing_basin",
+                        "display": "Washing basin/kettle/jug",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Basekomo/ketlele/nkho/mohope"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "no_handwashing_facility",
+                        "display": "No handwashing facility",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ha ho sebaka sa ho hlapela matsoho"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 5
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Tse ling (hlalosa)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "e9c52de0-a159-4bab-b894-196f58b88a23_helpText",
+                    "text": "Write the main hand-washing facility used by the household.",
+                    "_text": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                "extension": [
+                                    {
+                                        "url": "lang",
+                                        "valueCode": "st"
+                                    },
+                                    {
+                                        "url": "content",
+                                        "valueString": "Ngola mefuta ea mantlha ea sebaka sa ho hlapa matsoho"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "linkId": "bf2e6fe1-e56e-45b0-9fc0-08569f418a1a",
+            "text": "Other handwashing facility",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Sebaka se seng sa ho hlapela matsoho"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "text",
+            "enableWhen": [
+                {
+                    "question": "e9c52de0-a159-4bab-b894-196f58b88a23",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "e9c52de0-a159-4bab-b894-196f58b88a23",
+                    "operator": "=",
+                    "answerCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)"
+                    }
+                }
+            ],
+            "enableBehavior": "all"
+        },        
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "drop-down",
+                                "display": "Drop down"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "31c8d622-6822-45b3-ba4a-a4471fc245fb",
+            "text": "Handwashing Consumable",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lisebelisoa tsa ho hlapa matsoho"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "choice",
+            "required": true,
+            "answerOption": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 1
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "bar_or_liquid_soap",
+                        "display": "Bar or liquid soap",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Sesepa sa lekoete/sesepa se metsi"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 2
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "powdered_soap",
+                        "display": "Powdered soap",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Sesepa sa phoofo"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 3
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "ash_sand_mud",
+                        "display": "Ash/sand/mud",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Molora/lehlabathe/seretse"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 4
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "none",
+                        "display": "None",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Ha ho sesebelisoa sa ho hlapa matsoho"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/ordinalValue",
+                            "valueDecimal": 5
+                        }
+                    ],
+                    "valueCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)",
+                        "_display": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                    "extension": [
+                                        {
+                                            "url": "lang",
+                                            "valueCode": "st"
+                                        },
+                                        {
+                                            "url": "content",
+                                            "valueString": "Tse ling (hlalosa)"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                            "valueCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                        "code": "help",
+                                        "display": "Help-Button"
+                                    }
+                                ],
+                                "text": "Help-Button"
+                            }
+                        }
+                    ],
+                    "linkId": "31c8d622-6822-45b3-ba4a-a4471fc245fb_helpText",
+                    "text": "Write the main consumables for handwashing used by the household.",
+                    "_text": {
+                        "extension": [
+                            {
+                                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                                "extension": [
+                                    {
+                                        "url": "lang",
+                                        "valueCode": "st"
+                                    },
+                                    {
+                                        "url": "content",
+                                        "valueString": "Ngola mefuta ea lisebelisoa tsa mantlha tsa ho hlapa matsoho"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "display"
+                }
+            ]
+        },
+        {
+            "linkId": "fd12fa50-b087-4086-a97c-1be375b2f81b",
+            "text": "Other handwashing consumable",
+            "_text": {
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                        "extension": [
+                            {
+                                "url": "lang",
+                                "valueCode": "st"
+                            },
+                            {
+                                "url": "content",
+                                "valueString": "Lisebelisoa tse ling tsa ho hlapa matsoho"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "type": "text",
+            "enableWhen": [
+                {
+                    "question": "31c8d622-6822-45b3-ba4a-a4471fc245fb",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "31c8d622-6822-45b3-ba4a-a4471fc245fb",
+                    "operator": "=",
+                    "answerCoding": {
+                        "code": "other_specify",
+                        "display": "Other (specify)"
+                    }
+                }
+            ],
+            "enableBehavior": "all"
+        }        
+    ]
+}

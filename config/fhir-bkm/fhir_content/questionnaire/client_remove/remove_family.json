@@ -1,0 +1,388 @@
+{
+  "resourceType": "Questionnaire",
+  "language": "en-GB",
+  "id": "0259e181-581e-4b4c-8409-e3be3a166ef5",
+  "title": "BKM Remove Family Form",
+  "description": "BKM Remove Family Form",
+  "version": "0.0.2",
+  "status": "active",
+  "publisher": "ona",
+  "meta": {
+    "profile": [
+      "http://ehelse.no/fhir/StructureDefinition/sdf-Questionnaire"
+    ],
+    "tag": [
+      {
+        "system": "urn:ietf:bcp:47",
+        "code": "en-GB",
+        "display": "English"
+      }
+    ]
+  },
+  "useContext": [
+    {
+      "code": {
+        "system": "http://hl7.org/fhir/ValueSet/usage-context-type",
+        "code": "focus",
+        "display": "Clinical Focus"
+      },
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "urn:oid:2.16.578.1.12.4.1.1.8655",
+            "display": "BKM Remove Family Form"
+          }
+        ]
+      }
+    }
+  ],
+  "contact": [
+    {
+      "name": "https://www.ona.io"
+    }
+  ],
+  "subjectType": [
+    "Group"
+  ],
+  "date": "2022-03-21T00:00:00Z",
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+      "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/b16b2831-9fe7-43c3-9440-8860b8ca9f79"
+    }
+  ],
+  "item": [
+    {
+      "linkId": "c072659f-33a1-4ca3-86bb-073afad8290e",
+      "type": "choice",
+      "text": "Reason for removal",
+      "_text": {
+          "extension": [
+              {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                      {
+                          "url": "lang",
+                          "valueCode": "st"
+                      },
+                      {
+                          "url": "content",
+                          "valueString": "Lebaka la ho tlosoa"
+                      }
+                  ]
+              }
+          ]
+      },        
+      "required": true,
+      "answerOption": [
+        {
+          "valueCoding": {
+            "id": "de5d952a-b804-4a31-ceea-3a1597d4cbd4",
+            "code": "moved-away",
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "display": "Moved away",
+            "_display": {
+                "extension": [
+                    {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                        {
+                        "url": "lang",
+                        "valueCode": "st"
+                        },
+                        {
+                        "url": "content",
+                        "valueString": "Ho falla"
+                        }
+                    ]
+                    }
+                ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "b1166157-4e5f-45fa-e305-587d0bd913d7",
+            "code": "wrong/double-entry",
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "display": "Wrong/double entry",
+            "_display": {
+                "extension": [
+                    {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                        {
+                        "url": "lang",
+                        "valueCode": "st"
+                        },
+                        {
+                        "url": "content",
+                        "valueString": "Ho kenyoa ka phoso/habeli"
+                        }
+                    ]
+                    }
+                ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "09b5a9f7-49a7-483a-9c36-a4e4069d75fb",
+            "code": "died",
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "display": "Died",
+            "_display": {
+                "extension": [
+                    {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                        {
+                        "url": "lang",
+                        "valueCode": "st"
+                        },
+                        {
+                        "url": "content",
+                        "valueString": "Ho hlokahala"
+                        }
+                    ]
+                    }
+                ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "id": "d87f6865-9e95-4fa2-89c0-61ce01682632",
+            "code": "other",
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "display": "Other",
+            "_display": {
+                "extension": [
+                    {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                        {
+                        "url": "lang",
+                        "valueCode": "st"
+                        },
+                        {
+                        "url": "content",
+                        "valueString": "Mabaka a mang"
+                        }
+                    ]
+                    }
+                ]
+            }
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "http://helsenorge.no/fhir/StructureDefinition/sdf-sublabel",
+          "valueMarkdown": "Select one"
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "radio-button"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "859f0b8e-80b6-4a15-f6a5-b1bec78d928c",
+      "type": "date",
+      "text": "Date moved away",
+      "_text": {
+          "extension": [
+              {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                      {
+                          "url": "lang",
+                          "valueCode": "st"
+                      },
+                      {
+                          "url": "content",
+                          "valueString": "Letsatsi la ho falla"
+                      }
+                  ]
+              }
+          ]
+      },        
+      "extension": [
+        {
+          "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+          "valueString": "Enter a valid date. Cannot be a date in the future."
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+          "valueDate": {
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
+                "valueExpression": {
+                  "language": "text/fhirpath",
+                  "expression": "today() - 9000 days"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+          "valueDate": {
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
+                "valueExpression": {
+                  "language": "text/fhirpath",
+                  "expression": "today()"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/entryFormat",
+          "valueString": "dd/MM/yyyy"
+        }
+      ],
+      "enableWhen": [
+        {
+          "question": "c072659f-33a1-4ca3-86bb-073afad8290e",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "code": "moved-away"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "4c495cf6-4ffa-4b14-8998-5f51bd00bce5",
+      "type": "date",
+      "text": "Date died",
+      "_text": {
+          "extension": [
+              {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                      {
+                          "url": "lang",
+                          "valueCode": "st"
+                      },
+                      {
+                          "url": "content",
+                          "valueString": "Letsatsi leo oa ho qetela a hlokahetseng"
+                      }
+                  ]
+              }
+          ]
+      },
+      "extension": [
+        {
+          "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+          "valueString": "Enter a valid date. Cannot be a date in the future."
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+          "valueDate": {
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
+                "valueExpression": {
+                  "language": "text/fhirpath",
+                  "expression": "today() - 9000 days"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+          "valueDate": {
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
+                "valueExpression": {
+                  "language": "text/fhirpath",
+                  "expression": "today()"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/entryFormat",
+          "valueString": "dd/MM/yyyy"
+        }
+      ],
+      "enableWhen": [
+        {
+          "question": "c072659f-33a1-4ca3-86bb-073afad8290e",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "code": "died"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "b6a432a9-7026-4543-9f56-fc404e1d42c6",
+      "type": "string",
+      "text": "Indicate other reasons for removal",
+      "_text": {
+          "extension": [
+              {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                      {
+                          "url": "lang",
+                          "valueCode": "st"
+                      },
+                      {
+                          "url": "content",
+                          "valueString": "Mabaka a mang a ho tlosoa"
+                      }
+                  ]
+              }
+          ]
+      },
+      "required": false,
+      "enableWhen": [
+        {
+          "question": "c072659f-33a1-4ca3-86bb-073afad8290e",
+          "operator": "=",
+          "answerCoding": {
+            "system": "urn:uuid:3e6daa5c-3f28-4aea-8bb7-b300dc948c71",
+            "code": "other"
+          }
+        }
+      ]
+    },
+    {
+      "linkId": "261fdbe6-e0aa-48e5-824b-55314b60d8d6",
+      "type": "string",
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+          "valueExpression": {
+            "language": "text/fhirpath",
+            "expression": "Group.id"
+          }
+        },
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+          "valueBoolean": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,284 @@
+{
+  "uid": "openlmis-overview",
+  "title": "OpenLMIS",
+  "description": "Logs and health for OpenLMIS services: nginx access, stock events, auth, referencedata, rabbitmq",
+  "tags": ["openlmis", "logs", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Nginx 5xx Errors (window)",
+      "description": "HTTP 5xx responses from OpenLMIS nginx — indicates backend service failures",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openlmis-ref-distro-nginx-1\"} |~ ` [5][0-9][0-9] ` [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Nginx 4xx Errors (window)",
+      "description": "HTTP 4xx responses — bad requests, unauthorised, not found",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openlmis-ref-distro-nginx-1\"} |~ ` [4][0-9][0-9] ` [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Stock Events (window)",
+      "description": "Successful POST /api/stockEvents processed by stockmanagement",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "blue", "value": null }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/stockEvents\" |~ ` 20[01] ` [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Token Requests — incl. polling (window)",
+      "description": "OAuth token grants — mostly the mediator fetching a token each poll cycle (stock-level + SOH-ledger polling every 30–60s), not user auth load. 'Stock Events' is the real fan-out signal.",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "purple", "value": null }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/oauth/token\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Auth Errors (window)",
+      "description": "InvalidTokenException or authentication failures in openlmis-auth",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openlmis-ref-distro-auth-1\"} |~ \"InvalidTokenException|ERROR\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Service Errors (window)",
+      "description": "ERROR-level lines across all openlmis-* backend services",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=~\"openlmis-ref-distro-(auth|referencedata|stockmanagement)-1\"} |~ \" ERROR \" [$__range]))",
+        "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Nginx — HTTP Traffic", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Request Rate by Status Class",
+      "description": "nginx access log — requests per interval grouped by HTTP status class (2xx / 4xx / 5xx)",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |~ ` 2[0-9][0-9] ` [$__interval]))",
+          "legendFormat": "2xx", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |~ ` 4[0-9][0-9] ` [$__interval]))",
+          "legendFormat": "4xx", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |~ ` 5[0-9][0-9] ` [$__interval]))",
+          "legendFormat": "5xx", "refId": "C" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Upstream Response Time (ms)",
+      "description": "Parsed from nginx log field 8 (upstream response time in seconds → converted to ms). Shows avg latency per interval.",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "yellow", "value": 500 }, { "color": "red", "value": 2000 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "avg_over_time({container=\"openlmis-ref-distro-nginx-1\"} | regexp `\" (?P<status>[0-9]+) .+ (?P<upstream_s>[0-9.]+) [0-9.]+ [0-9.]` | unwrap upstream_s | __error__=\"\" [$__interval]) * 1000",
+          "legendFormat": "avg upstream (ms)", "refId": "A" }
+      ]
+    },
+    {
+      "id": 12, "type": "logs", "title": "Nginx Access Log — 4xx & 5xx",
+      "description": "All error responses from the OpenLMIS nginx proxy",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openlmis-ref-distro-nginx-1\"} |~ ` [45][0-9][0-9] `", "refId": "A" }]
+    },
+
+    { "id": 102, "type": "row", "title": "Stock Management", "gridPos": { "x": 0, "y": 20, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "timeseries", "title": "Stock Service Log Volume by Level",
+      "gridPos": { "x": 0, "y": 21, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-stockmanagement-1\"} |~ ` INFO ` [$__interval]))",
+          "legendFormat": "INFO", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-stockmanagement-1\"} |~ ` WARN ` [$__interval]))",
+          "legendFormat": "WARN", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-stockmanagement-1\"} |~ ` ERROR ` [$__interval]))",
+          "legendFormat": "ERROR", "refId": "C" }
+      ]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "Stock Events via Nginx (rate)",
+      "description": "POST /api/stockEvents requests hitting the nginx proxy, coloured by response status",
+      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/stockEvents\" |~ ` 20[01] ` [$__interval]))",
+          "legendFormat": "2xx (success)", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/stockEvents\" |~ ` [45][0-9][0-9] ` [$__interval]))",
+          "legendFormat": "4xx/5xx (failed)", "refId": "B" }
+      ]
+    },
+    {
+      "id": 22, "type": "logs", "title": "Stock Management — Errors & Warnings",
+      "gridPos": { "x": 0, "y": 27, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openlmis-ref-distro-stockmanagement-1\"} |~ \" (ERROR|WARN) \"", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Auth Service", "gridPos": { "x": 0, "y": 34, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "type": "timeseries", "title": "Auth Log Volume by Level",
+      "gridPos": { "x": 0, "y": 35, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-auth-1\"} |~ ` INFO ` [$__interval]))", "legendFormat": "INFO", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-auth-1\"} |~ ` WARN ` [$__interval]))", "legendFormat": "WARN", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-auth-1\"} |~ ` ERROR ` [$__interval]))", "legendFormat": "ERROR", "refId": "C" }
+      ]
+    },
+    {
+      "id": 31, "type": "timeseries", "title": "Token Operations (rate)",
+      "description": "OAuth token grants and token check calls per interval",
+      "gridPos": { "x": 12, "y": 35, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/oauth/token\" [$__interval]))",
+          "legendFormat": "token grant", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-nginx-1\"} |= \"POST /api/oauth/check_token\" [$__interval]))",
+          "legendFormat": "token check", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-auth-1\"} |= \"InvalidTokenException\" [$__interval]))",
+          "legendFormat": "invalid token", "refId": "C" }
+      ]
+    },
+    {
+      "id": 32, "type": "logs", "title": "Auth Service — Errors & Token Failures",
+      "gridPos": { "x": 0, "y": 41, "w": 24, "h": 6 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openlmis-ref-distro-auth-1\"} |~ \"ERROR|InvalidTokenException|Authentication|Unauthorized\"", "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "Service Health Comparison", "gridPos": { "x": 0, "y": 47, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 40, "type": "timeseries", "title": "ERROR Rate — All Services",
+      "description": "Spring Boot ERROR lines per service per interval — quickly shows which service is unhealthy",
+      "gridPos": { "x": 0, "y": 48, "w": 24, "h": 7 },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum", "last"] }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-auth-1\"} |~ \" ERROR \" [$__interval]))",
+          "legendFormat": "auth", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-referencedata-1\"} |~ \" ERROR \" [$__interval]))",
+          "legendFormat": "referencedata", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-stockmanagement-1\"} |~ \" ERROR \" [$__interval]))",
+          "legendFormat": "stockmanagement", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openlmis-ref-distro-notification-1\"} |~ \" ERROR \" [$__interval]))",
+          "legendFormat": "notification", "refId": "D" }
+      ]
+    },
+
+    { "id": 105, "type": "row", "title": "Raw Logs (per service)", "gridPos": { "x": 0, "y": 55, "w": 24, "h": 1 }, "collapsed": true,
+      "panels": [
+        {
+          "id": 50, "type": "logs", "title": "openlmis-nginx (full access log)",
+          "gridPos": { "x": 0, "y": 56, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"openlmis-ref-distro-nginx-1\"}", "refId": "A" }]
+        },
+        {
+          "id": 51, "type": "logs", "title": "openlmis-stockmanagement (full)",
+          "gridPos": { "x": 0, "y": 64, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"openlmis-ref-distro-stockmanagement-1\"}", "refId": "A" }]
+        },
+        {
+          "id": 52, "type": "logs", "title": "openlmis-auth (full)",
+          "gridPos": { "x": 0, "y": 72, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"openlmis-ref-distro-auth-1\"}", "refId": "A" }]
+        },
+        {
+          "id": 53, "type": "logs", "title": "openlmis-referencedata (full)",
+          "gridPos": { "x": 0, "y": 80, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"openlmis-ref-distro-referencedata-1\"}", "refId": "A" }]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "hide": 2,
+        "name": "loki_ds",
+        "query": "loki",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  }
+}

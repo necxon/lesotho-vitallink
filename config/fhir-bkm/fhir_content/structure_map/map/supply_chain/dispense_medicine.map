@@ -1,0 +1,145 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/f7a8b9c0-d1e2-3f4a-5b6c-7d8e9f0a1b2c" = "Dispense Medicine"
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+
+group dispenseMedicine(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> bundle.id = uuid() "rule_bundle_id";
+    questionnaireResponse -> bundle.type = 'collection' "rule_bundle_type";
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.subject) as commodityGroupReference then extractDispense(questionnaireResponse, commodityGroupReference, bundle) "rule_bundle_entries";
+}
+
+group extractDispense(source questionnaireResponse : QuestionnaireResponse, source commodityGroupReference : Reference, target bundle : Bundle) {
+    // Compute new balance = currentBalance - dispensedQty
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = 'd-current-balance').answer.value) as currentBalance,
+    evaluate(questionnaireResponse, $this.item.where(linkId = 'd-quantity').answer.value) as dispensedQty,
+    evaluate(questionnaireResponse, $this.item.where(linkId = 'd-patient-id').answer.value) as patientId,
+    evaluate(questionnaireResponse, $this.item.where(linkId = 'd-commodity-name').answer.value) as commodityName then {
+
+        questionnaireResponse -> evaluate(questionnaireResponse, (currentBalance - dispensedQty)) as newBalance then {
+
+            // Create new preliminary Observation recording the balance after dispense
+            questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+                questionnaireResponse -> observation.id = uuid() "rule_obs_id";
+                questionnaireResponse -> observation.status = 'preliminary' "rule_obs_status";
+                questionnaireResponse -> observation.category = cc('http://snomed.info/sct','386452003', 'Supply management') "rule_obs_cat";
+                questionnaireResponse -> observation.code = create('CodeableConcept') as code then {
+                    questionnaireResponse -> code.coding = create('Coding') as coding then {
+                        questionnaireResponse -> coding.system = 'https://smartregister.org/' "rule_obs_code_sys";
+                        questionnaireResponse -> coding.code = 'balance-after-dispense' "rule_obs_code_cod";
+                        questionnaireResponse -> coding.display = 'balance-after-dispense' "rule_obs_code_disp";
+                    } "rule_obs_coding";
+                    questionnaireResponse -> code.text = 'balance-after-dispense' "rule_obs_code_text";
+                } "rule_obs_code";
+                questionnaireResponse -> observation.subject = commodityGroupReference "rule_obs_subject";
+                questionnaireResponse -> evaluate(questionnaireResponse, now()) as current then {
+                    questionnaireResponse -> observation.effective = create('dateTime') as dt,
+                    dt.value = evaluate(current, $this.value.substring(0,10) + 'T00:00:00+00:00') "rule_obs_effective_val";
+                } "rule_obs_effective";
+                questionnaireResponse -> observation.performer = evaluate(questionnaireResponse, $this.generalPractitioner.first()) "rule_obs_performer";
+                questionnaireResponse -> observation.value = create('Quantity') as qty then {
+                    questionnaireResponse -> qty.value = newBalance "rule_obs_qty_val";
+                } "rule_obs_value";
+                // component[0] holds the running balance — read by the inventory register rule
+                questionnaireResponse -> observation.component as component then {
+                    questionnaireResponse -> component.code = create('CodeableConcept') as compCC then {
+                        questionnaireResponse -> compCC.coding = create('Coding') as compCoding then {
+                            questionnaireResponse -> compCoding.system = 'http://snomed.info/sct' "rule_comp_sys";
+                            questionnaireResponse -> compCoding.code = '255619001' "rule_comp_cod";
+                            questionnaireResponse -> compCoding.display = 'Total' "rule_comp_disp";
+                        } "rule_comp_coding";
+                        questionnaireResponse -> compCC.text = 'Running total/Cumulative sum' "rule_comp_text";
+                    } "rule_comp_code";
+                    questionnaireResponse -> component.value = create('Quantity') as compQty then {
+                        questionnaireResponse -> compQty.value = newBalance "rule_comp_qty_val";
+                    } "rule_comp_qty";
+                } "rule_obs_component";
+            } "rule_new_obs";
+
+            // Create stockout Flag if balance hits zero and no active flag exists
+            questionnaireResponse as stockOut where (newBalance = 0) then {
+                questionnaireResponse.item as noFlag where (linkId = 'd-flag-id' and answer.value.empty()) then {
+                    questionnaireResponse then createStockOutFlag(questionnaireResponse, bundle, commodityGroupReference) "rule_create_stockout_flag";
+                } "rule_no_flag";
+            } "rule_balance_zero";
+
+            // Close active Flag when balance recovers
+            questionnaireResponse as endStockOut where (newBalance > 0) then {
+                questionnaireResponse.item as flagExists where (linkId = 'd-flag-id' and answer.value.exists()) then {
+                    questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = 'd-flag-id').answer.value) as flagId then {
+                        questionnaireResponse.item as flagStartCheck where (linkId = 'd-flag-start-date' and answer.value.exists()) then {
+                            questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = 'd-flag-start-date').answer.value) as flagStart then updateStockOutFlag(questionnaireResponse, bundle, flagId, flagStart) "rule_update_stockout_flag";
+                        } "rule_flag_start_check";
+                    } "rule_flag_id";
+                } "rule_flag_exists";
+            } "rule_balance_positive";
+
+            // Create MedicationDispense for the OpenHIM fan-out and audit trail
+            questionnaireResponse -> bundle.entry as mdEntry, mdEntry.resource = create('MedicationDispense') as md then {
+                questionnaireResponse -> md.id = uuid() "rule_md_id";
+                questionnaireResponse -> md.status = 'completed' "rule_md_status";
+                questionnaireResponse -> md.medication = create('CodeableConcept') as medCC then {
+                    questionnaireResponse -> medCC.text = commodityName "rule_md_med_text";
+                } "rule_md_medication";
+                questionnaireResponse -> md.subject = create('Reference') as subRef then {
+                    questionnaireResponse -> subRef.reference = evaluate(questionnaireResponse, 'Patient/' + patientId) "rule_md_sub_ref";
+                } "rule_md_subject";
+                questionnaireResponse -> md.performer as perf then {
+                    questionnaireResponse -> perf.actor = evaluate(questionnaireResponse, $this.generalPractitioner.first()) "rule_md_actor";
+                } "rule_md_performer";
+                questionnaireResponse -> md.quantity = create('Quantity') as mdQty then {
+                    questionnaireResponse -> mdQty.value = dispensedQty "rule_md_qty_val";
+                    questionnaireResponse -> mdQty.unit = 'units' "rule_md_qty_unit";
+                } "rule_md_quantity";
+                questionnaireResponse -> md.whenHandedOver = evaluate(questionnaireResponse, now()) "rule_md_when";
+            } "rule_md";
+
+        } "rule_new_balance";
+    } "rule_quantities";
+
+    // Mark the previous balance Observation as final
+    questionnaireResponse.item as latestObs where (linkId = 'd-observation-id' and answer.value.exists()) then {
+        questionnaireResponse -> evaluate(questionnaireResponse, $this.item.where(linkId = 'd-observation-id').answer.value) as latestObsId then updateLatestObservation(questionnaireResponse, bundle, latestObsId) "rule_update_latest_obs";
+    } "rule_check_latest_obs";
+}
+
+group updateLatestObservation(source questionnaireResponse: QuestionnaireResponse, target bundle : Bundle, source latestObservationId : String) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+        questionnaireResponse -> observation.id = create('id') as id then {
+            questionnaireResponse -> id.value = latestObservationId "rule_update_obs_id_val";
+        } "rule_update_obs_id";
+        questionnaireResponse -> observation.status = 'final' "rule_update_obs_status";
+        questionnaireResponse -> evaluate(questionnaireResponse, now()) as current then {
+            questionnaireResponse -> observation.effective = create('dateTime') as dt,
+            dt.value = evaluate(current, $this.value.substring(0,10) + 'T00:00:00+00:00') "rule_update_obs_effective_val";
+        } "rule_update_obs_effective";
+    } "rule_update_obs";
+}
+
+group createStockOutFlag(source questionnaireResponse: QuestionnaireResponse, target bundle : Bundle, source commodityGroupReference: Reference) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Flag') as flag then {
+        questionnaireResponse -> flag.id = uuid() "rule_flag_id";
+        questionnaireResponse -> flag.status = 'active' "rule_flag_status";
+        questionnaireResponse -> flag.category = cc('http://snomed.info/sct','386452003', 'Supply management') "rule_flag_cat";
+        questionnaireResponse -> flag.code = cc('http://snomed.info/sct','419182006', ' Supplies not available') "rule_flag_code";
+        questionnaireResponse -> flag.subject = commodityGroupReference "rule_flag_subject";
+        questionnaireResponse -> flag.period = create('Period') as period then {
+            questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "rule_flag_period_start";
+        } "rule_flag_period";
+    } "rule_flag";
+}
+
+group updateStockOutFlag(source questionnaireResponse: QuestionnaireResponse, target bundle : Bundle, source flagId: String, source flagPeriodStart: DateTime) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Flag') as flag then {
+        questionnaireResponse -> flag.id = create('id') as id then {
+            questionnaireResponse -> id.value = flagId "rule_update_flag_id_val";
+        } "rule_update_flag_id";
+        questionnaireResponse -> flag.status = 'inactive' "rule_update_flag_status";
+        questionnaireResponse -> flag.period = create('Period') as period then {
+            questionnaireResponse -> period.start = create('dateTime') as startDate then {
+                questionnaireResponse -> startDate.value = flagPeriodStart "rule_update_flag_start_val";
+            } "rule_update_flag_period_start";
+            questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "rule_update_flag_period_end";
+        } "rule_update_flag_period";
+    } "rule_update_flag";
+}

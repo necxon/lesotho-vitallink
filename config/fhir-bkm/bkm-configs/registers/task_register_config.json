@@ -1,0 +1,162 @@
+{
+  "appId": "bkm",
+  "configType": "register",
+  "id": "taskRegister",
+  "pageSize": 20,
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Task",
+      "dataQueries": [
+        {
+          "paramName": "code",
+          "filterCriteria": [
+            {
+              "dataType": "CODEABLECONCEPT",
+              "value": {
+                "system": "http://snomed.info/sct",
+                "code": "373748001"
+              }
+            }
+          ]
+        },
+        {
+          "paramName": "status",
+          "filterCriteria": [
+            {
+              "dataType": "CODE",
+              "value": {
+                "code": "requested"
+              }
+            }
+          ]
+        }
+      ],
+      "sortConfigs": [
+        {
+          "paramName": "_lastUpdated",
+          "dataType": "DATE",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  },
+  "searchBar": {
+    "visible": true,
+    "display": "Search tasks",
+    "computedRules": [
+      "taskDescription"
+    ]
+  },
+  "registerCard": {
+    "rules": [
+      {
+        "name": "taskId",
+        "condition": "true",
+        "actions": [
+          "data.put('taskId', fhirPath.extractValue(Task, 'Task.id'))"
+        ]
+      },
+      {
+        "name": "taskDescription",
+        "condition": "true",
+        "actions": [
+          "data.put('taskDescription', fhirPath.extractValue(Task, 'Task.description'))"
+        ]
+      },
+      {
+        "name": "taskDate",
+        "condition": "true",
+        "actions": [
+          "data.put('taskDate', fhirPath.extractValue(Task, 'Task.authoredOn'))"
+        ]
+      },
+      {
+        "name": "taskCommodity",
+        "condition": "true",
+        "actions": [
+          "data.put('taskCommodity', fhirPath.extractValue(Task, 'Task.input.where(type.text = \\'product\\').value'))"
+        ]
+      },
+      {
+        "name": "taskQuantity",
+        "condition": "true",
+        "actions": [
+          "data.put('taskQuantity', fhirPath.extractValue(Task, 'Task.input.where(type.text = \\'quantity\\').value'))"
+        ]
+      }
+    ],
+    "views": [
+      {
+        "viewType": "COLUMN",
+        "children": [
+          {
+            "viewType": "SERVICE_CARD",
+            "details": [
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "@{taskDescription}",
+                "primaryTextColor": "#000000"
+              },
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "Ordered: @{taskQuantity}",
+                "fontSize": 14.0,
+                "primaryTextColor": "#5A5A5A"
+              }
+            ],
+            "showVerticalDivider": false,
+            "serviceButton": {
+              "visible": true,
+              "text": "Accept",
+              "status": "DUE",
+              "fontSize": 14.0,
+              "buttonType": "BIG",
+              "actions": [
+                {
+                  "trigger": "ON_CLICK",
+                  "workflow": "LAUNCH_QUESTIONNAIRE",
+                  "questionnaire": {
+                    "id": "qn-stock-accept-delivery",
+                    "title": "Accept Delivery",
+                    "saveButtonText": "CONFIRM RECEIPT",
+                    "setPractitionerDetails": true,
+                    "setOrganizationDetails": true,
+                    "resourceIdentifier": "@{taskId}"
+                  },
+                  "params": [
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "task_id",
+                      "dataType": "STRING",
+                      "key": "taskId",
+                      "value": "@{taskId}"
+                    },
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "d-commodity-name",
+                      "dataType": "STRING",
+                      "key": "taskCommodity",
+                      "value": "@{taskCommodity}"
+                    },
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "quantity_ordered",
+                      "dataType": "INTEGER",
+                      "key": "taskQuantity",
+                      "value": "@{taskQuantity}"
+                    }
+                  ]
+                }
+              ]
+            },
+            "actions": []
+          }
+        ]
+      }
+    ]
+  },
+  "noResults": {
+    "title": "No Pending Tasks",
+    "message": "No pending stock deliveries to accept"
+  }
+}

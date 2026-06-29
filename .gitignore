@@ -1,0 +1,48 @@
+/opensrp_installed.apk
+/opensrp_patched.apk
+/opensrp_patched2.apk
+/opensrp_patched2_aligned.apk
+/opensrp_patched_aligned.apk
+/opensrp_signed.apk
+/opensrp_signed.apk.idsig
+/opensrp_signed2.apk
+/opensrp_signed2.apk.idsig
+/screen.png
+/screen2.png
+/screen3.png
+/screen4.png
+
+# Dependencies
+node_modules/
+mediator/node_modules/
+
+# APK build artifacts
+*.apk
+*.apk.idsig
+mediator/data/*.json
+
+# Local secrets - never commit
+.env
+config/openhim/certs/*.pem
+config/facilities/*.env
+docker-compose.override.yml
+
+# Working-dir clutter (added 2026-06-22)
+*.zip
+*.docx
+*.bak
+.tmp_*
+/BOOT-INF/
+/logs/
+mediator/logs/
+/params.xml
+/channels.json
+/scripts/seed
+/nav_binary_tmp.json
+/default.conf.tmp
+.claude/scheduled_tasks.lock
+
+# Separate FHIR-Core clones - not part of this repo (active app is the android/fhircore submodule)
+/android/vital-link/
+/android/chis-fhircore/
+/android/bkm-chis/

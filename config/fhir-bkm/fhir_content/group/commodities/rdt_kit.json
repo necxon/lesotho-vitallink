@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "eeaca64a-0141-5a29-94e7-a7c374bb6801",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "RDTKIT"
+        },
+        {
+            "use": "secondary",
+            "value": "RDTKIT"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "RDT Kit",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Tests"
+            },
+            "exclude": false
+        }
+    ]
+}

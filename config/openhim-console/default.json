@@ -1,0 +1,19 @@
+{
+  "version": "1.18.2",
+  "minimumCoreVersion": "5.2.0",
+  "protocol": "https",
+  "host": "lesotho-bkm.xyz",
+  "hostPath": "/openhim",
+  "port": "443",
+  "title": "BKM Health OpenHIM",
+  "footerTitle": "BKM Health OpenHIM Administration Console",
+  "footerPoweredBy": "<a href='http://openhim.org/' target='_blank'>Powered by OpenHIM</a>",
+  "loginBanner": "",
+  "mediatorLastHeartbeatWarningSeconds": 60,
+  "mediatorLastHeartbeatDangerSeconds": 120,
+  "showLoginForm": true,
+  "ssoEnabled": false,
+  "keyCloakUrl": "http://localhost:9088",
+  "keyCloakRealm": "platform-realm",
+  "keyCloakClientId": "openhim-oauth"
+}
