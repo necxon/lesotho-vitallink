@@ -4,10 +4,24 @@
 'use strict';
 
 var OU_LABELS = {
-  'VilHaMokoe1': { village: 'Ha Mokoena',               region: 'Maseru District', facility: 'Maseru Clinic A', lmisFacility: '28de536f-b826-4eeb-a3c4-d65221a1120d', fhirLocation: 'loc-ha-mokoena'   },
-  'VilHaSehl01': { village: 'Ha Sehlabane',             region: 'Maseru District', facility: 'Maseru Clinic A', lmisFacility: '28de536f-b826-4eeb-a3c4-d65221a1120d', fhirLocation: 'loc-ha-sehlabane' },
-  'VilMatsien1': { village: 'Matsieng',                 region: 'Maseru District', facility: 'Maseru Clinic A', lmisFacility: '28de536f-b826-4eeb-a3c4-d65221a1120d', fhirLocation: 'loc-matsieng'      },
-  'dwx1Yz4BwNX': { village: 'Maseru Clinic A (Facility)', region: 'Maseru District', facility: 'Maseru Clinic A', lmisFacility: '28de536f-b826-4eeb-a3c4-d65221a1120d', fhirLocation: 'loc-maseru-clinic-a' },
+  'MhVktPWEah5': { village: 'Mafeteng Hospital', region: 'Mafeteng District', facility: 'Mafeteng Hospital', lmisFacility: '565674bc-791c-5baf-8ad8-44203a4291de', fhirLocation: 'loc-mafeteng-hospital' },
+  'MxDywFDTRp9': { village: 'Samaria HC', region: 'Mafeteng District', facility: 'Samaria HC', lmisFacility: '88a0ba9b-285a-56d0-a5d9-b16f0371d37f', fhirLocation: 'loc-samaria' },
+  'M08eNfUcluG': { village: 'Mt Tabor HC', region: 'Mafeteng District', facility: 'Mt Tabor HC', lmisFacility: '5f86b62d-8d9a-5da5-8515-b896835b6d81', fhirLocation: 'loc-mt-tabor' },
+  'MXUJeJpd527': { village: 'Thabana-Morena HC', region: 'Mafeteng District', facility: 'Thabana-Morena HC', lmisFacility: '75d31b75-8678-53f4-9275-f47d64c33e3d', fhirLocation: 'loc-thabana-morena' },
+  'Mpm3anAFHbG': { village: 'Mt Olivet HC', region: 'Mafeteng District', facility: 'Mt Olivet HC', lmisFacility: 'a5558f08-4ea7-502f-8d72-e3d3322c2f47', fhirLocation: 'loc-mt-olivet' },
+  'MTmalx6GDQh': { village: 'Thaba-Tsoeu HC', region: 'Mafeteng District', facility: 'Thaba-Tsoeu HC', lmisFacility: '6bf59525-e671-5e5b-9053-1de926bf222f', fhirLocation: 'loc-thaba-tsoeu' },
+  'MoRm4JeA36j': { village: 'Kolo HC', region: 'Mafeteng District', facility: 'Kolo HC', lmisFacility: '6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872', fhirLocation: 'loc-kolo' },
+  'M6QoWeMH7eE': { village: 'Sekameng HC', region: 'Mafeteng District', facility: 'Sekameng HC', lmisFacility: '364d604f-8749-521d-b1dc-858e59f84b4a', fhirLocation: 'loc-sekameng' },
+  'M2X6u3DJHnD': { village: 'Tsakholo HC', region: 'Mafeteng District', facility: 'Tsakholo HC', lmisFacility: '1e2443d7-cb1c-5c38-8011-ee70c9fb693d', fhirLocation: 'loc-tsakholo' },
+  'MPIlF8CgTor': { village: 'Litsoeneng HC', region: 'Mafeteng District', facility: 'Litsoeneng HC', lmisFacility: '59dc144f-206c-5062-bb7e-01a6d8283dbc', fhirLocation: 'loc-litsoeneng' },
+  'MTL8jPRRuz6': { village: 'Ribaneng HC', region: 'Mafeteng District', facility: 'Ribaneng HC', lmisFacility: 'b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2', fhirLocation: 'loc-ribaneng' },
+  'M5kgucFmUvb': { village: 'Masemouse HC', region: 'Mafeteng District', facility: 'Masemouse HC', lmisFacility: 'e61834df-cffb-5e03-8469-8f4d791a3ff4', fhirLocation: 'loc-masemouse' },
+  'MprL0Q9KK5s': { village: 'St. Andrews HC', region: 'Mafeteng District', facility: 'St. Andrews HC', lmisFacility: '04a8e13d-f434-50d7-96d6-26edc264f327', fhirLocation: 'loc-st-andrews' },
+  'MTYfpHurTt7': { village: 'Emmause HC', region: 'Mafeteng District', facility: 'Emmause HC', lmisFacility: 'f1acc7fa-a085-5743-be4a-8e467e6f6ec2', fhirLocation: 'loc-emmause' },
+  'MXoJ83iRlEx': { village: 'Matelile HC', region: 'Mafeteng District', facility: 'Matelile HC', lmisFacility: 'ce613609-d766-58cf-a9ee-b59a6c2ac295', fhirLocation: 'loc-matelile' },
+  'MSJuHbEkMai': { village: 'Malealea HC', region: 'Mafeteng District', facility: 'Malealea HC', lmisFacility: '5184d3d1-de9a-54e2-a52a-424eedf0c717', fhirLocation: 'loc-malealea' },
+  'MdrVFmVscxi': { village: 'Motsekuoa HC', region: 'Mafeteng District', facility: 'Motsekuoa HC', lmisFacility: 'f0d9855b-0a6d-5716-909b-171af1687764', fhirLocation: 'loc-motsekuoa' },
+  'MDt7yKbmU1b': { village: 'Lecoop HC', region: 'Mafeteng District', facility: 'Lecoop HC', lmisFacility: '75605da0-dc3f-5a6f-9569-ce1a4dfd74d2', fhirLocation: 'loc-lecoop' },
 };
 
 // Localhost fallbacks. Overridden per-environment by window.__BKM_CONFIG__ (config.js,
