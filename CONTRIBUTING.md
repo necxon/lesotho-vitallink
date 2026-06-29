@@ -31,3 +31,16 @@ Before you submit a Pull Request, ensure that your modifications strictly satisf
 3. **Commit Cleanly:** Write semantic, clear commit logs.
 4. **Open a Pull Request:** Explicitly document the scope of your change, what issue it resolves, and verify that all automated integration test scripts ran successfully in your workspace environment.
 5. **Await Review:** Your code will be reviewed by the repository owner. If modifications are requested, please address the feedback and push updates to your branch — the PR will be re-reviewed until it is ready to merge.
+
+
+## License & Legal Information
+
+### Open Source Licensing
+By contributing to the Lesotho Health System Sandbox, you agree that your contributions will be licensed under the **Apache License, Version 2.0**. 
+
+This ensures the project remains as open, transparent, and accessible as possible to the global health community, while providing clear guidelines on copyright, patent grants, and limitation of liability.
+
+### Contributor Grant
+Every time you submit a Pull Request or code contribution, you implicitly grant the project administrators a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your contributions under the terms of the Apache 2.0 license.
+
+For the full legal text, please refer to the `LICENSE` file located in the root directory of this repository.
