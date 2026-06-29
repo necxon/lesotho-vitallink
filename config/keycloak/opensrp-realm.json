@@ -206,12 +206,6 @@
         "clientRole": false
       },
       {
-        "name": "store_manager",
-        "description": "Health-centre store manager - web portal; external orders + approve/dispatch + receipts",
-        "composite": false,
-        "clientRole": false
-      },
-      {
         "name": "coordinator",
         "description": "Service-point coordinator - web + app; place orders, accept internal stock, allocate to VHWs",
         "composite": false,
@@ -375,23 +369,6 @@
       ],
       "realmRoles": [
         "coordinator"
-      ]
-    },
-    {
-      "id": "a0000000-0000-4000-8000-000000000001",
-      "username": "store_manager",
-      "enabled": true,
-      "firstName": "Store",
-      "lastName": "Manager",
-      "credentials": [{ "type": "password", "value": "password", "temporary": false }],
-      "realmRoles": [
-        "store_manager",
-        "OPENMRS", "ALL_EVENTS",
-        "MANAGE_Patient", "MANAGE_Practitioner", "MANAGE_PractitionerRole", "MANAGE_Group",
-        "MANAGE_Organization", "MANAGE_OrganizationAffiliation", "MANAGE_HealthcareService",
-        "MANAGE_Location", "MANAGE_Observation", "MANAGE_QuestionnaireResponse", "MANAGE_CareTeam",
-        "MANAGE_PlanDefinition", "MANAGE_Questionnaire", "MANAGE_PractitionerDetail", "MANAGE_List",
-        "MANAGE_Binary", "MANAGE_Condition", "MANAGE_Task", "MANAGE_Immunization", "MANAGE_Encounter", "MANAGE_Flag"
       ]
     },
     {

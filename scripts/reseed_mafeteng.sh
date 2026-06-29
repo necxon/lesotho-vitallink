@@ -158,9 +158,10 @@ run "curl -sf -o /dev/null -u admin:${DHIS2_PASSWORD} -X POST '${DHIS2_URL}/api/
 
 # ── 4. Keycloak: import the 36 facility users (partialImport, OVERWRITE) ──────
 if [[ -n "${KC_TOKEN:-}" ]]; then
-  log "Keycloak: importing 36 store_manager/coordinator users ..."
+  log "Keycloak: importing facility coordinator users ..."
   # relative path so Windows-python and mingw-curl resolve the same file (avoid /tmp mismatch)
-  python3 -c "import json;json.dump({'ifResourceExists':'OVERWRITE','users':json.load(open('config/facilities/mafeteng-realm-users.json'))}, open('.mft-kc-users.json','w'))"
+  # password injected from env (SEED_USER_PASSWORD) so it is never committed in the JSON
+  SEED_USER_PASSWORD="${SEED_USER_PASSWORD:-changeme}" python3 -c "import json,os;u=json.load(open('config/facilities/mafeteng-realm-users.json'));pw=os.environ['SEED_USER_PASSWORD'];[c.__setitem__('value',pw) for usr in u for c in usr.get('credentials',[])];json.dump({'ifResourceExists':'OVERWRITE','users':u}, open('.mft-kc-users.json','w'))"
   run "curl -s -o /dev/null -w '  KC partialImport -> HTTP %{http_code}\n' -X POST '${KC_URL}/auth/admin/realms/opensrp/partialImport' -H 'Authorization: Bearer ${KC_TOKEN}' -H 'Content-Type: application/json' --data-binary @.mft-kc-users.json"
   rm -f .mft-kc-users.json
 fi

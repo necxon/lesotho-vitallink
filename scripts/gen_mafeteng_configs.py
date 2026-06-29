@@ -3,7 +3,7 @@
 
 Reads  config/facilities/mafeteng-facilities.json
 Writes (all under config/facilities/):
-  - mafeteng-realm-users.json   Keycloak realm `users` entries (store_manager + coordinator each)
+  - mafeteng-realm-users.json   Keycloak realm `users` entries (one coordinator each)
   - mafeteng-ou-labels.js       bkm-web OU_LABELS block (one entry per facility OU)
   - mafeteng-mappings.json      mediator performer mappings (KC sub -> facility, for /whoami scoping)
   - mafeteng-seed-data.env      bash-sourceable facility list for the seed provisioning loops
@@ -16,13 +16,15 @@ import json, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FAC_DIR = os.path.join(ROOT, "config", "facilities")
-PASSWORD = "Bkm@2026"
+# Seed password for generated KC users. Real value comes from the environment
+# (set SEED_USER_PASSWORD in .env); the default is a placeholder for the public repo.
+PASSWORD = os.environ.get("SEED_USER_PASSWORD", "changeme")
 
 src = json.load(open(os.path.join(FAC_DIR, "mafeteng-facilities.json")))
 district = src["district"]
 facilities = src["facilities"]
 
-# App role set every facility user carries (mirrors the existing store_manager user).
+# App role set every facility user carries (the resource roles FHIR-Core needs to sync).
 APP_ROLES = [
     "OPENMRS", "ALL_EVENTS", "MANAGE_Patient", "MANAGE_Practitioner", "MANAGE_PractitionerRole",
     "MANAGE_Group", "MANAGE_Organization", "MANAGE_OrganizationAffiliation", "MANAGE_HealthcareService",
@@ -33,7 +35,7 @@ APP_ROLES = [
 ]
 
 def role_title(role):
-    return {"store_manager": "Store Manager", "coordinator": "Coordinator"}[role]
+    return {"coordinator": "Coordinator", "vhw": "VHW"}[role]
 
 # ---- 1. realm users -------------------------------------------------------
 users = []
