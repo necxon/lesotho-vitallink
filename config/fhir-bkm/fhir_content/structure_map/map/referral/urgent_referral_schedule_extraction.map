@@ -1,0 +1,103 @@
+map "http://hl7.org/fhir/StructureMap/2ac0c108-c11d-44bf-b75f-fbf83072ec44" = 'eCBIS Urgent Referral Schedule'
+
+uses "http://hl7.org/fhir/StructureDefinition/Parameters" as source
+uses "http://hl7.org/fhir/StructureDefinition/CarePlan" as target
+
+group ecbisUrgentReferral(source parameters : Parameters, target careplan: CarePlan) {
+    parameters -> evaluate(parameters, $this.parameter.where(name='subject').resource) as subject,
+        evaluate(parameters, $this.parameter.where(name='definition').resource) as definition,
+        evaluate(parameters, $this.parameter.where(name='period').value) as period,
+        evaluate(subject, today()) as dueDate then extractTasks(period, subject, dueDate, careplan) "r_careplan";
+}
+
+group extractTasks(
+    source period: Period,
+    source subject : Patient,
+    source dueDate: DateType,
+    target careplan: CarePlan){
+
+    // fill task into careplan contained and add reference in activity.outcome
+    subject -> create('Task') as task then {
+        subject -> task.id = uuid(),
+            task.identifier = create('Identifier') as iden, iden.value = uuid(), iden.use = 'official',
+            task.identifier = create('Identifier') as iden, iden.value = 'uregent_referral_follow_visit', iden.use = 'secondary',
+            task.status = 'ready',
+            task.intent = 'plan',
+            task.executionPeriod = period,
+            task.priority = 'routine',
+            task.description = 'Urgent Referral',
+            task.for = create('Reference') as ref, ref.reference = evaluate(subject, $this.type().name + '/' + $this.id.replaceMatches('/_history/.*', '')),
+            task.authoredOn = evaluate(subject, now()),
+            task.requester = evaluate(subject, $this.generalPractitioner.first()),
+            task.owner = evaluate(subject, $this.generalPractitioner.first()) "r_task_data";
+
+        subject where(careplan.id.exists()) -> task.basedOn = create('Reference') as ref, ref.reference = evaluate(careplan, $this.id.replaceMatches('/_history/.*', '')) "r_task_based_on";
+        subject where(careplan.id.exists().not()) -> task.basedOn = reference(careplan) "r_task_based_on";
+
+        subject then extractPeriod(subject, task) "r_task_period_extr";
+
+        subject -> task.code = create('CodeableConcept') as codeConcept then extractCode(subject, codeConcept) "rule_code";
+
+        subject -> task.groupIdentifier = create('Identifier') as groupIdentifier then {
+            subject -> groupIdentifier.value = "urgent_referral" "rule_group_identifier_value";
+            subject -> groupIdentifier.use = "secondary" "rule_group_identifier_use";
+        } "rule_group_identifier";
+
+        // add plan-def reference
+        subject -> task.input = create('Task_Input') as input then {
+            subject -> input.value = create('Reference') as valueRef, valueRef.reference = 'PlanDefinition/d6263f2d-2ebe-456c-bbb7-786dabd3ea22' "r_task_input_value_ref";
+            subject -> input.type = create('CodeableConcept') as taskCode then extractTaskPlanDefinitionCode(subject, taskCode) "r_task_input_cod";
+        } "r_task_input";
+
+        // referral form
+        subject -> task.reasonReference = create('Reference') as ref, ref.reference = 'Questionnaire/c309abfa-7536-4c60-baea-cf631201f79e' "r_task_reason_ref";
+
+        // create activity.detail of type/kind Task for this Task if not exists
+        subject where(careplan.activity.where(detail.kind = 'Task').exists().not())
+            -> careplan.activity = create('CarePlan_Activity') as activity then {
+                subject -> activity.detail = create('CarePlan_ActivityDetail') as det then {
+                    subject -> det.kind = 'Task' "r_act_det_data";
+                } "r_act_det";
+            } "r_cp_acti";
+
+        // add task to careplan only if its valid and not expired
+        subject where(task.executionPeriod.start >= today() or task.executionPeriod.end >= today()) then {
+            subject -> evaluate(careplan, activity.where(detail.kind = 'Task')) as activity,
+                activity.outcomeReference = reference(task) "r_cp_task_ref";
+            subject -> careplan.contained = task  "r_add_task";
+        } "r_cp_task";
+
+        subject -> task.restriction = create("Task_Restriction") as taskRestriction then {
+            subject->taskRestriction.period = create("Period") as taskRestrictionPeriod then {
+                subject -> taskRestrictionPeriod.start = create('dateTime') as dt, dt.value = evaluate(dueDate, $this.value.substring(0,10) + 'T00:00:00.00Z'),
+                    taskRestrictionPeriod.end = create('dateTime') as dt, dt.value = evaluate(subject, (today() + '30 \'days\''.toQuantity()).value.substring(0,10) + 'T00:00:00.00Z') "r_taskRestrictionPeriod";
+            } "r_task_restriction_period";
+        } "r_task_restriction";
+    } "rule_careplan_task_outcome";
+}
+
+group extractCode(source subject: Patient, target concept: CodeableConcept) {
+    subject -> concept.coding = c("http://snomed.info/sct", "134403003") as taskCoding then {
+        subject -> taskCoding.display = 'Urgent Referral' "rule_task_code_diplay";
+    } "rule_task_code";
+    subject -> concept.text = 'Urgent Referral' "rule_code_text";
+}
+
+group extractPeriod(source subject: Patient, target task: Task) {
+    subject -> evaluate(task, $this.executionPeriod.start) as start, evaluate(task, $this.executionPeriod.end) as end then {
+        subject -> create('Period') as period then {
+            subject -> period.start = create('dateTime') as dt,
+                dt.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') "r_per_start";
+
+            subject -> period.end = create('dateTime') as dt,
+                dt.value = evaluate(end, $this.value.substring(0,10) + 'T00:00:00.00Z') "r_per_end";
+            subject -> task.executionPeriod = period "r_task_per";
+
+        } "rule_period";
+    } "r_per";
+}
+
+group extractTaskPlanDefinitionCode(source subject: Patient, target taskCode: CodeableConcept) {
+    subject -> taskCode.coding = c("http://smartregister.org/", "plan_definition") as coding, coding.display = 'Plan Definition Reference' "r_cp_cod_disp";
+    subject -> taskCode.text = 'Plan Definition Reference' "r_cp_cc_txt";
+}

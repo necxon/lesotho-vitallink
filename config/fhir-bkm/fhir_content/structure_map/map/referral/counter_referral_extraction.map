@@ -1,0 +1,59 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/244ebe73-a103-4e3e-bf7b-7f8e48e12bb3" = "eCBIS Counter Referral extraction"
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+
+group CounterReferral(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> bundle.type = "collection" "r_bundle_type";
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.subject) as refPatient then
+        ExtractSickChildEncounter(questionnaireResponse, refPatient, bundle) "rule_ref";
+}
+
+group ExtractSickChildEncounter(source questionnaireResponse : QuestionnaireResponse, source refPatient : Reference, target bundle: Bundle) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Encounter') as encounter then {
+        questionnaireResponse -> encounter.id = uuid() "rule_en_id";
+        questionnaireResponse -> encounter.status = 'finished' "rule_en_status";
+        questionnaireResponse -> encounter.class = c("http://terminology.hl7.org/CodeSystem/v3-ActCode", "HH", "home health") "rule_en_class";
+        questionnaireResponse -> encounter.type = create('CodeableConcept') as concept then {
+            questionnaireResponse -> concept.coding = c("https://smartregister.org/", "counter_referral") as coding then {
+                questionnaireResponse -> coding.display = "Counter Referral" "rule_display";
+            } "rule_en_coding";
+            questionnaireResponse -> concept.text = "Counter Referral" "rule_text";
+        } "rule_en_type";
+        questionnaireResponse -> encounter.priority = create('CodeableConcept') as priority then {
+            questionnaireResponse -> priority.coding = c("http://terminology.hl7.org/ValueSet/v3-ActPriority", "EL") as priorityCoding then {
+                questionnaireResponse -> priorityCoding.display = "Elective" "r_en_cod_disp";
+            } "r_en_cc_cod";
+            questionnaireResponse -> priority.text = "Elective" "r_en_prio_text";
+        } "rule_priority";
+        questionnaireResponse.subject as subject -> encounter.subject = refPatient "rule_subj";
+        questionnaireResponse -> encounter.period = create('Period') as period then {
+            questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "r_per_start";
+            questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "r_per_end";
+        } "rule_period";
+        questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as reason then {
+            questionnaireResponse -> reason.text = "Counter Referral" "r_en_text";
+            questionnaireResponse -> reason.coding = c("https://smartregister.org/", "counter_referral") "rule_rea_cd";
+        } "rule_en_reason";
+        questionnaireResponse then updateTaskOutput(questionnaireResponse, bundle, encounter) "r_task_output";
+    } "rule_encounter";
+}
+
+group updateTaskOutput(source src : QuestionnaireResponse, target bundle: Bundle, source encounter : Encounter) {
+    // Update the linked task with the output
+     src.item as item where(linkId = "task-id") then {
+         src -> bundle.entry as entry, entry.resource = create("Task") as task then {
+           src -> task.id = create("id") as taskId then {
+                src -> taskId.value = evaluate(item, $this.answer.value) "r_item_task_id_value";
+           } "r_task_id_val";
+           src -> task.output = create('Task_Output') as outputTask then {
+                src -> outputTask.type = create("CodeableConcept") as concept then {
+                      src-> concept.coding = c("http:snomed.info/sct","371531000") as coding then {
+                          src -> coding.display = "Report of clinical encounter (record artifact)" "r_task_output_coding_display";
+                      } "r_task_output_concept_coding";
+                } "r_task_output_codeable_concept";
+                src -> outputTask.value = reference(encounter) "r_task_output_reference";
+           } "r_task_output_val";
+         } "r_task_output";
+     } "r_task_id_output";
+}

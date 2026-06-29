@@ -1,0 +1,192 @@
+{
+  "uid": "openhim-errors",
+  "title": "OpenHIM",
+  "description": "OpenHIM core error classification: real errors vs audit noise, auth failures, transaction failures, mediator heartbeat",
+  "tags": ["openhim", "errors", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Real Errors (window)",
+      "description": "Errors excluding known ATNA audit timeout noise and bare 'undefined' lines",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |= \"error\" != \"audits.insertOne()\" != \"audits.find()\" != \"auditMeta.findOne()\" != \": undefined\" != \"mxr.mozilla.org\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Auth Failures (window)",
+      "description": "Wrong password attempts against the OpenHIM API",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |= \"Wrong password\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Transaction Failures (window)",
+      "description": "Internal server error on channel routing — mediator unreachable or route timeout",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |= \"Internal server error occured\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Audit Timeouts (window)",
+      "description": "ATNA audits.insertOne() buffering timeouts — MongoDB contention, transactions still record fine",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "yellow", "value": null }, { "color": "orange", "value": 50 }, { "color": "red", "value": 200 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |= \"audits.insertOne()\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Mediator Heartbeats (window)",
+      "description": "Token authentication warnings = one per mediator heartbeat poll. Indicates mediator is alive.",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |= \"Token authentication strategy is deprecated\" [$__range]))",
+        "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "DNS / Connectivity Errors (window)",
+      "description": "EAI_AGAIN / ENOTFOUND — mediator or external host unreachable",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"openhim-core\"} |~ \"EAI_AGAIN|ENOTFOUND|ECONNREFUSED\" [$__range]))",
+        "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Error Classification Over Time", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Real Errors vs Audit Noise Rate",
+      "description": "Separates actionable errors from expected ATNA audit buffering noise",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |= \"error\" != \"audits.insertOne()\" != \"audits.find()\" != \"auditMeta.findOne()\" != \": undefined\" != \"mxr.mozilla.org\" [$__interval]))",
+          "legendFormat": "real errors", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |= \"audits.insertOne()\" [$__interval]))",
+          "legendFormat": "audit noise (ATNA)", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Error Breakdown by Category",
+      "description": "Each known error type tracked separately",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |= \"Wrong password\" [$__interval]))",
+          "legendFormat": "auth failures", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |= \"Internal server error occured\" [$__interval]))",
+          "legendFormat": "transaction failures", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |~ \"EAI_AGAIN|ENOTFOUND\" [$__interval]))",
+          "legendFormat": "DNS errors", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"openhim-core\"} |= \"Skip value must be non-negative\" [$__interval]))",
+          "legendFormat": "mongo skip bug", "refId": "D" }
+      ]
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Mediator Heartbeat Rate",
+      "description": "Token auth warnings fired once per heartbeat. Gap = mediator stopped polling OpenHIM.",
+      "gridPos": { "x": 0, "y": 13, "w": 12, "h": 5 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] }
+      }},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(rate({container=\"openhim-core\"} |= \"Token authentication strategy is deprecated\" [$__interval]))",
+        "legendFormat": "heartbeats/s", "refId": "A" }]
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Audit Timeout Rate (MongoDB pressure)",
+      "description": "High rate = MongoDB is under load. Transactions still complete — this is ATNA audit-only.",
+      "gridPos": { "x": 12, "y": 13, "w": 12, "h": 5 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(rate({container=\"openhim-core\"} |= \"audits.insertOne()\" [$__interval]))",
+        "legendFormat": "audit timeouts/s", "refId": "A" }]
+    },
+
+    { "id": 102, "type": "row", "title": "Real Error Log Streams", "gridPos": { "x": 0, "y": 18, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "logs", "title": "Transaction Failures (Internal server error)",
+      "description": "Channel routing errors — includes transaction ID in brackets for cross-referencing OpenHIM console",
+      "gridPos": { "x": 0, "y": 19, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openhim-core\"} |= \"Internal server error occured\"", "refId": "A" }]
+    },
+    {
+      "id": 21, "type": "logs", "title": "Auth Failures & DNS Errors",
+      "description": "Wrong password attempts + EAI_AGAIN/ENOTFOUND connectivity failures",
+      "gridPos": { "x": 12, "y": 19, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openhim-core\"} |~ \"Wrong password|EAI_AGAIN|ENOTFOUND|ECONNREFUSED|Skip value must be non-negative\"", "refId": "A" }]
+    },
+    {
+      "id": 22, "type": "logs", "title": "All Real Errors (noise filtered)",
+      "description": "All error lines excluding ATNA audit timeouts and bare 'undefined' lines",
+      "gridPos": { "x": 0, "y": 26, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"openhim-core\"} |= \"error\" != \"audits.insertOne()\" != \"audits.find()\" != \"auditMeta.findOne()\" != \": undefined\" != \"mxr.mozilla.org\"", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Raw Logs", "gridPos": { "x": 0, "y": 33, "w": 24, "h": 1 }, "collapsed": true,
+      "panels": [
+        {
+          "id": 30, "type": "logs", "title": "All OpenHIM Core Logs",
+          "gridPos": { "x": 0, "y": 34, "w": 24, "h": 10 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"openhim-core\"}", "refId": "A" }]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      { "hide": 2, "name": "loki_ds", "query": "loki", "refresh": 1, "type": "datasource" }
+    ]
+  }
+}

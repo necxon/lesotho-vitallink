@@ -1,0 +1,765 @@
+{
+    "resourceType": "Questionnaire",
+    "id": "a3b8260b-d474-42ef-9ab2-a7794a0a27bc",
+    "meta": {
+        "versionId": "14",
+        "lastUpdated": "2023-05-11T07:34:41.814+00:00",
+        "source": "#7787ca01e5af881a",
+        "profile": [
+            "http://ehelse.no/fhir/StructureDefinition/sdf-Questionnaire"
+        ],
+        "security": [
+            {
+                "system": "urn:oid:2.16.578.1.12.4.1.1.7618",
+                "code": "3",
+                "display": "Helsehjelp"
+            }
+        ],
+        "tag": [
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "en-GB",
+                "display": "English"
+            },
+            {
+                "system": "urn:ietf:bcp:47",
+                "code": "nb-NO",
+                "display": "Norsk Bokmål"
+            },
+            {
+                "code": "lformsVersion: 29.2.1"
+            }
+        ]
+    },
+    "language": "en-GB",
+    "extension": [
+        {
+            "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+            "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/8f7828f5-3910-4bfc-94a9-a0da749fb37c"
+        }
+    ],
+    "name": "Physical Inventory Count and Stock Supply",
+    "title": "Physical Inventory Count and Stock Supply",
+    "status": "active",
+    "subjectType": [
+        "Group"
+    ],
+    "date": "2022-10-20T00:00:00Z",
+    "publisher": "ONA",
+    "description": "Record Physical Inventory Count and Stock Supply",
+    "purpose": "Record Physical Inventory Count and Stock Supply",
+    "item": [
+        {
+            "linkId": "650dd00d-c60b-4a3d-838a-128aad04827f",
+            "text": "Commodity:",
+            "type": "string",
+            "readOnly": true
+        },
+        {
+            "linkId": "d2cda03f-dc14-4f15-85ab-d5c33027aa31",
+            "text": "Current Stock Balance:",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Thepa e matsohong"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "required": true,
+            "readOnly": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "4571fa5f-8448-4e69-8395-c1962154e39c",
+            "text": "Damaged Stock",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Thepa e senyehileng"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "cc3a573f-8faf-49bd-8649-c74fcd31ab7e",
+            "text": "Expired Stock",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Thepa e felletsoeng ke nako"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "a71d3a65-9f08-4316-8ebf-41c376a4932e",
+            "text": "Stock on hand (no damaged/expired)",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Thepa e matsohong (esa senyeha kapa ho felloa ke nako)"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "required": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "(%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value"
+                    }
+                }
+            ],
+            "linkId": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+            "text": "Adjust Stock By (Hidden) - not absolute",
+            "type": "integer",
+            "readOnly": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value) < 0, ((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value).toString().replaceMatches('-', '').toInteger(), ((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value))"
+                    }
+                }
+            ],
+            "linkId": "634264d1-2ffd-4aac-cc13-87466f6702b3",
+            "text": "Adjust stock by",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Eketsa  thepa ka:"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": "!=",
+                    "answerInteger": 0
+                }
+            ],
+            "readOnly": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "e896c73f-c0a2-43bb-836f-4b7acfbec861",
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                }
+            ],
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "da73dce1-fed7-464a-9387-a440f1d96e19",
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "borrowed",
+                        "display": "Borrowed"
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "8e4e1945-667b-4096-cdc9-5780377a4b89",
+            "text": "Quantity for Borrowed",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane le alimiloeng"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                },
+                {
+                    "question": "e896c73f-c0a2-43bb-836f-4b7acfbec861",
+                    "operator": "=",
+                    "answerCoding": {
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "borrowed"
+                    }
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "33b60f38-d578-4ac6-ae1b-a3919165fb31",
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                }
+            ],
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "da73dce1-fed7-464a-9387-a440f1d96e19",
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "donation",
+                        "display": "Donation"
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "be137683-fda1-4fe3-86e7-39bbd3c87299",
+            "text": "Quantity for Donation",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane le phalletsoeng"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "33b60f38-d578-4ac6-ae1b-a3919165fb31",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "41c68d00-8cca-4bb9-8324-30f83cac3e9e",
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                }
+            ],
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "da73dce1-fed7-464a-9387-a440f1d96e19",
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "under-reporting",
+                        "display": "Under-reporting"
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "605f0de5-3d7e-4e3d-977b-b05932602d9e",
+            "text": "Quantity for Under reporting",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane le lenyane le tla tlalehoa"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "41c68d00-8cca-4bb9-8324-30f83cac3e9e",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": ">",
+                    "answerInteger": 0
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "e71b9bbb-34dc-43ee-8899-1024158fa149",
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": "<",
+                    "answerInteger": 0
+                }
+            ],
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "da73dce1-fed7-464a-9387-a440f1d96e19",
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "lent-out",
+                        "display": "Lent out"
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "fa6c4894-1c7b-47fd-b4b2-18b2d45fa0cc",
+            "text": "Quantity for Lent out",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane letla alimanoa"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": "<",
+                    "answerInteger": 0
+                },
+                {
+                    "question": "e71b9bbb-34dc-43ee-8899-1024158fa149",
+                    "operator": "=",
+                    "answerCoding": {
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "lent-out"
+                    }
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": "http://hl7.org/fhir/questionnaire-item-control",
+                                "code": "check-box"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "linkId": "b04daeab-23fa-4bd7-dbb8-893d0774931d",
+            "type": "choice",
+            "enableWhen": [
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": "<",
+                    "answerInteger": 0
+                }
+            ],
+            "required": false,
+            "repeats": true,
+            "answerOption": [
+                {
+                    "valueCoding": {
+                        "id": "da73dce1-fed7-464a-9387-a440f1d96e19",
+                        "system": "urn:uuid:73a7e156-6ce7-4660-8fa7-dad9cf6a49e3",
+                        "code": "over-reporting",
+                        "display": "Over-reporting"
+                    }
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "66e1ca2e-a46a-42e2-c397-a12c30b8525e",
+            "text": "Quantity for Over reporting",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane le lengata le tla tlalehoa"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "b04daeab-23fa-4bd7-dbb8-893d0774931d",
+                    "operator": "exists",
+                    "answerBoolean": true
+                },
+                {
+                    "question": "6feb8bd4-701d-4864-aa4e-16e2b9332880",
+                    "operator": "<",
+                    "answerInteger": 0
+                }
+            ],
+            "enableBehavior": "all",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                },
+                {
+                    "url": "http://ehelse.no/fhir/StructureDefinition/validationtext",
+                    "valueString": "Adjustment Error! Please adjust stock by the quantity provided above."
+                },
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "iif(((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value) < 0, ((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value).toString().replaceMatches('-', '').toInteger(), ((%resource.descendants().where(linkId='4571fa5f-8448-4e69-8395-c1962154e39c').answer.value + %resource.descendants().where(linkId='cc3a573f-8faf-49bd-8649-c74fcd31ab7e').answer.value + %resource.descendants().where(linkId='a71d3a65-9f08-4316-8ebf-41c376a4932e').answer.value) - %resource.descendants().where(linkId='d2cda03f-dc14-4f15-85ab-d5c33027aa31').answer.value)) - (iif(%resource.descendants().where(linkId='fa6c4894-1c7b-47fd-b4b2-18b2d45fa0cc').answer.value.exists(), %resource.descendants().where(linkId='fa6c4894-1c7b-47fd-b4b2-18b2d45fa0cc').answer.value, 0) + iif(%resource.descendants().where(linkId='66e1ca2e-a46a-42e2-c397-a12c30b8525e').answer.value.exists(), %resource.descendants().where(linkId='66e1ca2e-a46a-42e2-c397-a12c30b8525e').answer.value, 0) + iif(%resource.descendants().where(linkId='8e4e1945-667b-4096-cdc9-5780377a4b89').answer.value.exists(), %resource.descendants().where(linkId='8e4e1945-667b-4096-cdc9-5780377a4b89').answer.value, 0) + iif(%resource.descendants().where(linkId='be137683-fda1-4fe3-86e7-39bbd3c87299').answer.value.exists(), %resource.descendants().where(linkId='be137683-fda1-4fe3-86e7-39bbd3c87299').answer.value, 0) + iif(%resource.descendants().where(linkId='605f0de5-3d7e-4e3d-977b-b05932602d9e').answer.value.exists(), %resource.descendants().where(linkId='605f0de5-3d7e-4e3d-977b-b05932602d9e').answer.value, 0))"
+                    }
+                },
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/maxValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "ff0821a9-29ce-4fbf-8498-c6668fd36594",
+            "text": "Pending stock adjustment quantity",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Thepa eso sebetse e hlokang ho eketsoa"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "enableWhen": [
+                {
+                    "question": "634264d1-2ffd-4aac-cc13-87466f6702b3",
+                    "operator": "!=",
+                    "answerInteger": 0
+                }
+            ],
+            "required": true,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
+                    "valueExpression": {
+                        "language": "text/fhirpath",
+                        "expression": "%resource.descendants().where(linkId='ff0821a9-29ce-4fbf-8498-c6668fd36594').answer.value != 0"
+                    }
+                }
+            ],
+            "linkId": "c937d8a8-a9f1-4258-9b5e-5330777c7d5a",
+            "text": "Stock Adjustment Error! Please adjust by the pending stock adjustment quantity",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Keketso ea thepa e fosahetseng! Ka kopo e kopanyeletsoe le lenane la thepa eso  sebelisoe"
+                } ]
+                } ]
+            },            
+            "type": "display",
+            "enableBehavior": "all",
+            "required": false
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/minValue",
+                    "valueInteger": 0
+                }
+            ],
+            "linkId": "35f0cdc3-7c3f-4a7a-8299-62fd801b9510",
+            "text": "Quantity Restocked",
+            "_text": {
+                "extension": [ {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [ {
+                    "url": "lang",
+                    "valueCode": "st"
+                }, {
+                    "url": "content",
+                    "valueString": "Lenane la thepa keketso"
+                } ]
+                } ]
+            },            
+            "type": "integer",
+            "required": true,
+            "initial": [
+                {
+                    "valueInteger": 0
+                }
+            ]
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "d6c39388-fb56-4e1f-8cfc-f199f2c89919",
+            "text": "Latest Observation ID (Pre-populated) (Hidden)",
+            "type": "string",
+            "required": false,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "513d5111-449e-49e0-d43a-8953fb53ba7d",
+            "text": "Stockout Flag ID (Pre-populated) (Hidden)",
+            "type": "string",
+            "required": false,
+            "readOnly": true
+        },
+        {
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+                    "valueBoolean": true
+                }
+            ],
+            "linkId": "6c5c6fd7-749c-402b-990b-df96a92bf6c8",
+            "text": "Stockout Flag Start Date (Pre-populated) (Hidden)",
+            "type": "string",
+            "required": false,
+            "readOnly": true
+        }
+    ]
+}

@@ -1,0 +1,78 @@
+{
+  "appId": "bkm",
+  "configType": "application",
+  "appTitle": "",
+  "reportRepeatTime": "23:22",
+  "remoteSyncPageSize": 100,
+  "languages": [
+    "en",
+    "st"
+  ],
+  "syncInterval": 1,
+  "syncStrategy": [
+    "Location"
+  ],
+  "loginConfig": {
+    "showLogo": true,
+    "enablePin": true
+  },
+  "deviceToDeviceSync": {
+    "resourcesToSync": [
+      "Group",
+      "Patient",
+      "CarePlan",
+      "Task",
+      "Encounter",
+      "Observation",
+      "Condition",
+      "Questionnaire",
+      "QuestionnaireResponse",
+      "RelatedPerson",
+      "List",
+      "Flag"
+    ]
+  },
+  "eventWorkflows": [
+    {
+      "eventType": "RESOURCE_CLOSURE",
+      "eventResources": [
+        {
+          "id": "sickChildConditionToBeClosed",
+          "resource": "Condition",
+          "configRules": [
+            {
+              "name": "patientId",
+              "condition": "true",
+              "actions": [
+                "data.put('patientId', fhirPath.extractValue(CarePlan, 'CarePlan.subject.reference'))"
+              ]
+            }
+          ],
+          "dataQueries": [
+            {
+              "paramName": "code",
+              "filterCriteria": [
+                {
+                  "dataType": "CODEABLECONCEPT",
+                  "value": {
+                    "system": "http://snomed.info/sct",
+                    "code": "275142008"
+                  }
+                }
+              ]
+            },
+            {
+              "paramName": "subject",
+              "filterCriteria": [
+                {
+                  "dataType": "REFERENCE",
+                  "computedRule": "patientId"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

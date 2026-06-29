@@ -1,0 +1,56 @@
+{
+  "resourceType": "Questionnaire",
+  "id": "qn-stock-accept-delivery",
+  "url": "http://bkm.lesotho/fhir/Questionnaire/qn-stock-accept-delivery",
+  "name": "StockAcceptDelivery",
+  "title": "Accept Stock Delivery",
+  "status": "active",
+  "subjectType": ["Practitioner"],
+  "item": [
+    {
+      "linkId": "task_id",
+      "text": "Task ID",
+      "type": "string",
+      "required": true,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+          "valueBoolean": true
+        }
+      ]
+    },
+    {
+      "linkId": "d-commodity-name",
+      "text": "Medicine",
+      "type": "string",
+      "readOnly": true
+    },
+    {
+      "linkId": "quantity_ordered",
+      "text": "Quantity Ordered",
+      "type": "integer",
+      "readOnly": true
+    },
+    {
+      "linkId": "quantity_received",
+      "text": "Quantity Received",
+      "type": "integer",
+      "required": true
+    },
+    {
+      "linkId": "type",
+      "text": "Transaction Type",
+      "type": "string",
+      "required": true,
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden",
+          "valueBoolean": true
+        }
+      ],
+      "initial": [
+        { "valueString": "RECEIPT" }
+      ]
+    }
+  ]
+}

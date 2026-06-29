@@ -1,0 +1,952 @@
+{
+  "info": {
+    "name": "Lesotho Health Sandbox",
+    "description": "Full API collection for the Lesotho health system sandbox. Services: BKM Mediator (3000), OpenHIM channel (5001), HAPI FHIR (8079), DHIS2 (8081), OpenLMIS (8082), Keycloak (8083), OpenHIM API (8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "mediator",       "value": "http://localhost:3000",          "type": "string" },
+    { "key": "openhim_ch",     "value": "http://localhost:5001",          "type": "string" },
+    { "key": "hapi",           "value": "http://localhost:8079/fhir",     "type": "string" },
+    { "key": "openhim_api",    "value": "https://localhost:8080",         "type": "string" },
+    { "key": "dhis2",          "value": "http://localhost:8081",          "type": "string" },
+    { "key": "openlmis",       "value": "http://localhost:8082",          "type": "string" },
+    { "key": "keycloak",       "value": "http://localhost:8083",          "type": "string" },
+    { "key": "practitioner_id","value": "Practitioner/opensrp-admin",     "type": "string" },
+    { "key": "facility_id",    "value": "28de536f-b826-4eeb-a3c4-d65221a1120d", "type": "string" },
+    { "key": "program_id",     "value": "31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c", "type": "string" },
+    { "key": "orderable_id",   "value": "3be1d20f-6aa9-4e52-864f-4fa04aa02056", "type": "string" },
+    { "key": "med_code",       "value": "AL-20-120",                      "type": "string" },
+    { "key": "lmis_token",     "value": "",                               "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "1. Mediator — FHIR Endpoints (via OpenHIM :5001)",
+      "description": "Stock events the Android app posts through the OpenHIM channel. All reach the BKM mediator which fans out to OpenLMIS + DHIS2.",
+      "item": [
+
+        {
+          "name": "Dispense — MedicationDispense",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/MedicationDispense",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"MedicationDispense\",\n  \"status\": \"completed\",\n  \"subject\": { \"reference\": \"Patient/patient-001\" },\n  \"performer\": [{ \"actor\": { \"reference\": \"{{practitioner_id}}\" } }],\n  \"medicationCodeableConcept\": { \"coding\": [{ \"code\": \"{{med_code}}\" }] },\n  \"whenHandedOver\": \"2026-05-17T09:30:00Z\",\n  \"quantity\": { \"value\": 6, \"unit\": \"tablet\" }\n}"
+            },
+            "description": "Dispense medicine to a patient. Fans out: OpenLMIS DEBIT + DHIS2 data value."
+          }
+        },
+
+        {
+          "name": "Receipt — MedicationDispense (type=RECEIPT)",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/MedicationDispense",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"MedicationDispense\",\n  \"status\": \"completed\",\n  \"type\": { \"coding\": [{ \"code\": \"RECEIPT\" }] },\n  \"subject\": { \"reference\": \"Patient/patient-001\" },\n  \"performer\": [{ \"actor\": { \"reference\": \"{{practitioner_id}}\" } }],\n  \"medicationCodeableConcept\": { \"coding\": [{ \"code\": \"{{med_code}}\" }] },\n  \"whenHandedOver\": \"2026-05-17T09:30:00Z\",\n  \"quantity\": { \"value\": 100, \"unit\": \"tablet\" }\n}"
+            },
+            "description": "Stock receipt (CREDIT) from facility to VHW. Fans out: OpenLMIS CREDIT."
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — Dispense (QR form)",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/QuestionnaireResponse",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"questionnaire\": \"Questionnaire/d5e6f708-1a2b-3c4d-5e6f-7a8b9c0d1e2f\",\n  \"status\": \"completed\",\n  \"authored\": \"2026-05-17T09:30:00Z\",\n  \"subject\": { \"reference\": \"Patient/patient-001\" },\n  \"author\": { \"reference\": \"{{practitioner_id}}\" },\n  \"item\": [\n    { \"linkId\": \"medication\", \"answer\": [{ \"valueCoding\": { \"code\": \"{{med_code}}\" } }] },\n    { \"linkId\": \"quantity\",   \"answer\": [{ \"valueInteger\": 6 }] }\n  ]\n}"
+            },
+            "description": "App dispense form submission — same fan-out as MedicationDispense."
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — Stock Receipt (type=RECEIPT)",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/QuestionnaireResponse",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"questionnaire\": \"Questionnaire/d5e6f708-1a2b-3c4d-5e6f-7a8b9c0d1e2f\",\n  \"status\": \"completed\",\n  \"authored\": \"2026-05-17T09:30:00Z\",\n  \"author\": { \"reference\": \"{{practitioner_id}}\" },\n  \"item\": [\n    { \"linkId\": \"type\",     \"answer\": [{ \"valueCoding\": { \"code\": \"RECEIPT\" } }] },\n    { \"linkId\": \"medication\",\"answer\": [{ \"valueCoding\": { \"code\": \"{{med_code}}\" } }] },\n    { \"linkId\": \"quantity_accepted\", \"answer\": [{ \"valueInteger\": 200 }] }\n  ]\n}"
+            }
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — Stock Order",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/QuestionnaireResponse",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"questionnaire\": \"Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6\",\n  \"status\": \"completed\",\n  \"authored\": \"2026-05-17T09:30:00Z\",\n  \"author\": { \"reference\": \"{{practitioner_id}}\" },\n  \"item\": [\n    { \"linkId\": \"d-commodity-name\", \"answer\": [{ \"valueString\": \"{{med_code}}\" }] },\n    { \"linkId\": \"quantity_ordered\",  \"answer\": [{ \"valueInteger\": 50 }] }\n  ]\n}"
+            },
+            "description": "Stock order from the Order register. Buffered and batch-dispatched to OpenLMIS. Add ?immediate=true to dispatch immediately."
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — Stock Order (immediate dispatch)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{openhim_ch}}/fhir/QuestionnaireResponse?immediate=true",
+              "query": [{ "key": "immediate", "value": "true" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"questionnaire\": \"Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6\",\n  \"status\": \"completed\",\n  \"authored\": \"2026-05-17T09:30:00Z\",\n  \"author\": { \"reference\": \"{{practitioner_id}}\" },\n  \"item\": [\n    { \"linkId\": \"d-commodity-name\", \"answer\": [{ \"valueString\": \"{{med_code}}\" }] },\n    { \"linkId\": \"quantity_ordered\",  \"answer\": [{ \"valueInteger\": 50 }] }\n  ]\n}"
+            }
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — Stock Adjustment (expired)",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/QuestionnaireResponse",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"questionnaire\": \"Questionnaire/qn-stock-adjustment\",\n  \"status\": \"completed\",\n  \"authored\": \"2026-05-17T09:30:00Z\",\n  \"author\": { \"reference\": \"{{practitioner_id}}\" },\n  \"item\": [\n    { \"linkId\": \"type\",             \"answer\": [{ \"valueCoding\": { \"code\": \"ADJUSTMENT\" } }] },\n    { \"linkId\": \"medication\",       \"answer\": [{ \"valueCoding\": { \"code\": \"{{med_code}}\" } }] },\n    { \"linkId\": \"quantity\",         \"answer\": [{ \"valueInteger\": 10 }] },\n    { \"linkId\": \"adjustmentReason\", \"answer\": [{ \"valueCoding\": { \"code\": \"expired\" } }] }\n  ]\n}"
+            },
+            "description": "Stock adjustment. adjustmentReason must be: expired | damaged | lost_stolen"
+          }
+        },
+
+        {
+          "name": "SupplyDelivery — Create VHW Task (BR-03)",
+          "request": {
+            "method": "POST",
+            "url": "{{openhim_ch}}/fhir/SupplyDelivery",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"performer\": \"{{practitioner_id}}\",\n  \"medication\": \"{{med_code}}\",\n  \"quantity\": 100,\n  \"issueRef\": \"ORD-202605-manual\"\n}"
+            },
+            "description": "Creates a stock-issue Task on HAPI FHIR for the VHW to accept in the app."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Mediator — Admin APIs (:3000 direct)",
+      "description": "Admin/management endpoints on the mediator. Requires port 3000 exposed (already added to docker-compose).",
+      "item": [
+
+        {
+          "name": "Status — combined snapshot",
+          "request": {
+            "method": "GET",
+            "url": "{{mediator}}/aggregate/status",
+            "description": "Returns: order buffer, dispatch log, next dispatch time, schedule frequency, performers by org unit."
+          }
+        },
+
+        {
+          "name": "Orders — current period buffer",
+          "request": {
+            "method": "GET",
+            "url": "{{mediator}}/aggregate/orders",
+            "description": "Shows buffered orders waiting for the next batch dispatch."
+          }
+        },
+
+        {
+          "name": "Orders — dispatch batch now",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"force\": false }"
+            },
+            "description": "Dispatch the buffered orders to OpenLMIS. Set force:true to re-dispatch an already-dispatched period."
+          }
+        },
+
+        {
+          "name": "Orders — clear dispatch log",
+          "request": {
+            "method": "DELETE",
+            "url": "{{mediator}}/aggregate/orders/dispatch-log",
+            "description": "Clears the dispatch log so the current period can be re-dispatched."
+          }
+        },
+
+        {
+          "name": "Schedule — change dispatch frequency",
+          "request": {
+            "method": "PUT",
+            "url": "{{mediator}}/aggregate/schedule",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"frequency\": \"daily\" }"
+            },
+            "description": "frequency: daily | weekly | monthly"
+          }
+        },
+
+        {
+          "name": "Aggregation — trigger manual DHIS2 push",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"period\": \"202605\" }"
+            },
+            "description": "Triggers facility aggregation for the given period (YYYYMM). Omit period to use current month."
+          }
+        },
+
+        {
+          "name": "Dispatch History — audit log",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{mediator}}/aggregate/dispatch-history?limit=50",
+              "query": [
+                { "key": "period", "value": "202605", "disabled": true },
+                { "key": "limit",  "value": "50" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Performers — list all",
+          "request": {
+            "method": "GET",
+            "url": "{{mediator}}/aggregate/performers",
+            "description": "Returns all VHW/Practitioner mappings with village, region, facility, phone, email."
+          }
+        },
+
+        {
+          "name": "Tasks — create stock-issue tasks",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/tasks",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"practitioners\": [\"{{practitioner_id}}\"],\n  \"entries\": [\n    { \"medication\": \"{{med_code}}\", \"quantity\": 100 }\n  ],\n  \"issueRef\": \"ORD-202605-manual\"\n}"
+            },
+            "description": "Creates FHIR Tasks on HAPI FHIR. The Android app picks them up on next sync."
+          }
+        },
+
+        {
+          "name": "Tasks — mark complete",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/tasks/TASK_ID_HERE/complete",
+            "description": "Marks a Task as completed so it cannot be accepted again (BR-04)."
+          }
+        },
+
+        {
+          "name": "DHIS2 — trigger sync",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/dhis2/sync",
+            "description": "Triggers the dhis2-integration service to push latest OpenLMIS stock data to DHIS2."
+          }
+        },
+
+        {
+          "name": "Config — get runtime config",
+          "request": {
+            "method": "GET",
+            "url": "{{mediator}}/config",
+            "description": "Returns all runtime config values (IDEMPOTENCY_WINDOW_MS, REJECT_DUPLICATE_DISPENSE, etc)."
+          }
+        },
+
+        {
+          "name": "Config — patch runtime config",
+          "request": {
+            "method": "PATCH",
+            "url": "{{mediator}}/config",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"IDEMPOTENCY_WINDOW_MS\": \"300000\",\n  \"REJECT_DUPLICATE_DISPENSE\": \"true\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "OpenLMIS Token — get auth token",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/lmis-token",
+            "description": "Returns a valid OpenLMIS Bearer token (mediator fetches it internally)."
+          }
+        },
+
+        {
+          "name": "Bundle Sync — POST stock QRs from app bundle",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/fhir/bundle-sync",
+            "header": [{ "key": "Content-Type", "value": "application/fhir+json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"Bundle\",\n  \"type\": \"transaction\",\n  \"entry\": [\n    {\n      \"resource\": {\n        \"resourceType\": \"QuestionnaireResponse\",\n        \"id\": \"test-bundle-qr-001\",\n        \"questionnaire\": \"Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6\",\n        \"status\": \"completed\",\n        \"authored\": \"2026-05-17T09:30:00Z\",\n        \"author\": { \"reference\": \"{{practitioner_id}}\" },\n        \"item\": [\n          { \"linkId\": \"d-commodity-name\", \"answer\": [{ \"valueString\": \"{{med_code}}\" }] },\n          { \"linkId\": \"quantity_ordered\",  \"answer\": [{ \"valueInteger\": 30 }] }\n        ]\n      }\n    }\n  ]\n}"
+            },
+            "description": "Called by the fhir-proxy mirror on app sync-up bundles. Extracts stock QRs and fans them out."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Mediator — Mappings",
+      "item": [
+
+        {
+          "name": "Mappings — view all",
+          "request": {
+            "method": "GET",
+            "url": "{{mediator}}/aggregate/mappings",
+            "description": "Returns live performer map and medication map."
+          }
+        },
+
+        {
+          "name": "Mappings — upsert performer",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/mappings/performers",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"Practitioner/93b47b21-7311-416a-a6a4-7be8426b1fc3\",\n  \"name\": \"Thabo Mokoena\",\n  \"role\": \"vhw\",\n  \"facilityId\": \"{{facility_id}}\",\n  \"programId\": \"{{program_id}}\",\n  \"dhis2OrgUnit\": \"dwx1Yz4BwNX\",\n  \"phone\": \"+26650000001\",\n  \"email\": \"thabo@example.com\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Mappings — delete performer",
+          "request": {
+            "method": "DELETE",
+            "url": "{{mediator}}/aggregate/mappings/performers",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"id\": \"Practitioner/93b47b21-7311-416a-a6a4-7be8426b1fc3\" }"
+            }
+          }
+        },
+
+        {
+          "name": "Mappings — upsert medication",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/mappings/medications",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"AL-20-120\",\n  \"orderableId\": \"{{orderable_id}}\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Mappings — delete medication",
+          "request": {
+            "method": "DELETE",
+            "url": "{{mediator}}/aggregate/mappings/medications",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"AL-20-120\" }"
+            }
+          }
+        },
+
+        {
+          "name": "Mappings — sync from HAPI FHIR",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/aggregate/mappings/sync-fhir",
+            "description": "Pulls all Practitioners from HAPI FHIR and adds any not yet in the performer map."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. Mediator — Notifications",
+      "item": [
+
+        {
+          "name": "Notifications — list (OpenLMIS bell)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{mediator}}/lmis-notifications?isDisplayed=true&page=0&size=20",
+              "query": [
+                { "key": "isDisplayed", "value": "true" },
+                { "key": "page",        "value": "0" },
+                { "key": "size",        "value": "20" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Notifications — create manual",
+          "request": {
+            "method": "POST",
+            "url": "{{mediator}}/lmis-notifications",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Notification\",\n  \"message\": \"Manual test from Postman\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Notifications — dismiss",
+          "request": {
+            "method": "PATCH",
+            "url": "{{mediator}}/lmis-notifications/NOTIFICATION_ID_HERE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"isDisplayed\": false }"
+            }
+          }
+        },
+
+        {
+          "name": "Notifications — clear all",
+          "request": {
+            "method": "DELETE",
+            "url": "{{mediator}}/lmis-notifications"
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5. HAPI FHIR (:8079)",
+      "item": [
+
+        {
+          "name": "Patients — list all",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Patient?_count=20"
+          }
+        },
+
+        {
+          "name": "Groups — commodity stock groups",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{hapi}}/Group?code=386452003&_count=50",
+              "query": [
+                { "key": "code",   "value": "386452003" },
+                { "key": "_count", "value": "50" }
+              ]
+            },
+            "description": "SNOMED 386452003 = Supply management. These are the stock commodity groups shown in the Inventory and Stock Order registers."
+          }
+        },
+
+        {
+          "name": "Groups — patient groups (VHW catchment areas)",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Group?_count=20"
+          }
+        },
+
+        {
+          "name": "Observations — stock on hand",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{hapi}}/Observation?status=preliminary&_count=50&_sort=-date",
+              "query": [
+                { "key": "status",  "value": "preliminary" },
+                { "key": "_count",  "value": "50" },
+                { "key": "_sort",   "value": "-date" }
+              ]
+            },
+            "description": "Preliminary observations = current stock on hand (SOH) per commodity."
+          }
+        },
+
+        {
+          "name": "Tasks — pending (status=requested)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{hapi}}/Task?status=requested&_count=20",
+              "query": [
+                { "key": "status",  "value": "requested" },
+                { "key": "_count",  "value": "20" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Tasks — all",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Task?_count=50&_sort=-_lastUpdated"
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — all",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/QuestionnaireResponse?_count=20&_sort=-_lastUpdated"
+          }
+        },
+
+        {
+          "name": "QuestionnaireResponse — by questionnaire (stock order)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{hapi}}/QuestionnaireResponse?questionnaire=Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6&_count=20",
+              "query": [
+                { "key": "questionnaire", "value": "Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6" },
+                { "key": "_count",        "value": "20" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Questionnaire — stock order form",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Questionnaire/e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6"
+          }
+        },
+
+        {
+          "name": "Composition — app config (BKM)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{hapi}}/Composition?identifier=app&_count=1",
+              "query": [
+                { "key": "identifier", "value": "app" },
+                { "key": "_count",     "value": "1" }
+              ]
+            },
+            "description": "The Composition lists all Binary config resource IDs the app downloads. If this gets corrupted the app loses all configs."
+          }
+        },
+
+        {
+          "name": "Binary — stock order register config",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Binary/stockOrderRegister"
+          }
+        },
+
+        {
+          "name": "Binary — navigation config",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Binary/d7ce0167-ee6a-4f8f-b644-50b0242513239e"
+          }
+        },
+
+        {
+          "name": "Practitioners — list",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Practitioner?_count=20"
+          }
+        },
+
+        {
+          "name": "PractitionerRole — list",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/PractitionerRole?_count=20"
+          }
+        },
+
+        {
+          "name": "Organization — list",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Organization?_count=20"
+          }
+        },
+
+        {
+          "name": "Locations — list",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/Location?_count=20"
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "6. OpenHIM",
+      "item": [
+
+        {
+          "name": "Heartbeat",
+          "request": {
+            "method": "GET",
+            "url": "{{openhim_api}}/heartbeat",
+            "description": "Check if OpenHIM core is up. Disable SSL verification (self-signed cert)."
+          }
+        },
+
+        {
+          "name": "Transactions — recent",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{openhim_api}}/transactions?filterLimit=20",
+              "query": [{ "key": "filterLimit", "value": "20" }]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "root@openhim.org" },
+                { "key": "password", "value": "openhim-password" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Channels — list",
+          "request": {
+            "method": "GET",
+            "url": "{{openhim_api}}/channels",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "root@openhim.org" },
+                { "key": "password", "value": "openhim-password" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Clients — list",
+          "request": {
+            "method": "GET",
+            "url": "{{openhim_api}}/clients",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "root@openhim.org" },
+                { "key": "password", "value": "openhim-password" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "7. DHIS2 (:8081)",
+      "item": [
+
+        {
+          "name": "Data Values — stock dispensed (last 30 days)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{dhis2}}/api/dataValues?de=ujPSJuS9pph&ou=dwx1Yz4BwNX&pe=LAST_12_MONTHS",
+              "query": [
+                { "key": "de", "value": "ujPSJuS9pph", "description": "Stock Dispensed AL 20/120mg" },
+                { "key": "ou", "value": "dwx1Yz4BwNX", "description": "Maseru District Clinic A" },
+                { "key": "pe", "value": "LAST_12_MONTHS" }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "district" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Analytics — stock dispensed pivot",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{dhis2}}/api/analytics?dimension=dx:ujPSJuS9pph&dimension=pe:LAST_12_MONTHS&dimension=ou:dwx1Yz4BwNX",
+              "query": [
+                { "key": "dimension", "value": "dx:ujPSJuS9pph" },
+                { "key": "dimension", "value": "pe:LAST_12_MONTHS" },
+                { "key": "dimension", "value": "ou:dwx1Yz4BwNX" }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "district" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Dashboard — BKM",
+          "request": {
+            "method": "GET",
+            "url": "{{dhis2}}/api/dashboards/BKMDashbrd1?fields=:all",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "district" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Org Units",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{dhis2}}/api/organisationUnits?fields=id,name,level&paging=false",
+              "query": [
+                { "key": "fields", "value": "id,name,level" },
+                { "key": "paging", "value": "false" }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "district" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "8. OpenLMIS (:8082)",
+      "item": [
+
+        {
+          "name": "Auth — get token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) pm.collectionVariables.set('lmis_token', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{openlmis}}/api/oauth/token?grant_type=password",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "user-client" },
+                { "key": "password", "value": "changeme" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "password" }
+              ]
+            },
+            "description": "Fetches an OpenLMIS user token. Auto-saves to {{lmis_token}} collection variable."
+          }
+        },
+
+        {
+          "name": "Stock Cards — SOH summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{openlmis}}/api/stockCardSummaries?facility={{facility_id}}&program={{program_id}}&orderable={{orderable_id}}",
+              "query": [
+                { "key": "facility",   "value": "{{facility_id}}" },
+                { "key": "program",    "value": "{{program_id}}" },
+                { "key": "orderable",  "value": "{{orderable_id}}", "description": "Optional — omit to see all orderables" }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{lmis_token}}" }]
+            }
+          }
+        },
+
+        {
+          "name": "Stock Events — dispense (DEBIT)",
+          "request": {
+            "method": "POST",
+            "url": "{{openlmis}}/api/stockEvents",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{lmis_token}}" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"programId\": \"{{program_id}}\",\n  \"facilityId\": \"{{facility_id}}\",\n  \"signature\": \"Postman\",\n  \"lineItems\": [{\n    \"orderableId\": \"{{orderable_id}}\",\n    \"quantity\": 6,\n    \"occurredDate\": \"2026-05-17\",\n    \"destinationFreeText\": \"Patient/patient-001\",\n    \"reasonId\": \"b5c27da7-bdda-4790-925a-9484c5dfb594\"\n  }]\n}"
+            },
+            "description": "Direct stock DEBIT (Consumed/Dispensed reason). Usually done via mediator, not directly."
+          }
+        },
+
+        {
+          "name": "Facilities — list",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{openlmis}}/api/facilities?page=0&size=10",
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{lmis_token}}" }]
+            }
+          }
+        },
+
+        {
+          "name": "Orderables — list",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{openlmis}}/api/orderables?page=0&size=20",
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{lmis_token}}" }]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "9. Keycloak (:8083)",
+      "item": [
+
+        {
+          "name": "Token — opensrp-admin password grant",
+          "request": {
+            "method": "POST",
+            "url": "{{keycloak}}/realms/opensrp/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type",    "value": "password" },
+                { "key": "client_id",     "value": "opensrp-web" },
+                { "key": "username",      "value": "opensrp-admin" },
+                { "key": "password",      "value": "admin" }
+              ]
+            },
+            "description": "Get a JWT for the opensrp-admin user (the VHW / practitioner used in tests)."
+          }
+        },
+
+        {
+          "name": "Users — list (admin API)",
+          "request": {
+            "method": "GET",
+            "url": "{{keycloak}}/admin/realms/opensrp/users",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "admin" },
+                { "key": "password", "value": "admin" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "10. Proxy / nginx health checks",
+      "item": [
+
+        {
+          "name": "PractitionerDetail stub (fhir-proxy :8088)",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8088/PractitionerDetail?keycloak-uuid=180bcbfc-0b2b-4f40-8f67-025d11daf70f",
+            "description": "Returns the static PractitionerDetails bundle so the Android app can complete login."
+          }
+        },
+
+        {
+          "name": "HAPI FHIR metadata (fhir-proxy :8088)",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8088/fhir/metadata"
+          }
+        },
+
+        {
+          "name": "HAPI FHIR metadata (direct :8079)",
+          "request": {
+            "method": "GET",
+            "url": "{{hapi}}/metadata"
+          }
+        }
+      ]
+    }
+
+  ]
+}

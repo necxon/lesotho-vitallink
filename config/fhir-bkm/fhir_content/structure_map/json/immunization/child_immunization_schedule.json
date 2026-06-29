@@ -1,0 +1,2041 @@
+{
+  "resourceType": "StructureMap",
+  "id": "97cf9bfb-90be-4661-8810-1c60be88f593",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/97cf9bfb-90be-4661-8810-1c60be88f593&quot; = 'BKM Child Immunization'\n\nuses &quot;http://hl7.org/fhir/StructureDefinition/Parameters&quot; as source\nuses &quot;http://hl7.org/fhir/StructureDefinition/CarePlan&quot; as target\n\ngroup childImmunizationSchedule(source src : Parameters, target careplan: CarePlan) {\n    src -&gt; evaluate(src, $this.parameter.where(name='subject').resource) as subject,\n            evaluate(src, $this.parameter.where(name='definition').resource) as definition,\n            evaluate(src, $this.parameter.where(name='depends-on').resource.entry.where(resource is QuestionnaireResponse).resource) as questionnaireResponse,\n            evaluate(src, $this.parameter.where(name='period').value) as period,\n            evaluate(src, $this.parameter.where(name='version').value) as version\n            then extractTask(period, version, subject, definition, careplan) &quot;rule_careplan&quot;;\n}\n\ngroup extractTask(\n    source period: Period,\n    source version: Integer,\n    source subject : Patient,\n    source definition: ActivityDefinition,\n    target careplan: CarePlan) {\n\n    // fill task into careplan contained and add reference in activity.outcome\n    subject -&gt; create('Task') as task,\n        // dosage[version] does not work, hence skipping the item from given index via skip.first\n        evaluate(definition, $this.dosage.skip(version).first()) as currentDose then {\n        subject -&gt; task.id = uuid(),\n               task.identifier = create('Identifier') as iden, iden.value = uuid(), iden.use = 'official',\n               task.status = 'requested',\n               task.intent = 'plan',\n               task.executionPeriod = period,\n               task.priority = 'routine',\n               // dosage[version] does not work, hence skipping the item from given index via skip.first\n               task.description = evaluate(definition, $this.product.text + ' ' + currentDose.select(sequence.toString())),\n               task.for = create('Reference') as patientReference, patientReference.reference = evaluate(subject, $this.type().name + '/' + $this.id.replaceMatches('/_history/.*', '')),\n               task.basedOn = reference(careplan),\n               task.authoredOn = evaluate(subject, now()),\n               task.requester = evaluate(subject, $this.generalPractitioner.first()),\n               task.owner = evaluate(subject, $this.generalPractitioner.first()),\n               task.code = evaluate(definition, code),\n               task.reasonCode = evaluate(definition, product) &quot;rule_task_data&quot;;\n\n        subject then extractPeriod(subject, task) &quot;rule_task_period_extraction&quot;;\n\n        subject -&gt; task.reasonReference = create('Reference') as reasonReference, reasonReference.reference = 'Questionnaire/9b1aa23b-577c-4fb2-84e3-591e6facaf82' &quot;rule_task_reason_reference&quot;;\n\n        subject -&gt; evaluate(definition, $this.product.coding.first().code) as productCode then {\n            subject where(productCode = '787948005') -&gt; task.reasonReference = create('Reference') as reasonReference, reasonReference.reference = 'Questionnaire/73382b6c-5d0b-4171-afb5-0d1d70f6abd3' &quot;rule_task_reason_reference&quot;;\n        } &quot;rule_task_reccuring_services_reason_reference&quot;;\n\n        subject -&gt; evaluate(definition, $this.product.coding.first().code) as productCode then {\n            subject where(productCode = '840539006') -&gt; task.reasonReference = create('Reference') as reasonReference, reasonReference.reference = 'Questionnaire/96639cda-9273-48bc-ac94-a7d39817caac' &quot;rule_task_reason_reference&quot;;\n        } &quot;rule_task_covid_19_reason_reference&quot;;\n\n        // task groupIdentifier\n        subject -&gt; task.groupIdentifier = create('Identifier') as groupIdentifier then {\n            subject -&gt; groupIdentifier.value = evaluate(definition, $this.dosage.skip(version).first().select(timing.repeat.period.toString() + '_' + timing.repeat.periodUnit)) &quot;rule_group_identifierule_value&quot;;\n            subject -&gt; groupIdentifier.use = &quot;secondary&quot; &quot;rule_group_identifierule_use&quot;;\n        } &quot;rule_group_identifier&quot;;\n\n        subject -&gt; evaluate(task, $this.groupIdentifier.value) as groupIdentifierValue then {\n            subject -&gt; evaluate(definition, $this.product.coding.first().code) as productCode then {\n                subject where(groupIdentifierValue != '114_mo' and groupIdentifierValue != &quot;108_mo&quot;) then {\n                    subject -&gt; evaluate(subject, &quot;1825&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_5_years&quot;;\n\n                subject where(groupIdentifierValue = '108_mo') then {\n                    subject -&gt; evaluate(subject, &quot;3285&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_9_years&quot;;\n\n                subject where(groupIdentifierValue = '114_mo') then {\n                    subject -&gt; evaluate(subject, &quot;3467.5&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_9half_years&quot;;\n\n                // HepB\n                subject where(groupIdentifierValue = '0_d' and productCode = '66071002') then {\n                    subject -&gt; evaluate(subject, &quot;1&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_0_hepb_days&quot;;\n\n                // BCG\n                subject where(groupIdentifierValue = '0_d' and productCode = '42284007') then {\n                    subject -&gt; evaluate(subject, &quot;335&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_0_bcg_days&quot;;\n\n                subject where(productCode = '111164008' or productCode = '429511000124109' or productCode = '415354003' or productCode = '12866006' or productCode = '396435000') then {\n                    subject -&gt; evaluate(subject, &quot;335&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_11_months&quot;;\n\n                subject where(productCode = '38598009') then {\n                    subject -&gt; evaluate(subject, &quot;548&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_18_months&quot;;\n\n                subject where(groupIdentifierValue = '6_mo' and productCode = '787948005') then {\n                    subject -&gt; evaluate(subject, &quot;335&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_6_months_vitamin&quot;;\n\n                subject where(groupIdentifierValue = '12_mo' and productCode = '787948005') then {\n                    subject -&gt; evaluate(subject, &quot;1795&quot;) as maxDays then extractTaskRestriction(subject, task, definition, version, maxDays) &quot;rule_task_restriction&quot;;\n                } &quot;rule_create_restriction_end_duration_6_months_vitamin&quot;;\n            } &quot;rule_product_code&quot;;\n        } &quot;rule_create_restriction_end_duration&quot;;\n\n        //add task.input for task dependencies\n        subject -&gt; task.input = create('Task_Input') as inputTask then {\n            subject -&gt; inputTask.type = create(&quot;CodeableConcept&quot;) as concept then {\n                subject-&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;,&quot;371154000&quot;) as coding then {\n                        subject -&gt; coding.display = &quot;Dependent (qualifier value)&quot; &quot;rule_coding_display&quot;;\n                    } &quot;rule_task_concept_coding&quot;;\n                } &quot;rule_codeable_concept&quot;;\n            subject -&gt; inputTask.value = 28 &quot;rule_input_value&quot;;//TODO discuss implementation on how we can make this dynamic for each dosage\n         } &quot;rule_task_input&quot;;\n\n        subject -&gt; evaluate(definition, $this.product.text + ' ' + (currentDose.sequence - 1).toString()) as preReqName,\n            evaluate(careplan, $this.contained.where(description.contains(preReqName))) as preReqTask then {\n                subject where(preReqTask.exists()) -&gt; task.partOf = create('Reference') as partOfReference then {\n                    subject -&gt; partOfReference.reference = evaluate(preReqTask, 'Task/' + id) &quot;rule_task_reference_id&quot;;\n                } &quot;rule_task_part_of&quot;;\n            } &quot;rule_dosage&quot;;\n\n        subject then extractTaskReferenceInput(subject, task, definition, version, careplan) &quot;rule_task_reference_input&quot;;\n\n        // create activity.detail of type/kind Task for this Task if not exists\n        subject where(careplan.activity.where(detail.kind = 'Task').exists().not()) -&gt; careplan.activity = create('CarePlan_Activity') as activity then {\n            subject -&gt; activity.detail = create('CarePlan_ActivityDetail') as ActivityDefinition then {\n                subject -&gt; ActivityDefinition.kind = 'Task' &quot;rule_activity_detail_data&quot;;\n            } &quot;rule_activity_detail&quot;;\n        } &quot;rule_careplan_activity&quot;;\n\n        // add task to careplan irrespective of its validity\n        subject then {\n            subject -&gt; evaluate(careplan, activity.where(detail.kind = 'Task')) as activity, activity.outcomeReference = reference(task) &quot;rule_careplan_task_reference&quot;;\n            subject -&gt; careplan.contained = task &quot;rule_add_task&quot;;\n        } &quot;rule_careplan_task&quot;;\n    } &quot;rule_task&quot;;\n}\n\ngroup extractTaskReferenceInput(source subject: Patient, target task: Task, source definition: ActivityDefinition, source version: Integer, source careplan: CarePlan) {\n    subject -&gt; evaluate(task, $this.partOf.last()) as taskPartOfReference then {\n        subject where(taskPartOfReference.empty().not()) then {\n            subject -&gt; task.input = create('Task_Input') as inputTask then {\n                subject -&gt; inputTask.type = create(&quot;CodeableConcept&quot;) as concept then {\n                    subject-&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;,&quot;900000000000457003&quot;) as coding then {\n                        subject -&gt; coding.display = &quot;Reference set attribute (foundation metadata concept)&quot; &quot;rule_coding_display&quot;;\n                    } &quot;rule_task_concept_coding&quot;;\n                } &quot;rule_codeable_concept&quot;;\n                subject -&gt; inputTask.value = create('Reference') as partOfReference then {\n                        subject -&gt; partOfReference.reference = evaluate(subject, taskPartOfReference.reference.toString()) &quot;rule_task_reference_id&quot;;\n                } &quot;rule_task_part_of_reference&quot;;\n            } &quot;rule_task_input&quot;;\n        } &quot;rule_task_part_of_reference_exists&quot;;\n    } &quot;rule_task_part_of_reference&quot;;\n}\n\ngroup extractTaskRestriction(source subject: Patient, target task: Task, source definition: ActivityDefinition, source version: Integer, source restrictionEndDate: String) {\n    subject -&gt; evaluate(task, $this.executionPeriod.start) as start then {\n        subject -&gt; evaluate(subject, $this.birthDate) as patientBirthDate then {\n            subject -&gt; create(&quot;Task_Restriction&quot;) as taskRestriction then {\n                subject-&gt;taskRestriction.period = create(&quot;Period&quot;) as taskRestrictionPeriod then {\n                    subject -&gt; taskRestrictionPeriod.start = create('dateTime') as startDateTime,\n                        startDateTime.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_start&quot;;\n\n                    subject -&gt; taskRestrictionPeriod.end = create('dateTime') as endDateTime,\n                        endDateTime.value = evaluate(start, (($this + (((restrictionEndDate).toString() + ' \\'days\\'')).toQuantity()).value.substring(0,10)) + 'T00:00:00.00Z') &quot;rule_period_end&quot;;\n\n                    subject -&gt; task.restriction = taskRestriction &quot;rule_restriction_period&quot;;\n                } &quot;rule_task_restriction_period&quot;;\n            } &quot;rule_task_restriction&quot;;\n        } &quot;rule_birth_date&quot;;\n    } &quot;rule_task_execution_period&quot;;\n}\n\ngroup extractPeriod(source subject: Patient, target task: Task) {\n    subject -&gt; evaluate(task, $this.executionPeriod.start) as start, evaluate(task, $this.executionPeriod.end) as end then {\n        subject -&gt; create('Period') as period then {\n            subject -&gt; period.start = create('dateTime') as startDateTime,\n                startDateTime.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_start&quot;;\n\n            subject -&gt; period.end = create('dateTime') as endDateTime,\n                endDateTime.value = evaluate(end, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_end&quot;;\n\n            subject -&gt; task.executionPeriod = period &quot;rule_execution_period&quot;;\n        } &quot;rule_period&quot;;\n    } &quot;rule_task_execution_period&quot;;\n}</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/97cf9bfb-90be-4661-8810-1c60be88f593",
+  "name": "BKM Child Immunization",
+  "structure": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/Parameters",
+      "mode": "source"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/CarePlan",
+      "mode": "target"
+    }
+  ],
+  "group": [
+    {
+      "name": "childImmunizationSchedule",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "src",
+          "type": "Parameters",
+          "mode": "source"
+        },
+        {
+          "name": "careplan",
+          "type": "CarePlan",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_careplan",
+          "source": [
+            {
+              "context": "src"
+            }
+          ],
+          "target": [
+            {
+              "variable": "subject",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "src"
+                },
+                {
+                  "valueString": "$this.parameter.where(name = 'subject').resource"
+                }
+              ]
+            },
+            {
+              "variable": "definition",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "src"
+                },
+                {
+                  "valueString": "$this.parameter.where(name = 'definition').resource"
+                }
+              ]
+            },
+            {
+              "variable": "questionnaireResponse",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "src"
+                },
+                {
+                  "valueString": "$this.parameter.where(name = 'depends-on').resource.entry.where(resource is QuestionnaireResponse).resource"
+                }
+              ]
+            },
+            {
+              "variable": "period",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "src"
+                },
+                {
+                  "valueString": "$this.parameter.where(name = 'period').value"
+                }
+              ]
+            },
+            {
+              "variable": "version",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "src"
+                },
+                {
+                  "valueString": "$this.parameter.where(name = 'version').value"
+                }
+              ]
+            }
+          ],
+          "dependent": [
+            {
+              "name": "extractTask",
+              "variable": [
+                "period",
+                "version",
+                "subject",
+                "definition",
+                "careplan"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractTask",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "period",
+          "type": "Period",
+          "mode": "source"
+        },
+        {
+          "name": "version",
+          "type": "Integer",
+          "mode": "source"
+        },
+        {
+          "name": "subject",
+          "type": "Patient",
+          "mode": "source"
+        },
+        {
+          "name": "definition",
+          "type": "ActivityDefinition",
+          "mode": "source"
+        },
+        {
+          "name": "careplan",
+          "type": "CarePlan",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_task",
+          "source": [
+            {
+              "context": "subject"
+            }
+          ],
+          "target": [
+            {
+              "variable": "task",
+              "transform": "create",
+              "parameter": [
+                {
+                  "valueString": "Task"
+                }
+              ]
+            },
+            {
+              "variable": "currentDose",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "definition"
+                },
+                {
+                  "valueString": "$this.dosage.skip(version).first()"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_task_data",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "id",
+                  "transform": "uuid"
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "identifier",
+                  "variable": "iden",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Identifier"
+                    }
+                  ]
+                },
+                {
+                  "context": "iden",
+                  "contextType": "variable",
+                  "element": "value",
+                  "transform": "uuid"
+                },
+                {
+                  "context": "iden",
+                  "contextType": "variable",
+                  "element": "use",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "official"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "status",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "requested"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "intent",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "plan"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "executionPeriod",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueId": "period"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "priority",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "routine"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "description",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "$this.product.text + ' ' + currentDose.select(sequence.toString())"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "for",
+                  "variable": "patientReference",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Reference"
+                    }
+                  ]
+                },
+                {
+                  "context": "patientReference",
+                  "contextType": "variable",
+                  "element": "reference",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "subject"
+                    },
+                    {
+                      "valueString": "$this.type().name + '/' + $this.id.replaceMatches('/_history/.*', '')"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "basedOn",
+                  "transform": "reference",
+                  "parameter": [
+                    {
+                      "valueId": "careplan"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "authoredOn",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "subject"
+                    },
+                    {
+                      "valueString": "now()"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "requester",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "subject"
+                    },
+                    {
+                      "valueString": "$this.generalPractitioner.first()"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "owner",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "subject"
+                    },
+                    {
+                      "valueString": "$this.generalPractitioner.first()"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "code",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "code"
+                    }
+                  ]
+                },
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "reasonCode",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "product"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_period_extraction",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "dependent": [
+                {
+                  "name": "extractPeriod",
+                  "variable": [
+                    "subject",
+                    "task"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_reason_reference",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "reasonReference",
+                  "variable": "reasonReference",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Reference"
+                    }
+                  ]
+                },
+                {
+                  "context": "reasonReference",
+                  "contextType": "variable",
+                  "element": "reference",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "Questionnaire/9b1aa23b-577c-4fb2-84e3-591e6facaf82"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_reccuring_services_reason_reference",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "productCode",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "$this.product.coding.first().code"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_task_reason_reference",
+                  "source": [
+                    {
+                      "context": "subject",
+                      "condition": "(productCode = '787948005')"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "reasonReference",
+                      "variable": "reasonReference",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Reference"
+                        }
+                      ]
+                    },
+                    {
+                      "context": "reasonReference",
+                      "contextType": "variable",
+                      "element": "reference",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Questionnaire/73382b6c-5d0b-4171-afb5-0d1d70f6abd3"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_covid_19_reason_reference",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "productCode",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "$this.product.coding.first().code"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_task_reason_reference",
+                  "source": [
+                    {
+                      "context": "subject",
+                      "condition": "(productCode = '840539006')"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "reasonReference",
+                      "variable": "reasonReference",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Reference"
+                        }
+                      ]
+                    },
+                    {
+                      "context": "reasonReference",
+                      "contextType": "variable",
+                      "element": "reference",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Questionnaire/96639cda-9273-48bc-ac94-a7d39817caac"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_group_identifier",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "groupIdentifier",
+                  "variable": "groupIdentifier",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Identifier"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_group_identifierule_value",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "groupIdentifier",
+                      "contextType": "variable",
+                      "element": "value",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "definition"
+                        },
+                        {
+                          "valueString": "$this.dosage.skip(version).first().select(timing.repeat.period.toString() + '_' + timing.repeat.periodUnit)"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_group_identifierule_use",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "groupIdentifier",
+                      "contextType": "variable",
+                      "element": "use",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "secondary"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_create_restriction_end_duration",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "groupIdentifierValue",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "task"
+                    },
+                    {
+                      "valueString": "$this.groupIdentifier.value"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_product_code",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "variable": "productCode",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "definition"
+                        },
+                        {
+                          "valueString": "$this.product.coding.first().code"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_create_restriction_end_duration_5_years",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((groupIdentifierValue != '114_mo') and (groupIdentifierValue != '108_mo'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'1825'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_9_years",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "(groupIdentifierValue = '108_mo')"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'3285'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_9half_years",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "(groupIdentifierValue = '114_mo')"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'3467.5'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_0_hepb_days",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((groupIdentifierValue = '0_d') and (productCode = '66071002'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'1'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_0_bcg_days",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((groupIdentifierValue = '0_d') and (productCode = '42284007'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'335'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_11_months",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((productCode = '111164008') or (productCode = '429511000124109') or (productCode = '415354003') or (productCode = '12866006') or (productCode = '396435000'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'335'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_18_months",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "(productCode = '38598009')"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'548'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_6_months_vitamin",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((groupIdentifierValue = '6_mo') and (productCode = '787948005'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'335'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_create_restriction_end_duration_6_months_vitamin",
+                      "source": [
+                        {
+                          "context": "subject",
+                          "condition": "((groupIdentifierValue = '12_mo') and (productCode = '787948005'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_restriction",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "maxDays",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "'1795'"
+                                }
+                              ]
+                            }
+                          ],
+                          "dependent": [
+                            {
+                              "name": "extractTaskRestriction",
+                              "variable": [
+                                "subject",
+                                "task",
+                                "definition",
+                                "version",
+                                "maxDays"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_input",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "task",
+                  "contextType": "variable",
+                  "element": "input",
+                  "variable": "inputTask",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Task_Input"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_codeable_concept",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "inputTask",
+                      "contextType": "variable",
+                      "element": "type",
+                      "variable": "concept",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "CodeableConcept"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_task_concept_coding",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "concept",
+                          "contextType": "variable",
+                          "element": "coding",
+                          "variable": "coding",
+                          "transform": "c",
+                          "parameter": [
+                            {
+                              "valueString": "http://snomed.info/sct"
+                            },
+                            {
+                              "valueString": "371154000"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_coding_display",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "coding",
+                              "contextType": "variable",
+                              "element": "display",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "Dependent (qualifier value)"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_input_value",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "inputTask",
+                      "contextType": "variable",
+                      "element": "value",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueInteger": 28
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_dosage",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "preReqName",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "definition"
+                    },
+                    {
+                      "valueString": "$this.product.text + ' ' + (currentDose.sequence - 1).toString()"
+                    }
+                  ]
+                },
+                {
+                  "variable": "preReqTask",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "careplan"
+                    },
+                    {
+                      "valueString": "$this.contained.where(description.contains(preReqName))"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_task_part_of",
+                  "source": [
+                    {
+                      "context": "subject",
+                      "condition": "(preReqTask.exists())"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "partOf",
+                      "variable": "partOfReference",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Reference"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_task_reference_id",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "partOfReference",
+                          "contextType": "variable",
+                          "element": "reference",
+                          "transform": "evaluate",
+                          "parameter": [
+                            {
+                              "valueId": "preReqTask"
+                            },
+                            {
+                              "valueString": "'Task/' + id"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_task_reference_input",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "dependent": [
+                {
+                  "name": "extractTaskReferenceInput",
+                  "variable": [
+                    "subject",
+                    "task",
+                    "definition",
+                    "version",
+                    "careplan"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_careplan_activity",
+              "source": [
+                {
+                  "context": "subject",
+                  "condition": "(careplan.activity.where(detail.kind = 'Task').exists().not())"
+                }
+              ],
+              "target": [
+                {
+                  "context": "careplan",
+                  "contextType": "variable",
+                  "element": "activity",
+                  "variable": "activity",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CarePlan_Activity"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_activity_detail",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "activity",
+                      "contextType": "variable",
+                      "element": "detail",
+                      "variable": "ActivityDefinition",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "CarePlan_ActivityDetail"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_activity_detail_data",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "ActivityDefinition",
+                          "contextType": "variable",
+                          "element": "kind",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Task"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_careplan_task",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_careplan_task_reference",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "variable": "activity",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "careplan"
+                        },
+                        {
+                          "valueString": "activity.where(detail.kind = 'Task')"
+                        }
+                      ]
+                    },
+                    {
+                      "context": "activity",
+                      "contextType": "variable",
+                      "element": "outcomeReference",
+                      "transform": "reference",
+                      "parameter": [
+                        {
+                          "valueId": "task"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_add_task",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "careplan",
+                      "contextType": "variable",
+                      "element": "contained",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueId": "task"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractTaskReferenceInput",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "subject",
+          "type": "Patient",
+          "mode": "source"
+        },
+        {
+          "name": "task",
+          "type": "Task",
+          "mode": "target"
+        },
+        {
+          "name": "definition",
+          "type": "ActivityDefinition",
+          "mode": "source"
+        },
+        {
+          "name": "version",
+          "type": "Integer",
+          "mode": "source"
+        },
+        {
+          "name": "careplan",
+          "type": "CarePlan",
+          "mode": "source"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_task_part_of_reference",
+          "source": [
+            {
+              "context": "subject"
+            }
+          ],
+          "target": [
+            {
+              "variable": "taskPartOfReference",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "task"
+                },
+                {
+                  "valueString": "$this.partOf.last()"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_task_part_of_reference_exists",
+              "source": [
+                {
+                  "context": "subject",
+                  "condition": "(taskPartOfReference.empty().not())"
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_task_input",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "input",
+                      "variable": "inputTask",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Task_Input"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_codeable_concept",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "inputTask",
+                          "contextType": "variable",
+                          "element": "type",
+                          "variable": "concept",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_concept_coding",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "concept",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "900000000000457003"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_coding_display",
+                              "source": [
+                                {
+                                  "context": "subject"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "Reference set attribute (foundation metadata concept)"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_task_part_of_reference",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "inputTask",
+                          "contextType": "variable",
+                          "element": "value",
+                          "variable": "partOfReference",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "Reference"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_task_reference_id",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "partOfReference",
+                              "contextType": "variable",
+                              "element": "reference",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "subject"
+                                },
+                                {
+                                  "valueString": "taskPartOfReference.reference.toString()"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractTaskRestriction",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "subject",
+          "type": "Patient",
+          "mode": "source"
+        },
+        {
+          "name": "task",
+          "type": "Task",
+          "mode": "target"
+        },
+        {
+          "name": "definition",
+          "type": "ActivityDefinition",
+          "mode": "source"
+        },
+        {
+          "name": "version",
+          "type": "Integer",
+          "mode": "source"
+        },
+        {
+          "name": "restrictionEndDate",
+          "type": "String",
+          "mode": "source"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_task_execution_period",
+          "source": [
+            {
+              "context": "subject"
+            }
+          ],
+          "target": [
+            {
+              "variable": "start",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "task"
+                },
+                {
+                  "valueString": "$this.executionPeriod.start"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_birth_date",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "patientBirthDate",
+                  "transform": "evaluate",
+                  "parameter": [
+                    {
+                      "valueId": "subject"
+                    },
+                    {
+                      "valueString": "$this.birthDate"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_task_restriction",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "variable": "taskRestriction",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Task_Restriction"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_task_restriction_period",
+                      "source": [
+                        {
+                          "context": "subject"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "taskRestriction",
+                          "contextType": "variable",
+                          "element": "period",
+                          "variable": "taskRestrictionPeriod",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "Period"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_period_start",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "taskRestrictionPeriod",
+                              "contextType": "variable",
+                              "element": "start",
+                              "variable": "startDateTime",
+                              "transform": "create",
+                              "parameter": [
+                                {
+                                  "valueString": "dateTime"
+                                }
+                              ]
+                            },
+                            {
+                              "context": "startDateTime",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "start"
+                                },
+                                {
+                                  "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_period_end",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "taskRestrictionPeriod",
+                              "contextType": "variable",
+                              "element": "end",
+                              "variable": "endDateTime",
+                              "transform": "create",
+                              "parameter": [
+                                {
+                                  "valueString": "dateTime"
+                                }
+                              ]
+                            },
+                            {
+                              "context": "endDateTime",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "start"
+                                },
+                                {
+                                  "valueString": "(($this + (((restrictionEndDate).toString() + ' \\'days\\'')).toQuantity()).value.substring(0, 10)) + 'T00:00:00.00Z'"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_restriction_period",
+                          "source": [
+                            {
+                              "context": "subject"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "task",
+                              "contextType": "variable",
+                              "element": "restriction",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "taskRestriction"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractPeriod",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "subject",
+          "type": "Patient",
+          "mode": "source"
+        },
+        {
+          "name": "task",
+          "type": "Task",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_task_execution_period",
+          "source": [
+            {
+              "context": "subject"
+            }
+          ],
+          "target": [
+            {
+              "variable": "start",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "task"
+                },
+                {
+                  "valueString": "$this.executionPeriod.start"
+                }
+              ]
+            },
+            {
+              "variable": "end",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "task"
+                },
+                {
+                  "valueString": "$this.executionPeriod.end"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_period",
+              "source": [
+                {
+                  "context": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "variable": "period",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Period"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_period_start",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "start",
+                      "variable": "startDateTime",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "dateTime"
+                        }
+                      ]
+                    },
+                    {
+                      "context": "startDateTime",
+                      "contextType": "variable",
+                      "element": "value",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "start"
+                        },
+                        {
+                          "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_period_end",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "end",
+                      "variable": "endDateTime",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "dateTime"
+                        }
+                      ]
+                    },
+                    {
+                      "context": "endDateTime",
+                      "contextType": "variable",
+                      "element": "value",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "end"
+                        },
+                        {
+                          "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_execution_period",
+                  "source": [
+                    {
+                      "context": "subject"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "executionPeriod",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueId": "period"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

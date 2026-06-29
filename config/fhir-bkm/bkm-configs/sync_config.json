@@ -1,0 +1,61 @@
+{
+  "appId": "bkm",
+  "resourceType": "Parameters",
+  "configType": "sync",
+  "parameter": [
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
+        "name": "_id",
+        "code": "_id",
+        "base": [
+          "Patient",
+          "Observation",
+          "Condition",
+          "CarePlan",
+          "QuestionnaireResponse",
+          "Questionnaire",
+          "StructureMap",
+          "Task",
+          "Group",
+          "PlanDefinition",
+          "RelatedPerson",
+          "Library",
+          "Measure",
+          "MeasureReport",
+          "Flag",
+          "List",
+          "Practitioner"
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "SearchParameter",
+        "name": "count",
+        "code": "_count",
+        "base": [
+          "Patient",
+          "Observation",
+          "Condition",
+          "CarePlan",
+          "QuestionnaireResponse",
+          "Questionnaire",
+          "StructureMap",
+          "Task",
+          "Group",
+          "PlanDefinition",
+          "RelatedPerson",
+          "Library",
+          "Measure",
+          "MeasureReport",
+          "Flag",
+          "List",
+          "Practitioner"
+        ],
+        "type": "token",
+        "expression": "#count"
+      }
+    }
+  ]
+}

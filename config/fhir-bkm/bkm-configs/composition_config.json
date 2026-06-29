@@ -1,0 +1,647 @@
+{
+  "resourceType": "Composition",
+  "id": "f619e606-a2cf-4e1f-9e3e-4f6f6628b813",
+  "meta": {
+    "versionId": "10",
+    "lastUpdated": "2023-04-08T12:06:25.483+00:00",
+    "source": "#3f389559595b704a"
+  },
+  "identifier": {
+    "use": "official",
+    "value": "bkm"
+  },
+  "status": "final",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "11503-0",
+        "display": "Device setting parameter"
+      }
+    ]
+  },
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1156600005",
+          "display": "Device setting parameter"
+        }
+      ]
+    }
+  ],
+  "date": "2022-09-16",
+  "title": "Device configurations",
+  "confidentiality": "L",
+  "section": [
+    {
+      "title": "Application configuration",
+      "focus": {
+        "reference": "Binary/799fb481-e9fd-4378-af40-4b0ac62f95ba",
+        "identifier": {
+          "value": "application"
+        }
+      },
+      "mode": "working"
+    },
+    {
+      "title": "Sync configuration",
+      "focus": {
+        "reference": "Binary/a982504f-8d8b-4151-abc6-0063793500d4e",
+        "identifier": {
+          "value": "sync"
+        }
+      },
+      "mode": "working"
+    },
+    {
+      "title": "Navigation configuration",
+      "focus": {
+        "reference": "Binary/d7ce0167-ee6a-4f8f-b644-50b0242513239e",
+        "identifier": {
+          "value": "navigation"
+        }
+      },
+      "mode": "working"
+    },
+    {
+      "title": "Register configurations",
+      "mode": "working",
+      "section": [
+        {
+          "title": "ANC register configuration",
+          "focus": {
+            "reference": "Binary/e64815e6-56c1-4200-b2a6-6ec13eedfec3e",
+            "identifier": {
+              "value": "ancRegister"
+            }
+          }
+        },
+        {
+          "title": "Asthma register configuration",
+          "focus": {
+            "reference": "Binary/9f4c7c0c-1f94-49b0-853c-bb0ce759ae7e",
+            "identifier": {
+              "value": "asthmaRegister"
+            }
+          }
+        },
+        {
+          "title": "Cancer register configuration",
+          "focus": {
+            "reference": "Binary/7f6ac9f4-3089-433b-b223-eba6857fb952",
+            "identifier": {
+              "value": "cancerRegister"
+            }
+          }
+        },
+        {
+          "title": "CM - NTD register configuration",
+          "focus": {
+            "reference": "Binary/f7c33f97-1fc0-45f4-994f-ed46bb99096d",
+            "identifier": {
+              "value": "cmntdRegister"
+            }
+          }
+        },
+        {
+          "title": "Diabetes register configuration",
+          "focus": {
+            "reference": "Binary/882b7cf5-75c4-4e9e-b388-9eeccbc1f3a6",
+            "identifier": {
+              "value": "diabetesRegister"
+            }
+          }
+        },
+        {
+          "title": "Epilepsy register configuration",
+          "focus": {
+            "reference": "Binary/4db39162-721b-403b-8507-363013ccd7c8",
+            "identifier": {
+              "value": "epilepsyRegister"
+            }
+          }
+        },
+        {
+          "title": "FP register configuration",
+          "focus": {
+            "reference": "Binary/7d0ce69f-22c2-4829-90b4-c0aadebdffbae",
+            "identifier": {
+              "value": "fpRegister"
+            }
+          }
+        },
+        {
+          "title": "HIV register configuration",
+          "focus": {
+            "reference": "Binary/faa1688d-98fa-4954-9889-6c2bdf4d4e57e",
+            "identifier": {
+              "value": "hivRegister"
+            }
+          }
+        },
+        {
+          "title": "Household register configuration",
+          "focus": {
+            "reference": "Binary/7ebbbf4e-c783-42f2-998d-3c6bdde5c0c6e",
+            "identifier": {
+              "value": "householdRegister"
+            }
+          }
+        },
+        {
+          "title": "Hypertension register configuration",
+          "focus": {
+            "reference": "Binary/f68a87fd-c986-4644-8c99-bd7b829b1d6a",
+            "identifier": {
+              "value": "hypertensionRegister"
+            }
+          }
+        },
+        {
+          "title": "Inventory register configuration",
+          "focus": {
+            "reference": "Binary/1a2e43e2-739a-42f7-b80d-82ea7933d402",
+            "identifier": {
+              "value": "inventoryRegister"
+            }
+          }
+        },
+        {
+          "title": "Dispense register configuration",
+          "focus": {
+            "reference": "Binary/b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e",
+            "identifier": {
+              "value": "dispenseRegister"
+            }
+          }
+        },
+        {
+          "title": "Mental Health register configuration",
+          "focus": {
+            "reference": "Binary/ba22490f-d24b-43d0-b6f4-f5af474bbf05e",
+            "identifier": {
+              "value": "mentalHealthRegister"
+            }
+          }
+        },
+        {
+          "title": "Paralysis register configuration",
+          "focus": {
+            "reference": "Binary/e6e69fce-75f6-40ba-8c85-f402d1a8fe1c",
+            "identifier": {
+              "value": "paralysisRegister"
+            }
+          }
+        },
+        {
+          "title": "PNC register configuration",
+          "focus": {
+            "reference": "Binary/9aa6bbb6-df76-42a4-bdbe-72dc197378cae",
+            "identifier": {
+              "value": "pncRegister"
+            }
+          }
+        },
+        {
+          "title": "Stroke register configuration",
+          "focus": {
+            "reference": "Binary/2d1c99a7-6c71-41ab-aa53-26c817b39d13",
+            "identifier": {
+              "value": "strokeRegister"
+            }
+          }
+        },
+        {
+          "title": "TB register configuration",
+          "focus": {
+            "reference": "Binary/2ac6ec4f-1a29-4d85-a015-06db9c1b82d9e",
+            "identifier": {
+              "value": "tbRegister"
+            }
+          }
+        },
+        {
+          "title": "IYS register configuration",
+          "focus": {
+            "reference": "Binary/c1e2f3a4-b5d6-7e8f-9a0b-1c2d3e4f5a6b",
+            "identifier": {
+              "value": "iysRegister"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Task register configuration",
+          "focus": {
+            "reference": "Binary/taskRegister",
+            "identifier": {
+              "value": "taskRegister"
+            }
+          }
+        },
+        {
+          "title": "Stock Order register configuration",
+          "focus": {
+            "reference": "Binary/stockOrderRegister",
+            "identifier": {
+              "value": "stockOrderRegister"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Profile configurations",
+      "mode": "working",
+      "section": [
+        {
+          "title": "Default profile configuration",
+          "focus": {
+            "reference": "Binary/34b709f3-e8a1-44e9-867a-714b68bb1367e",
+            "identifier": {
+              "value": "defaultProfile"
+            }
+          }
+        },
+        {
+          "title": "Household profile configuration",
+          "focus": {
+            "reference": "Binary/bbb3c2b0-51c9-44e9-9674-7d311ad5f859e",
+            "identifier": {
+              "value": "householdProfile"
+            }
+          }
+        },
+        {
+          "title": "Individual Past Encounter profile configuration",
+          "focus": {
+            "reference": "Binary/a432e367-f943-4884-8302-e5f6e4686dc7",
+            "identifier": {
+              "value": "individualPastEncounterProfile"
+            }
+          }
+        },
+        {
+          "title": "Individual Upcoming Encounter profile configuration",
+          "focus": {
+            "reference": "Binary/c074cbf7-0a4f-47ca-bb36-679e563dfb50",
+            "identifier": {
+              "value": "individualUpcomingEncounterProfile"
+            }
+          }
+        },
+        {
+          "title": "Inventory profile configuration",
+          "focus": {
+            "reference": "Binary/0e2943ab-4078-4e03-94c2-d0f3640b0ae9",
+            "identifier": {
+              "value": "inventoryProfile"
+            }
+          }
+        },
+        {
+          "title": "Other Registers profile configuration",
+          "focus": {
+            "reference": "Binary/a6d69650-4806-4bb1-bd2b-a60fa18418a0e",
+            "identifier": {
+              "value": "otherRegistersProfile"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Translation configurations",
+      "mode": "working",
+      "section": [
+        {
+          "title": "Translation English",
+          "focus": {
+            "reference": "Binary/c6757818-25c8-4e51-ba51-0c9dd882cbbbe",
+            "identifier": {
+              "value": "strings"
+            }
+          }
+        },
+        {
+          "title": "Translation Sesotho",
+          "focus": {
+            "reference": "Binary/860ffbce-bc92-458c-9598-4c1c373f9827",
+            "identifier": {
+              "value": "strings_st"
+            }
+          }
+        },
+        {
+          "title": "Translation Swahili",
+          "focus": {
+            "reference": "Binary/eee5f9c1-49f6-4b18-b088-8a52689a79d8e",
+            "identifier": {
+              "value": "strings_sw"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Questionnaires",
+      "mode": "working",
+      "section": [
+        {
+          "title": "Add Family",
+          "focus": {
+            "reference": "Questionnaire/f210a832-857f-49e6-93f5-399eec4f4edb",
+            "identifier": {
+              "value": "family-registration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Add Family Member",
+          "focus": {
+            "reference": "Questionnaire/e5155788-8831-4916-a3f5-486915ce34b2",
+            "identifier": {
+              "value": "family-member-registration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Remove Family",
+          "focus": {
+            "reference": "Questionnaire/0259e181-581e-4b4c-8409-e3be3a166ef5",
+            "identifier": {
+              "value": "remove-family"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Remove Family Member",
+          "focus": {
+            "reference": "Questionnaire/7f1960ac-81b5-42a2-8813-97222de5745a",
+            "identifier": {
+              "value": "remove-family-member"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Household visit form",
+          "focus": {
+            "reference": "Questionnaire/5458ecb6-835a-4f11-873f-2abfdfeec93c",
+            "identifier": {
+              "value": "household-visit-form"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Physical Inventory Count and Stock Supply",
+          "focus": {
+            "reference": "Questionnaire/a3b8260b-d474-42ef-9ab2-a7794a0a27bc",
+            "identifier": {
+              "value": "physical-inventory-stock-supply"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "New ANC Enrollment Confirmation",
+          "focus": {
+            "reference": "Questionnaire/d2e39622-82fe-4263-b823-bb50a5370d33",
+            "identifier": {
+              "value": "anc-enrollment-confirmation"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "MOH Community Under5 Register",
+          "focus": {
+            "reference": "Questionnaire/c33b3615-10ff-48fc-a0fc-7a76f9cb8a56",
+            "identifier": {
+              "value": "community-under5-register"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "FP Visit",
+          "focus": {
+            "reference": "Questionnaire/450cb100-0c5b-47c6-9f33-2830a79be726",
+            "identifier": {
+              "value": "fp-visit"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "PNC Visit",
+          "focus": {
+            "reference": "Questionnaire/8a1f9578-5b88-45ea-8120-8f8557e01d8c",
+            "identifier": {
+              "value": "pnc-follow-up-visit"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "C19_TB_Detection Register",
+          "focus": {
+            "reference": "Questionnaire/998bb6f3-fc7b-4fb7-904d-8a36432735b1",
+            "identifier": {
+              "value": "c19-tb-detection"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "EBS Signal Registration",
+          "focus": {
+            "reference": "Questionnaire/23a71526-de52-4252-8268-e99185b14e3b",
+            "identifier": {
+              "value": "ebs-signal-registration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Dispense Medicine",
+          "focus": {
+            "reference": "Questionnaire/patient-dispense-medicine",
+            "identifier": {
+              "value": "patient-dispense-medicine"
+            }
+          },
+          "mode": "working"
+        }
+      ]
+    },
+    {
+      "title": "StructureMaps",
+      "mode": "working",
+      "section": [
+        {
+          "title": "Household Registration",
+          "focus": {
+            "reference": "StructureMap/5667cfbd-13c4-4111-b952-7cee58bdb9d5",
+            "identifier": {
+              "value": "eCBISFamilyRegistration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Add Family Member Registration",
+          "focus": {
+            "reference": "StructureMap/febf0030-262f-443d-95b4-e002d437cfd0",
+            "identifier": {
+              "value": "eCBISAddFamilyMemberRegistration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Children Schedule",
+          "focus": {
+            "reference": "StructureMap/97cf9bfb-90be-4661-8810-1c60be88f593"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Children Immunization",
+          "focus": {
+            "reference": "StructureMap/3c118304-fb18-4752-a296-941292811433"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Sick Child Registration",
+          "focus": {
+            "reference": "StructureMap/737a86d6-ad63-4345-8753-1e605438d1ee"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Sick Child Follow Up Visit",
+          "focus": {
+            "reference": "StructureMap/737a86d6-ad63-4345-8753-1e605438d1ee"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Child Counter Referral",
+          "focus": {
+            "reference": "StructureMap/528a8603-2e43-4a2e-a33d-1ec2563ffd3e"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Child Monthly Routine Visit",
+          "focus": {
+            "reference": "StructureMap/0b7f0c7a-9b52-42bf-ab45-749918128a66",
+            "identifier": {
+              "value": "ChildRoutineCarePlan"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "New Pregnancy Registration",
+          "focus": {
+            "reference": "StructureMap/ff7b22df-7645-43fe-9731-d90c3a21130b"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Pregnancy Visit",
+          "focus": {
+            "reference": "StructureMap/74149320-97ce-463a-9cf3-206fad6e380f"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Pregnancy Outcome",
+          "focus": {
+            "reference": "StructureMap/f78e1da0-6c71-4190-a0b4-286aedb0ebe4"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "PNC Registration",
+          "focus": {
+            "reference": "StructureMap/42d6d826-d6b2-41e9-9787-7424b4deca85"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Pregnancy Referral",
+          "focus": {
+            "reference": "StructureMap/ab62f8e8-e6d8-4ffb-b460-64b23e89b370"
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Disease Registration",
+          "focus": {
+            "reference": "StructureMap/ef19b62e-6cbf-43d6-beb5-4c0d9d2c20b8",
+            "identifier": {
+              "value": "disease-registration"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Covid 19 Schedule",
+          "focus": {
+            "reference": "StructureMap/df6d329d-aa27-4fd5-8cc4-6fbbd9b6aaf1",
+            "identifier": {
+              "value": "covid-19-schedule"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Covid 19 Immunization ",
+          "focus": {
+            "reference": "StructureMap/ac3b27ef-bcc7-4e1b-ad0d-fb5082097759",
+            "identifier": {
+              "value": "covid-19-immunization"
+            }
+          },
+          "mode": "working"
+        },
+        {
+          "title": "Recurring Services",
+          "focus": {
+            "reference": "StructureMap/d53f1f0b-32df-4fac-9f4c-69f758bf3006",
+            "identifier": {
+              "value": "recurring-services"
+            }
+          },
+          "mode": "working"
+        }
+      ]
+    },
+    {
+      "title": "Lists",
+      "mode": "working",
+      "section": [
+        {
+          "title": "Supply Chain Commodities",
+          "focus": {
+            "reference": "List/69141df8-4984-447d-94cb-c7ac4e790323",
+            "identifier": {
+              "value": "supply_chain_commodities"
+            }
+          },
+          "mode": "working"
+        }
+      ]
+    }
+  ]
+}

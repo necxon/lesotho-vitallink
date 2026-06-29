@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BKM Health Portal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="loading">
+    <div class="boot">
+      <svg class="boot-flag" viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lesotho flag">
+        <rect width="120" height="26.67" fill="#00209F"/>
+        <rect y="26.67" width="120" height="26.66" fill="#ffffff"/>
+        <rect y="53.33" width="120" height="26.67" fill="#009543"/>
+        <g fill="#000000">
+          <path d="M60 28 C58 33 54 40 49 44 C56 46.5 64 46.5 71 44 C66 40 62 33 60 28 Z"/>
+          <path d="M45 45 C52 49.5 68 49.5 75 45 C74 47.5 71.5 49 71.5 49 C64 51.8 56 51.8 48.5 49 C48.5 49 46 47.5 45 45 Z"/>
+        </g>
+      </svg>
+      <p>Authenticating…</p>
+    </div>
+  </div>
+
+  <div id="app" hidden>
+    <header id="app-sidebar">
+      <nav>
+        <ul><li><a href="#/home" style="font-weight:700;font-size:15px">BKM Health</a></li><li style="margin-left:auto"><button class="sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar">◀</button></li></ul>
+        <div id="nav-links">
+          <div class="nav-block opensrp collapsed" id="nav-block-opensrp">
+            <span class="nav-block-label nav-toggle" onclick="toggleNavBlock('nav-block-opensrp')">BKM (OpenSRP) <span class="nav-arrow">▶</span></span>
+            <div class="nav-block-links">
+              <a href="#/patients">Patients</a>
+              <a href="#/care-teams">Care Teams</a>
+              <a href="#/locations">Locations</a>
+              <a href="#/groups">Groups</a>
+              <a href="#/questionnaires">Phone Menus</a>
+              <a href="#/navigation">App Nav</a>
+              <a href="#/fhir">FHIR</a>
+            </div>
+          </div>
+          <div class="nav-block mediator collapsed" id="nav-block-mediator">
+            <span class="nav-block-label nav-toggle" onclick="toggleNavBlock('nav-block-mediator')">NEC XON Mediator <span class="nav-arrow">▶</span></span>
+            <div class="nav-block-links">
+              <!-- Tasks hidden for now (not needed) -->
+              <!-- <a href="#/tasks">Tasks</a> -->
+              <!-- Order Management hidden for now (not needed) -->
+              <!-- <a href="#/orders">Order Management</a> -->
+              <a href="#/mappings">Staff Management</a>
+              <a href="#/medications">Medicine Aliases</a>
+              <a href="#/settings">Settings</a>
+            </div>
+          </div>
+          <div class="nav-block openlmis collapsed" id="nav-block-openlmis">
+            <span class="nav-block-label nav-toggle" onclick="toggleNavBlock('nav-block-openlmis')">LMIS <span class="nav-arrow">▶</span></span>
+            <div class="nav-block-links">
+              <a href="#/stock">Stock Log (LMIS)</a>
+              <a href="#/openlmis">LMIS Live Data</a>
+            </div>
+          </div>
+          <div class="nav-block system" onclick="location.hash='#/services'" style="cursor:pointer">
+            <span class="nav-block-label">System Monitoring &amp; Admin</span>
+            <a href="#/services" style="display:none"></a>
+          </div>
+        </div>
+        <ul>
+          <li><small id="username"></small></li>
+          <li><a href="#" id="logout-btn" role="button" class="outline contrast">Logout</a></li>
+        </ul>
+        <p class="sidebar-copyright">NEC XON &copy; Copyright 2025.<br>All rights reserved.</p>
+      </nav>
+    </header>
+
+    <button id="sidebar-reopen" onclick="toggleSidebar()" title="Open sidebar">▶</button>
+    <main id="content"></main>
+  </div>
+
+  <!-- Modal overlay -->
+  <div id="modal" class="modal-overlay" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Runtime env config (per-environment; overrides core.js localhost defaults) -->
+  <script src="config.js"></script>
+  <!-- Load the Keycloak adapter from the configured Keycloak URL (defaults to localhost) -->
+  <script>
+    (function () {
+      var kcUrl = (window.__BKM_CONFIG__ && window.__BKM_CONFIG__.keycloakUrl) || 'http://localhost:8083';
+      document.write('<scr' + 'ipt src="' + kcUrl + '/js/keycloak.js"></scr' + 'ipt>');
+    })();
+  </script>
+  <script src="js/core.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pages/home.js"></script>
+  <script src="js/pages/patients.js"></script>
+  <script src="js/pages/practitioners.js"></script>
+  <script src="js/pages/careteams.js"></script>
+  <script src="js/pages/locations.js"></script>
+  <script src="js/pages/groups.js"></script>
+  <script src="js/pages/stock.js"></script>
+  <script src="js/pages/orders.js"></script>
+  <script src="js/pages/tasks.js"></script>
+  <script src="js/pages/openlmis.js"></script>
+  <script src="js/pages/fhir-browser.js"></script>
+  <script src="js/pages/settings.js"></script>
+  <script src="js/pages/services.js"></script>
+  <script src="js/pages/tests.js"></script>
+  <script src="js/pages/questionnaires.js"></script>
+  <script src="js/pages/navigation.js"></script>
+  <script src="js/pages/mappings.js"></script>
+  <script src="js/pages/flow.js"></script>
+
+  <script src="js/router.js"></script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+version: '3.8'
+
+services:
+  # --- SHARED DATABASE LAYER ---
+  db-postgres:
+    image: postgis/postgis:14-3.2
+    container_name: health-db-postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-password123}
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST_AUTH_METHOD=md5
+    networks:
+      - health-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./config/initdb:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+
+  db-mongo:
+    image: mongo:4.4
+    container_name: openhim-mongo
+    networks:
+      - health-net
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  # --- INTEROPERABILITY LAYER (OpenHIM) ---
+  openhim-core:
+    image: jembi/openhim-core:latest
+    container_name: openhim-core
+    ports:
+      - "127.0.0.1:5000:5000"
+      - "0.0.0.0:5001:5001"
+      - "127.0.0.1:8080:8080"
+    environment:
+      - mongo_url=mongodb://db-mongo:27017/openhim
+      - NODE_CONFIG={"certificateManagement":{"certPath":"/etc/openhim/certs/cert.pem","keyPath":"/etc/openhim/certs/key.pem"},"api":{"authenticationTypes":["token","local","basic"]}}
+    volumes:
+      - ./config/openhim/certs:/etc/openhim/certs:ro
+    depends_on:
+      - db-mongo
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  openhim-console:
+    image: jembi/openhim-console:latest
+    container_name: openhim-console
+    ports:
+      - "0.0.0.0:9285:80"
+    volumes:
+      - ./config/openhim-console/openlmis-theme.css:/usr/share/nginx/html/openlmis-theme.css:ro
+      - ./config/openhim-console/default.json:/usr/share/nginx/html/config/default.json:ro
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # --- MONITORING LAYER ---
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "0.0.0.0:9290:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - health-net
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "0.0.0.0:3005:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - health-net
+    restart: always
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/data/loki
+    networks:
+      - health-net
+    restart: always
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - //var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - health-net
+    restart: always
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - health-net
+    restart: always
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://admin:${PG_PASSWORD:-password123}@db-postgres:5432/postgres?sslmode=disable
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+    restart: always
+
+  # --- BKM MEDIATOR ---
+  bkm-mediator:
+    build: ./mediator
+    container_name: bkm-mediator
+    environment:
+      - OPENHIM_URL=https://openhim-core:8080
+      - OPENHIM_USER=root@openhim.org
+      - OPENHIM_PASS=${OPENHIM_PASS:-password}
+      - OPENSRP_URL=http://opensrp-server:8080
+      - OPENSRP_CLIENT_ID=bkm-mediator
+      - OPENSRP_CLIENT_SECRET=mediator-secret
+      - KEYCLOAK_URL=http://keycloak:8080/auth
+      - KEYCLOAK_ADMIN_USER=bkm-admin
+      - KEYCLOAK_ADMIN_PASSWORD=password
+      - DHIS2_URL=http://dhis2-web:8080
+      - DHIS2_USER=admin
+      - DHIS2_PASS=${DHIS2_PASS:-district}
+      - OPENLMIS_AUTH_URL=http://auth:8080
+      - OPENLMIS_MGMT_URL=http://stockmanagement:8080
+      - OPENLMIS_REF_URL=http://referencedata:8080
+      - OPENLMIS_USER=admin
+      - OPENLMIS_PASS=${OPENLMIS_PASS:-password}
+      - OPENLMIS_CLIENT_ID=user-client
+      - OPENLMIS_CLIENT_SECRET=changeme
+      - OPENLMIS_PROGRAM_ID=31ef5fd8-cef9-4ec0-8304-3018d2cf6c9c
+      - OPENLMIS_REASON_ID=b5c27da7-bdda-4790-925a-9484c5dfb594
+      - OPENLMIS_LOT_ID=ffffffff-0000-0000-0000-000000000001
+      - OPENLMIS_FACILITY_ID=28de536f-b826-4eeb-a3c4-d65221a1120d
+      - OPENLMIS_ORDERABLE_ID=3be1d20f-6aa9-4e52-864f-4fa04aa02056
+      - DHIS2_PUSH_MODE=direct
+      - DHIS2_DE_STOCK_RECEIVED=StckRcvdAL1
+      - DHIS2_DE_STOCK_ON_HAND=StockOnHnd1
+      - HAPI_FHIR_URL=http://hapi-fhir:8080/fhir
+      # Single-seat portal lock: true = one web user at a time (default),
+      # false = allow concurrent users.
+      - SESSION_SINGLE_SEAT=true
+      # Secret key for the force-disconnect ("kick") link. Open
+      # <portal-url>/?unlock=<this value> to forcibly free a stuck/locked seat.
+      - SESSION_FORCE_KEY=bkm-kick-2025
+      - POLL_INTERVAL_MS=60000
+      - QR_DISPENSE_QUESTIONNAIRE=d5e6f708-1a2b-3c4d-5e6f-7a8b9c0d1e2f
+      - OPENLMIS_RECEIPT_REASON_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
+      - RECEIPT_TYPE_CODE=RECEIPT
+      - LOG_LEVEL=debug
+      - NOTIFY_SMS_ENABLED=true
+      - NOTIFY_PUSH_ENABLED=true
+      - NOTIFY_ON_DISPENSE=true
+      - NOTIFY_ON_LOW_STOCK=true
+      - NOTIFY_ON_RECEIPT=true
+      - NOTIFY_LOW_STOCK_THRESHOLD=20
+      # --- OpenLMIS in-app bell notification controls ---
+      - NOTIFY_LMIS_ON_DISPENSE=true
+      - NOTIFY_LMIS_ON_RECEIPT=true
+      - NOTIFY_LMIS_ON_LOW_STOCK=true
+      - NOTIFY_LMIS_ON_ORDER_DISPATCH=true
+      - NOTIFY_SMS_URL=http://notification-sink:3001/sms
+      - NOTIFY_PUSH_URL=http://notification-sink:3001/push
+      - NOTIFY_PUSH_API_KEY=sandbox-key
+      - NOTIFY_EMAIL_ENABLED=true
+      - NOTIFY_EMAIL_URL=http://notification-sink:3001/email
+      - NOTIFY_EMAIL_FROM=mediator@lesotho.health
+      - NOTIFY_SMS_THROTTLE_MS=300000
+      - NOTIFY_PUSH_THROTTLE_MS=60000
+      - NOTIFY_EMAIL_THROTTLE_MS=600000
+      # --- Scheduled Facility Aggregation ---
+      # Cron expression for daily DHIS2→OpenLMIS aggregation push (default: 1am daily)
+      - AGGREGATE_SCHEDULE=0 1 * * *
+      # JSON map of DHIS2 org unit UIDs → OpenLMIS facility UUIDs
+      # Falls back to DHIS2_ORG_UNIT→OPENLMIS_FACILITY_ID if not set
+      - DHIS2_FACILITY_MAP={"dwx1Yz4BwNX":"28de536f-b826-4eeb-a3c4-d65221a1120d"}
+      # JSON map of OpenLMIS orderable ID → DHIS2 dispensed data element UID (all 8 medicines)
+      - DHIS2_ORDERABLE_DE_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02009":"ujPSJuS9pph","3be1d20f-6aa9-4e52-864f-4fa04aa02056":"ujPSJuS9pph","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"DEAmox25001","3be1d20f-6aa9-4e52-864f-4fa04aa02003":"DERdtKit001","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"DEParSyr001","3be1d20f-6aa9-4e52-864f-4fa04aa02005":"DECtx480001","3be1d20f-6aa9-4e52-864f-4fa04aa02006":"DEOrsAch001","3be1d20f-6aa9-4e52-864f-4fa04aa02007":"DEZinc20001","3be1d20f-6aa9-4e52-864f-4fa04aa02008":"DEIrnFol001"}
+      # JSON map of OpenLMIS orderable ID → lot ID (used by aggregation stock events)
+      - OPENLMIS_LOT_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02009":"ffffffff-0000-0000-0000-000000000009","3be1d20f-6aa9-4e52-864f-4fa04aa02010":"ffffffff-0000-0000-0000-000000000010","3be1d20f-6aa9-4e52-864f-4fa04aa02056":"ffffffff-0000-0000-0000-000000000001","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"ffffffff-0000-0000-0000-000000000002","3be1d20f-6aa9-4e52-864f-4fa04aa02003":"ffffffff-0000-0000-0000-000000000003","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"ffffffff-0000-0000-0000-000000000004","3be1d20f-6aa9-4e52-864f-4fa04aa02005":"ffffffff-0000-0000-0000-000000000005","3be1d20f-6aa9-4e52-864f-4fa04aa02006":"ffffffff-0000-0000-0000-000000000006","3be1d20f-6aa9-4e52-864f-4fa04aa02007":"ffffffff-0000-0000-0000-000000000007","3be1d20f-6aa9-4e52-864f-4fa04aa02008":"ffffffff-0000-0000-0000-000000000008"}
+      # JSON map of OpenLMIS orderable ID → DHIS2 SOH data element UID (all 8 medicines)
+      - DHIS2_ORDERABLE_SOH_DE_MAP={"3be1d20f-6aa9-4e52-864f-4fa04aa02056":"StockOnHnd1","3be1d20f-6aa9-4e52-864f-4fa04aa02002":"DEAmoxSOH01","3be1d20f-6aa9-4e52-864f-4fa04aa02003":"DERdtSOH001","3be1d20f-6aa9-4e52-864f-4fa04aa02004":"DEParSOH001","3be1d20f-6aa9-4e52-864f-4fa04aa02005":"DECtxSOH001","3be1d20f-6aa9-4e52-864f-4fa04aa02006":"DEOrsSOH001","3be1d20f-6aa9-4e52-864f-4fa04aa02007":"DEZncSOH001","3be1d20f-6aa9-4e52-864f-4fa04aa02008":"DEIfaSOH001"}
+      # JSON map of FHIR performer reference → DHIS2 categoryOptionCombo UID (VHW disaggregation)
+      - DHIS2_PERFORMER_CATEGORY_OPTION_MAP={"Practitioner/opensrp-admin":"VHWCocAdm01","Practitioner/vhw-leribe-01":"VHWCocVhw01"}
+      # JSON map of OpenLMIS facilityId → HAPI Organization reference, used by the
+      # live FHIR stock ledger (src/sync/fhirLedger.js) to keep Stock by Facility current.
+      - HAPI_FACILITY_MAP={"565674bc-791c-5baf-8ad8-44203a4291de":"Organization/org-mafeteng-hospital","88a0ba9b-285a-56d0-a5d9-b16f0371d37f":"Organization/org-samaria","5f86b62d-8d9a-5da5-8515-b896835b6d81":"Organization/org-mt-tabor","75d31b75-8678-53f4-9275-f47d64c33e3d":"Organization/org-thabana-morena","a5558f08-4ea7-502f-8d72-e3d3322c2f47":"Organization/org-mt-olivet","6bf59525-e671-5e5b-9053-1de926bf222f":"Organization/org-thaba-tsoeu","6ab5c0d1-bffb-5a82-a6d6-0b2ede8cf872":"Organization/org-kolo","364d604f-8749-521d-b1dc-858e59f84b4a":"Organization/org-sekameng","1e2443d7-cb1c-5c38-8011-ee70c9fb693d":"Organization/org-tsakholo","59dc144f-206c-5062-bb7e-01a6d8283dbc":"Organization/org-litsoeneng","b27e844d-9f46-54c3-b3ed-fafa7a9aa9b2":"Organization/org-ribaneng","e61834df-cffb-5e03-8469-8f4d791a3ff4":"Organization/org-masemouse","04a8e13d-f434-50d7-96d6-26edc264f327":"Organization/org-st-andrews","f1acc7fa-a085-5743-be4a-8e467e6f6ec2":"Organization/org-emmause","ce613609-d766-58cf-a9ee-b59a6c2ac295":"Organization/org-matelile","5184d3d1-de9a-54e2-a52a-424eedf0c717":"Organization/org-malealea","f0d9855b-0a6d-5716-909b-171af1687764":"Organization/org-motsekuoa","75605da0-dc3f-5a6f-9569-ce1a4dfd74d2":"Organization/org-lecoop"}
+      # OpenLMIS reason IDs — Expired/Damaged/Lost use Flyway-seeded ref-distro UUIDs
+      - OPENLMIS_REASON_EXPIRED_ID=3e7940db-49a5-492f-a4eb-75acb981dd2b
+      - OPENLMIS_REASON_DAMAGED_ID=5b09202e-b8a7-4f77-9e0e-8156f8efc613
+      - OPENLMIS_REASON_LOST_ID=b7e99f5b-af04-433d-9c30-d4f90c60c47b
+      # OpenLMIS reason for order dispatch = Receipts (CREDIT) — stock arriving at facility from warehouse
+      - OPENLMIS_REASON_ORDER_ID=313f2f5f-0c22-4626-8c49-3554ef763de3
+      # DHIS2 data element UIDs for stock adjustment reason tracking
+      - DHIS2_DE_ADJ_EXPIRED=DEAdjExp001
+      - DHIS2_DE_ADJ_DAMAGED=DEAdjDmg001
+      - DHIS2_DE_ADJ_LOST=DEAdjLst001
+      # Cron schedule for order batch dispatch (default: Monday 6am)
+      - ORDER_BATCH_SCHEDULE=0 6 * * 1
+      # PostgreSQL buffer (order_buffer table in the mediator database)
+      - DB_HOST=db-postgres
+      - DB_PORT=5432
+      - DB_NAME=mediator
+      - DB_USER=admin
+      - DB_PASS=${PG_PASSWORD:-password123}
+      # OpenLMIS DB (open_lmis) — direct connection for hard-deleting stock-card line
+      # items + recomputing SOH (no OpenLMIS API exists). `db` resolves on lmis-net.
+      - OPENLMIS_DB_HOST=db
+      - OPENLMIS_DB_PORT=5432
+      - OPENLMIS_DB_NAME=open_lmis
+      - OPENLMIS_DB_USER=postgres
+      - OPENLMIS_DB_PASS=${OPENLMIS_DB_PASS:-p@ssw0rd}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./mediator/data:/data
+      - ./mediator/mappings.json:/app/mappings.json:ro
+      - ./mediator/src:/app/src:ro
+    depends_on:
+      - db-postgres
+      - openhim-core
+      - opensrp-server
+      - keycloak
+      - notification-sink
+    networks:
+      - health-net
+      - lmis-net
+    restart: unless-stopped
+
+  # --- DHIS2 ---
+  dhis2-web:
+    image: dhis2/core:2.40
+    container_name: dhis2-web
+    ports:
+      - "0.0.0.0:8081:8080"
+    environment:
+      # Cap JVM heap so DHIS2 doesn't balloon to 4GB+ on the shared host.
+      # CATALINA_OPTS MUST keep -Dcontext.path='' (image default) or DHIS2
+      # deploys under a non-root context and every path 404s.
+      - JAVA_OPTS=-Xms256m -Xmx900m
+      - CATALINA_OPTS=-Dcontext.path='' -Xms256m -Xmx900m
+    mem_limit: 1280m
+    volumes:
+      - ./config/dhis.conf:/opt/dhis2/dhis.conf:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+      - lmis-net  # allows openlmis dhis2-integration to reach dhis2-web by hostname
+    restart: unless-stopped
+
+  # --- KEYCLOAK ---
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    command: ["start", "--import-realm"]
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=${KC_ADMIN_PASSWORD:-password}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://db-postgres:5432/keycloak
+      - KC_DB_USERNAME=admin
+      - KC_DB_PASSWORD=${PG_PASSWORD:-password123}
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_BACKCHANNEL=false
+      - KC_PROXY=edge
+      - KC_HTTP_RELATIVE_PATH=/auth
+      - KC_HOSTNAME_URL=https://lesotho-bkm.xyz/auth
+      - KC_HOSTNAME_ADMIN_URL=https://lesotho-bkm.xyz/auth
+    volumes:
+      - ./config/keycloak/opensrp-realm.json:/opt/keycloak/data/import/opensrp-realm.json:ro
+    ports:
+      - "0.0.0.0:8083:8080"
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # --- REDIS (required by opensrp-server for session/cache writes) ---
+  opensrp-redis:
+    image: redis:6-alpine
+    container_name: opensrp-redis
+    command: redis-server --requirepass "RedI$$P@S5"
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # --- OPENSRP SERVER ---
+  opensrp-server:
+    image: opensrp/opensrp-server-web:latest
+    container_name: opensrp-server
+    ports:
+      - "127.0.0.1:9900:8080"
+    volumes:
+      - ./config/opensrp/context.xml:/usr/local/tomcat/conf/context.xml:ro
+      - ./config/opensrp/keycloak.json:/usr/local/tomcat/webapps/opensrp/WEB-INF/keycloak.json:ro
+      - ./config/opensrp/opensrp.properties:/usr/local/tomcat/webapps/opensrp/WEB-INF/classes/opensrp.properties:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      opensrp-redis:
+        condition: service_started
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # --- FHIR PROXY (nginx stub for /PractitionerDetail) ---
+  # Sits in front of HAPI FHIR on port 8079. Handles the custom OpenSRP
+  # /PractitionerDetail endpoint that standard HAPI FHIR doesn't implement,
+  # proxies all other /fhir/* requests straight to hapi-fhir:8080.
+  fhir-proxy:
+    image: nginx:alpine
+    container_name: fhir-proxy
+    ports:
+      - "0.0.0.0:8079:80"
+    volumes:
+      - ./config/fhir-proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/fhir-proxy/practitioner_details.json:/etc/nginx/practitioner_details.json:ro
+      - ./config/fhir-proxy/practitioner_details_thabo.json:/etc/nginx/practitioner_details_thabo.json:ro
+      - ./config/fhir-proxy/practitioner_details_palesa.json:/etc/nginx/practitioner_details_palesa.json:ro
+    depends_on:
+      - hapi-fhir
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # --- HAPI FHIR & OPENSRP WEB ---
+  hapi-fhir:
+    image: hapiproject/hapi:v7.2.0
+    container_name: hapi-fhir
+    ports:
+      - "127.0.0.1:18079:8080"
+    environment:
+      - hapi.fhir.fhir_version=R4
+      - hapi.fhir.server_address=http://184.168.122.221:8079/fhir/
+      - hapi.fhir.allow_cascade_delete=true
+      - hapi.fhir.enforce_referential_integrity_on_delete=false
+      - hapi.fhir.enforce_referential_integrity_on_write=false
+      - spring.datasource.url=jdbc:postgresql://db-postgres:5432/hapi_fhir
+      - spring.datasource.username=admin
+      - spring.datasource.password=${PG_PASSWORD:-password123}
+      - spring.datasource.driverClassName=org.postgresql.Driver
+      - spring.jpa.properties.hibernate.dialect=ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+      - hapi.fhir.subscription.resthook_enabled=true
+      - hapi.fhir.subscription.websocket_enabled=false
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  opensrp-web:
+    image: opensrp/web:latest
+    container_name: opensrp-web
+    ports:
+      - "0.0.0.0:9901:3000"
+    environment:
+      # Express session / OAuth (server-side). Browser-facing URLs use the public
+      # domain (KC served under /auth); the token exchange uses the in-network
+      # keycloak:8080 host. KC_HOSTNAME_STRICT_BACKCHANNEL=false allows this.
+      # NOTE: local dev overrides all of these to localhost in docker-compose.override.yml.
+      - EXPRESS_OPENSRP_CLIENT_ID=opensrp-web
+      - EXPRESS_OPENSRP_ACCESS_TOKEN_URL=http://keycloak:8080/auth/realms/opensrp/protocol/openid-connect/token
+      - EXPRESS_OPENSRP_AUTHORIZATION_URL=https://lesotho-bkm.xyz/auth/realms/opensrp/protocol/openid-connect/auth
+      - EXPRESS_OPENSRP_LOGOUT_URL=https://lesotho-bkm.xyz/auth/realms/opensrp/protocol/openid-connect/logout
+      - EXPRESS_OPENSRP_CALLBACK_URL=https://opensrp.lesotho-bkm.xyz/oauth/callback/OpenSRP/
+      # React SPA env vars (baked into config.js at container start)
+      - REACT_APP_DOMAIN_NAME=https://opensrp.lesotho-bkm.xyz
+      - REACT_APP_OPENSRP_CLIENT_ID=opensrp-web
+      - REACT_APP_OPENSRP_ACCESS_TOKEN_URL=https://lesotho-bkm.xyz/auth/realms/opensrp/protocol/openid-connect/token
+      - REACT_APP_OPENSRP_AUTHORIZATION_URL=https://lesotho-bkm.xyz/auth/realms/opensrp/protocol/openid-connect/auth
+      - REACT_APP_KEYCLOAK_API_BASE_URL=https://lesotho-bkm.xyz/auth/admin/realms/opensrp
+      - REACT_APP_KEYCLOAK_LOGOUT_URL=https://lesotho-bkm.xyz/auth/realms/opensrp/protocol/openid-connect/logout
+      - REACT_APP_EXPRESS_OAUTH_GET_STATE_URL=https://opensrp.lesotho-bkm.xyz/oauth/state
+      - REACT_APP_EXPRESS_OAUTH_LOGOUT_URL=https://opensrp.lesotho-bkm.xyz/logout
+      - REACT_APP_FHIR_API_BASE_URL=https://fhir.lesotho-bkm.xyz/fhir
+      - REACT_APP_AUTHZ_STRATEGY=keycloak
+      - REACT_APP_OPENSRP_SENTRY_CONFIG_JSON={}
+      # Enable FHIR modules (all backed by HAPI FHIR on port 8079)
+      - REACT_APP_ENABLE_FHIR_PATIENTS=true
+      - REACT_APP_ENABLE_FHIR_CARE_TEAM=true
+      - REACT_APP_ENABLE_FHIR_TEAMS=false
+      - REACT_APP_ENABLE_FHIR_HEALTHCARE=true
+      - REACT_APP_ENABLE_FHIR_USER_MANAGEMENT=false
+      - REACT_APP_ENABLE_TEAMS=false
+      - REACT_APP_ENABLE_LOCATIONS=false
+      - EXPRESS_CONTENT_SECURITY_POLICY_CONFIG=false
+    volumes:
+      - opensrp-web-sessions:/tmp/express-sessions
+      - ./config/opensrp-web/app-index.js:/usr/src/app/dist/app/index.js:ro
+    depends_on:
+      - keycloak
+      - hapi-fhir
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  bkm-web:
+    build: ./bkm-web
+    container_name: bkm-web
+    ports:
+      - "0.0.0.0:9902:80"
+    volumes:
+      - ./bkm-web/js:/usr/share/nginx/html/js:ro
+      # PROD runtime config — mounts prod URLs over the committed localhost default.
+      # Without this mount the SPA falls back to localhost and prod login breaks.
+      - ./config/bkm-web/config.prod.js:/usr/share/nginx/html/config.js:ro
+    networks:
+      - health-net
+      - lmis-net
+    restart: unless-stopped
+
+  # --- UTILITIES & SINKS ---
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "0.0.0.0:8025:8025"
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  notification-sink:
+    build: ./notification-sink
+    container_name: notification-sink
+    ports:
+      - "127.0.0.1:8086:3001"
+    depends_on:
+      - mailhog
+    networks:
+      - health-net
+    restart: unless-stopped
+
+networks:
+  health-net:
+    external: true
+  lmis-net:
+    name: openlmis-ref-distro_default
+    external: true
+
+volumes:
+  postgres-data:
+  mongo-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  opensrp-web-sessions:

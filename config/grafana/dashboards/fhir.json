@@ -1,0 +1,297 @@
+{
+  "uid": "fhir-overview",
+  "title": "FHIR (HAPI + OpenSRP)",
+  "description": "HAPI FHIR R4 access patterns, resource operations, Android sync activity, OpenSRP health",
+  "tags": ["fhir", "hapi", "opensrp", "logs", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Reads — incl. polling (window)",
+      "description": "HAPI read/search ops — DOMINATED by the mediator polling QR + MedicationDispense every 30–60s and the fhirLedger SOH sync. This is NOT user load; see 'Write Operations' and 'QuestionnaireResponse' for real activity.",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"hapi-fhir\"} |= \"fhirtest.access\" |~ `Operation\\[(search-type|read)` [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Write Operations (window)",
+      "description": "create / update / delete / transaction operations",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"hapi-fhir\"} |= \"fhirtest.access\" |~ `Operation\\[(create|update|delete|transaction)` [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "QuestionnaireResponse (window)",
+      "description": "QR submissions from the Android BKM app — each one triggers a mediator fan-out",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"hapi-fhir\"} |= \"QuestionnaireResponse\" |= \"fhirtest.access\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Task Operations (window)",
+      "description": "Task reads/creates/updates — BR-04 idempotency depends on these",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  Task]\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "HAPI FHIR Errors (window)",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"hapi-fhir\"} |~ \" ERROR \" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "OpenSRP Errors (window)",
+      "description": "Excludes expected Redis connection noise",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"opensrp-server\"} |= \"ERROR\" != \"RedisMessageListenerContainer\" [$__range]))", "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "HAPI FHIR — Request Throughput", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Request Rate — Read vs Write",
+      "description": "search-type/read are reads; create/update/delete/transaction are writes",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |~ `Operation\\[(search-type|read)` [$__interval]))",
+          "legendFormat": "reads", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |~ `Operation\\[(create|update|delete|transaction)` [$__interval]))",
+          "legendFormat": "writes", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Request Rate by Operation Type",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"Operation[search-type\" [$__interval]))",
+          "legendFormat": "search-type", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"Operation[read\" [$__interval]))",
+          "legendFormat": "read", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"Operation[create\" [$__interval]))",
+          "legendFormat": "create", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"Operation[update\" [$__interval]))",
+          "legendFormat": "update", "refId": "D" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"Operation[transaction\" [$__interval]))",
+          "legendFormat": "transaction", "refId": "E" }
+      ]
+    },
+
+    { "id": 102, "type": "row", "title": "HAPI FHIR — Resource Activity", "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "timeseries", "title": "Stock-related Resource Rate",
+      "description": "QuestionnaireResponse, Task, MedicationDispense — the resources that drive the BKM stock flow",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"QuestionnaireResponse\" [$__interval]))",
+          "legendFormat": "QuestionnaireResponse", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  Task]\" [$__interval]))",
+          "legendFormat": "Task", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"MedicationDispense\" [$__interval]))",
+          "legendFormat": "MedicationDispense", "refId": "C" }
+      ]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "Patient & Practitioner Resource Rate",
+      "description": "Core demographic resources — high rates indicate Android sync activity",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  Patient]\" [$__interval]))",
+          "legendFormat": "Patient", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  Practitioner]\" [$__interval]))",
+          "legendFormat": "Practitioner", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  Group]\" [$__interval]))",
+          "legendFormat": "Group", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" |= \"  CarePlan]\" [$__interval]))",
+          "legendFormat": "CarePlan", "refId": "D" }
+      ]
+    },
+    {
+      "id": 22, "type": "logs", "title": "QuestionnaireResponse & Task Operations",
+      "description": "All HAPI FHIR access log lines for QR and Task — drill down to see create vs search, params",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"hapi-fhir\"} |= \"fhirtest.access\" |~ \"QuestionnaireResponse|  Task]\"", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Android Sync Activity", "gridPos": { "x": 0, "y": 28, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "type": "timeseries", "title": "Android App Sync Rate (okhttp UA)",
+      "description": "Requests from UA[okhttp/...] = Android BKM app. Burst = full sync; steady = incremental.",
+      "gridPos": { "x": 0, "y": 29, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" [$__interval]))",
+          "legendFormat": "android sync", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"fhirtest.access\" != \"UA[okhttp\" [$__interval]))",
+          "legendFormat": "other clients", "refId": "B" }
+      ]
+    },
+    {
+      "id": 31, "type": "timeseries", "title": "Android Sync — Resource Types Fetched",
+      "description": "Which resource types the Android app requests during sync. Large batches = app startup.",
+      "gridPos": { "x": 12, "y": 29, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 1, "fillOpacity": 5 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" |= \"Observation\" [$__interval]))",
+          "legendFormat": "Observation", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" |= \"MeasureReport\" [$__interval]))",
+          "legendFormat": "MeasureReport", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" |= \"Questionnaire]\" [$__interval]))",
+          "legendFormat": "Questionnaire", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" |= \"  Task]\" [$__interval]))",
+          "legendFormat": "Task", "refId": "D" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |= \"UA[okhttp\" |= \"  Patient]\" [$__interval]))",
+          "legendFormat": "Patient", "refId": "E" }
+      ]
+    },
+    {
+      "id": 32, "type": "logs", "title": "Android Sync Log Stream",
+      "description": "All access log lines from the Android BKM app (UA[okhttp]). Tip: look for create operations = app posting data.",
+      "gridPos": { "x": 0, "y": 36, "w": 24, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"hapi-fhir\"} |= \"UA[okhttp\" |~ `Operation\\[(create|update|delete|transaction)`", "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "Errors & OpenSRP Health", "gridPos": { "x": 0, "y": 43, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 40, "type": "timeseries", "title": "HAPI FHIR Error Rate",
+      "gridPos": { "x": 0, "y": 44, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "red", "value": 1 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |~ \" ERROR \" [$__interval]))",
+          "legendFormat": "hapi-fhir ERROR", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"hapi-fhir\"} |~ \" WARN \" [$__interval]))",
+          "legendFormat": "hapi-fhir WARN", "refId": "B" }
+      ]
+    },
+    {
+      "id": 41, "type": "timeseries", "title": "OpenSRP Error Rate (excl. Redis noise)",
+      "description": "Redis connection errors are expected (no Redis in stack) and filtered out here",
+      "gridPos": { "x": 12, "y": 44, "w": 12, "h": 6 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "red", "value": 1 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"opensrp-server\"} |= \"ERROR\" != \"RedisMessageListenerContainer\" [$__interval]))",
+          "legendFormat": "opensrp ERROR (real)", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(rate({container=\"opensrp-server\"} |= \"ERROR\" |= \"RedisMessageListenerContainer\" [$__interval]))",
+          "legendFormat": "opensrp Redis noise", "refId": "B" }
+      ]
+    },
+    {
+      "id": 42, "type": "logs", "title": "HAPI FHIR — Errors & Warnings",
+      "gridPos": { "x": 0, "y": 50, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"hapi-fhir\"} |~ \" (ERROR|WARN) \"", "refId": "A" }]
+    },
+    {
+      "id": 43, "type": "logs", "title": "OpenSRP — Errors (excl. Redis)",
+      "gridPos": { "x": 12, "y": 50, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"opensrp-server\"} |= \"ERROR\" != \"RedisMessageListenerContainer\"", "refId": "A" }]
+    },
+
+    { "id": 105, "type": "row", "title": "Raw Logs", "gridPos": { "x": 0, "y": 57, "w": 24, "h": 1 }, "collapsed": true,
+      "panels": [
+        {
+          "id": 50, "type": "logs", "title": "HAPI FHIR — Full Access Log",
+          "gridPos": { "x": 0, "y": 58, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"hapi-fhir\"} |= \"fhirtest.access\"", "refId": "A" }]
+        },
+        {
+          "id": 51, "type": "logs", "title": "OpenSRP Server — Full Log",
+          "gridPos": { "x": 0, "y": 66, "w": 24, "h": 8 },
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+          "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+            "expr": "{container=\"opensrp-server\"}", "refId": "A" }]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "hide": 2,
+        "name": "loki_ds",
+        "query": "loki",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  }
+}

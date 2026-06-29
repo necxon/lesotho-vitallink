@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "60230d85-1fa5-5e33-93ec-6eb72769deac",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "MCONDOM"
+        },
+        {
+            "use": "secondary",
+            "value": "MCONDOM"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Male Condoms",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Pieces"
+            },
+            "exclude": false
+        }
+    ]
+}

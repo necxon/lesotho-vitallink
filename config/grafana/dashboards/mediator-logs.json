@@ -1,0 +1,313 @@
+{
+  "uid": "bkm-mediator-logs",
+  "title": "BKM Mediator Logs",
+  "description": "Structured logs from bkm-mediator: fan-out events, stock orders, errors",
+  "tags": ["mediator", "logs", "lesotho"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "type": "stat", "title": "Errors (window)",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+      ]}}},"targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"error\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Fan-out Events (window)",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"QR fan-out\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Orders Saved (window)",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"order-saved\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Order Dispatches (window)",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }] }}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"order-dispatch-complete\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 10, "type": "stat", "title": "BR-04 Violations (window)",
+      "description": "QuestionnaireResponses rejected because a Task was already accepted",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"BR-04 violation\" [$__range]))", "refId": "A" }]
+    },
+    {
+      "id": 11, "type": "stat", "title": "Stock Rejections (window)",
+      "description": "Dispense/receipt events rejected due to insufficient stock",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ]}}},
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"insufficient-stock\" [$__range]))", "refId": "A" }]
+    },
+
+    { "id": 101, "type": "row", "title": "Throughput & Latency", "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 5, "type": "timeseries", "title": "Log Volume by Level",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 1, "fillOpacity": 10 } } },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "sum by (level) (count_over_time({container=\"bkm-mediator\"} | json | __error__=\"\" [$__interval]))",
+        "legendFormat": "{{level}}", "refId": "A" }]
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Event Type Breakdown",
+      "description": "Counts of dispense / receipt / adjustment / order events over time",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"type=dispense\" [$__interval]))",
+          "legendFormat": "dispense", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"type=receipt\" [$__interval]))",
+          "legendFormat": "receipt", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |~ \"type=adjustment\" [$__interval]))",
+          "legendFormat": "adjustment", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"type=order\" [$__interval]))",
+          "legendFormat": "order", "refId": "D" }
+      ]
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Fan-out Latency (ms)",
+      "description": "End-to-end duration of each QuestionnaireResponse fan-out. Parsed from: \"QR fan-out in Xms\"",
+      "gridPos": { "x": 0, "y": 13, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "yellow", "value": 1000 }, { "color": "red", "value": 3000 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "avg_over_time({container=\"bkm-mediator\"} |~ \"QR fan-out in\" | regexp `QR fan-out in (?P<duration_ms>[0-9]+)ms` | unwrap duration_ms [$__interval])",
+          "legendFormat": "avg latency", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "max_over_time({container=\"bkm-mediator\"} |~ \"QR fan-out in\" | regexp `QR fan-out in (?P<duration_ms>[0-9]+)ms` | unwrap duration_ms [$__interval])",
+          "legendFormat": "max latency", "refId": "B" }
+      ]
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Downstream System Failures",
+      "description": "Counts of rejected/failed results per downstream system (opensrp, dhis2, lmis)",
+      "gridPos": { "x": 12, "y": 13, "w": 12, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "red", "value": 1 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"opensrp=rejected\" [$__interval]))",
+          "legendFormat": "opensrp failed", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"dhis2=rejected\" [$__interval]))",
+          "legendFormat": "dhis2 failed", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"lmis=rejected\" [$__interval]))",
+          "legendFormat": "lmis failed", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"order-dispatch-lmis-error\" [$__interval]))",
+          "legendFormat": "order dispatch failed", "refId": "D" }
+      ]
+    },
+
+    { "id": 102, "type": "row", "title": "Rejections & Alerts", "gridPos": { "x": 0, "y": 20, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 15, "type": "logs", "title": "BR-04 Violations (Task already accepted)",
+      "description": "A VHW submitted a QR for a Task that was already completed — possible duplicate submission",
+      "gridPos": { "x": 0, "y": 21, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"BR-04|already-accepted|already has status\"", "refId": "A" }]
+    },
+    {
+      "id": 16, "type": "logs", "title": "Insufficient Stock Rejections",
+      "description": "Fan-out blocked because SOH < requested quantity",
+      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 7 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"insufficient-stock|stockOnHand|Rejected\"", "refId": "A" }]
+    },
+
+    { "id": 105, "type": "row", "title": "Stock Receipts & SOH Tracking", "gridPos": { "x": 0, "y": 28, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 18, "type": "logs", "title": "Stock Receipt Events",
+      "description": "Logged when a stock replenishment is detected or a receipt Task is created for a VHW. Four log sources:\n• 'Stock receipt detected via poll: SOH X → Y (+Z)' — the HAPI poll found a new receipt-type MedicationDispense and applied it to the SOH cache\n• 'External receipt detected' — a receipt QR came in via bundleSync (Android app)\n• 'Facility receipt tasks' — the scheduled receipt-task cron is running; lists how many tasks it is about to create\n• 'Stock Task created: Task/task-rcpt-... for Practitioner/...' — a receipt Task was written to HAPI FHIR for a specific VHW",
+      "gridPos": { "x": 0, "y": 29, "w": 12, "h": 9 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"Stock receipt detected|External receipt detected|Facility receipt tasks|Stock Task created\"", "refId": "A" }]
+    },
+    {
+      "id": 19, "type": "logs", "title": "SOH Tracker — State Restore & Cache Updates",
+      "description": "The mediator keeps a live Stock on Hand (SOH) cache in memory, persisted to Postgres so it survives restarts.\n• 'soh_tracker: restored _lastSoH=X from Postgres' — on startup, the last known SOH for a medicine was read from the soh_tracker table\n• 'soh_tracker: restored N orderable SOH entries' — summary count of how many medicines had a cached SOH value at startup\n• Any updates after dispense/receipt events appear here as the cache is written back",
+      "gridPos": { "x": 12, "y": 29, "w": 12, "h": 9 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"soh_tracker|_lastSoH|SOH entries|SOH cache\"", "refId": "A" }]
+    },
+
+    { "id": 103, "type": "row", "title": "Stock Orders & Dispatch", "gridPos": { "x": 0, "y": 38, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 17, "type": "table", "title": "Recent Orders (structured log fields)",
+      "description": "Parsed from event=order-saved JSON logs. Shows medicine, quantity, running total, org unit.",
+      "gridPos": { "x": 0, "y": 39, "w": 24, "h": 7 },
+      "options": { "footer": { "show": false }, "sortBy": [] },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } } },
+      "transformations": [
+        { "id": "extractFields", "options": { "source": "labels" } },
+        { "id": "organize", "options": {
+          "excludeByName": { "container": true, "filename": true, "job": true, "stream": true },
+          "renameByName": { "medicineCode": "Medicine", "qty": "Qty", "newTotal": "Total this period", "orgUnit": "Org Unit", "period": "Period", "dhis2Status": "DHIS2 Status" }
+        }}
+      ],
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} | json | event=\"order-saved\"",
+        "legendFormat": "", "refId": "A" }]
+    },
+    {
+      "id": 9, "type": "logs", "title": "Stock Order & Dispatch Events",
+      "gridPos": { "x": 0, "y": 46, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"order-saved|order-dispatch|order-skip|Stock order\"", "refId": "A" }]
+    },
+
+    { "id": 106, "type": "row", "title": "Background Poll Health", "gridPos": { "x": 0, "y": 54, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "type": "logs", "title": "Poll Failure Warnings",
+      "description": "The mediator runs four background cron polls every 30 seconds. When a target service is unreachable (e.g. still starting up, or crashed), each poll logs a warning. These are NOT fatal — the mediator retries on the next cron tick.\n• 'HAPI QR poll failed' — could not reach HAPI FHIR to fetch new QuestionnaireResponses\n• 'Dispense poll failed' — could not reach HAPI FHIR to fetch new MedicationDispense resources\n• 'VHW task poll failed' — could not reach HAPI FHIR to check Task statuses\n• 'Stock poll failed' — could not reach OpenLMIS /api/stockCardSummaries\n• 'Could not refresh OpenLMIS orderables' — orderable UUID→lot UUID cache refresh failed\nECONNREFUSED = the target port was not open (service down). ETIMEDOUT = reachable but slow.",
+      "gridPos": { "x": 0, "y": 55, "w": 24, "h": 9 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"poll failed|Could not refresh OpenLMIS|ECONNREFUSED|ETIMEDOUT\"", "refId": "A" }]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "Poll Failure Rate",
+      "description": "Count of poll failures per poll type over time. Sustained failures indicate a downstream service is down.",
+      "gridPos": { "x": 0, "y": 64, "w": 24, "h": 7 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 8 },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+        ]}
+      }},
+      "targets": [
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"HAPI QR poll failed\" [$__interval]))",
+          "legendFormat": "HAPI QR poll", "refId": "A" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"Dispense poll failed\" [$__interval]))",
+          "legendFormat": "Dispense poll", "refId": "B" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"VHW task poll failed\" [$__interval]))",
+          "legendFormat": "VHW task poll", "refId": "C" },
+        { "datasource": { "type": "loki", "uid": "${loki_ds}" },
+          "expr": "sum(count_over_time({container=\"bkm-mediator\"} |= \"Stock poll failed\" [$__interval]))",
+          "legendFormat": "Stock poll", "refId": "D" }
+      ]
+    },
+
+    { "id": 107, "type": "row", "title": "Startup & System Events", "gridPos": { "x": 0, "y": 71, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 22, "type": "logs", "title": "Mediator Startup Sequence",
+      "description": "Logged once each time the bkm-mediator container starts. Expected sequence:\n1. 'Validated CSV Mappings Loaded' — mappings.csv parsed OK; performer rows and medication rows are in memory\n2. 'order_buffer + dispatch_history + soh_tracker tables ready' — Postgres tables created/verified; soh_tracker SOH values restored\n3. Cron job messages — one per registered cron: HAPI QR poll, Dispense poll, VHW task poll, Stock poll, Order dispatch\n4. 'Vital-Link Lesotho vX.X.X Active on port 3000' — HTTP server is up and accepting connections\nIf step 1 is missing after a restart it means mappings.csv failed to parse (check CSV column count).",
+      "gridPos": { "x": 0, "y": 72, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Ascending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"Validated CSV|tables ready|Active on port|cron registered|Cron registered|mediator registered|Vital-Link Lesotho\"", "refId": "A" }]
+    },
+
+    { "id": 108, "type": "row", "title": "FHIR Stock Ledger", "gridPos": { "x": 0, "y": 80, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 23, "type": "logs", "title": "Ledger Update Events",
+      "description": "Logged each time fhirLedger.js writes a live SOH value from OpenLMIS into a HAPI FHIR Observation.\n• 'FHIR ledger updated: Group/X (Medicine) @ Organization/Y → SOH=Z' — successful upsert; shows which Group, which medicine name was matched, and the new SOH value\n• 'FHIR ledger init complete: N commodity×facility pairs' — startup one-shot sync finished; N = medicines × facilities synced\n• 'FHIR ledger init skipped' — no facilities or medicines configured at startup\n\nThese Observations power the Stock by Facility view in bkm-web. If this panel is empty after a dispense, the ledger sync may be failing — check the Failures panel.",
+      "gridPos": { "x": 0, "y": 81, "w": 14, "h": 9 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"FHIR ledger updated|FHIR ledger init\"", "refId": "A" }]
+    },
+    {
+      "id": 24, "type": "logs", "title": "Ledger Failures & Skips",
+      "description": "Logged when fhirLedger.js cannot complete an update. All are non-fatal — the ledger retries on the next dispense or receipt.\n• 'fhirLedger: SOH fetch failed' — could not reach OpenLMIS stockCardSummaries for this orderable\n• 'fhirLedger: Observation lookup failed' — HAPI FHIR query for existing Observation failed (will POST a new one next time)\n• 'fhirLedger: upsert failed' — PUT/POST to HAPI FHIR Observation failed\n• 'fhirLedger: Group cache load failed' — could not load HAPI Groups (medicine→Group name mapping unavailable)\n• 'fhirLedger: no HAPI Group found for any of [...]' — medicine name had no matching HAPI Group; Observation skipped",
+      "gridPos": { "x": 14, "y": 81, "w": 10, "h": 9 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"fhirLedger:\"", "refId": "A" }]
+    },
+
+    { "id": 104, "type": "row", "title": "All Logs", "gridPos": { "x": 0, "y": 90, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 6, "type": "logs", "title": "All Mediator Logs",
+      "gridPos": { "x": 0, "y": 91, "w": 24, "h": 10 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"}", "refId": "A" }]
+    },
+    {
+      "id": 7, "type": "logs", "title": "Errors & Warnings",
+      "gridPos": { "x": 0, "y": 101, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} | json | level =~ \"error|warn\"", "refId": "A" }]
+    },
+    {
+      "id": 8, "type": "logs", "title": "Stock Fan-out Events",
+      "gridPos": { "x": 0, "y": 109, "w": 24, "h": 8 },
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "datasource": { "type": "loki", "uid": "${loki_ds}" },
+        "expr": "{container=\"bkm-mediator\"} |~ \"QR fan-out|fan-out|opensrp=|dhis2=|lmis=\"", "refId": "A" }]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "hide": 2,
+        "name": "loki_ds",
+        "query": "loki",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  }
+}

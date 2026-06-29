@@ -1,0 +1,768 @@
+{
+  "resourceType": "StructureMap",
+  "id": "690b7313-ab5a-4c5f-8323-916c0025d804",
+  "text": {
+    "status": "additional",
+    "div": "\u003cdiv xmlns\u003d\"http://www.w3.org/1999/xhtml\"\u003e\u003cpre\u003emap \u0026quot;https://fhir.labs.smartregister.org/fhir/StructureMap/690b7313-ab5a-4c5f-8323-916c0025d804\u0026quot; \u003d \u0026quot;eCBIS Household Visit\u0026quot;\n\nuses \u0026quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse\u0026quot; as source\nuses \u0026quot;http://hl7.org/fhir/StructureDefinition/Bundle\u0026quot; as target\n\ngroup householdRoutineVisit(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {\n    questionnaireResponse -\u0026gt; bundle.type \u003d \u0026quot;collection\u0026quot; \u0026quot;r_bundle_type\u0026quot;;\n    questionnaireResponse -\u0026gt; evaluate(questionnaireResponse, $this.subject) as referenceGroup then\n        extractHouseholdRoutineVisitEncounter(questionnaireResponse, referenceGroup, bundle) \u0026quot;rule_ref\u0026quot;;\n}\n\ngroup extractHouseholdRoutineVisitEncounter(source questionnaireResponse : QuestionnaireResponse, source referenceGroup : Reference, target bundle: Bundle) {\n    questionnaireResponse -\u0026gt; bundle.entry as entry, entry.resource \u003d create(\u0027Encounter\u0027) as encounter then {\n        questionnaireResponse -\u0026gt; encounter.id \u003d uuid() \u0026quot;rule_en_id\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.status \u003d \u0027finished\u0027 \u0026quot;rule_en_status\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.class \u003d c(\u0026quot;http://terminology.hl7.org/CodeSystem/v3-ActCode\u0026quot;, \u0026quot;HH\u0026quot;, \u0026quot;home health\u0026quot;) \u0026quot;rule_en_class\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.type \u003d create(\u0027CodeableConcept\u0027) as concept then {\n            questionnaireResponse -\u0026gt; concept.coding \u003d c(\u0026quot;https://smartregister.org/\u0026quot;, \u0026quot;household_visit\u0026quot;) as coding then {\n                questionnaireResponse -\u0026gt; coding.display \u003d \u0026quot;Household Visit\u0026quot; \u0026quot;rule_display\u0026quot;;\n            } \u0026quot;rule_en_coding\u0026quot;;\n            questionnaireResponse -\u0026gt; concept.text \u003d \u0026quot;Household Visit\u0026quot; \u0026quot;rule_text\u0026quot;;\n        } \u0026quot;rule_en_type\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.priority \u003d create(\u0027CodeableConcept\u0027) as priority then {\n            questionnaireResponse -\u0026gt; priority.coding \u003d c(\u0026quot;http://terminology.hl7.org/ValueSet/v3-ActPriority\u0026quot;, \u0026quot;EL\u0026quot;) as priorityCoding then {\n                questionnaireResponse -\u0026gt; priorityCoding.display \u003d \u0026quot;Elective\u0026quot; \u0026quot;r_en_cod_disp\u0026quot;;\n            } \u0026quot;r_en_cc_cod\u0026quot;;\n            questionnaireResponse -\u0026gt; priority.text \u003d \u0026quot;Elective\u0026quot; \u0026quot;r_en_prio_text\u0026quot;;\n        } \u0026quot;rule_priority\u0026quot;;\n        questionnaireResponse.subject as subject -\u0026gt; encounter.subject \u003d referenceGroup \u0026quot;rule_subj\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.period \u003d create(\u0027Period\u0027) as period then {\n            questionnaireResponse -\u0026gt; period.start \u003d evaluate(questionnaireResponse, now()) \u0026quot;r_per_start\u0026quot;;\n            questionnaireResponse -\u0026gt; period.end \u003d evaluate(questionnaireResponse, now()) \u0026quot;r_per_end\u0026quot;;\n        } \u0026quot;rule_period\u0026quot;;\n        questionnaireResponse -\u0026gt; encounter.reasonCode \u003d create(\u0027CodeableConcept\u0027) as reason then {\n            questionnaireResponse -\u0026gt; reason.text \u003d \u0026quot;Household Visit\u0026quot; \u0026quot;r_en_text\u0026quot;;\n            questionnaireResponse -\u0026gt; reason.coding \u003d c(\u0026quot;https://smartregister.org/\u0026quot;, \u0026quot;household_visit\u0026quot;) \u0026quot;rule_rea_cd\u0026quot;;\n        } \u0026quot;rule_en_reason\u0026quot;;\n    } \u0026quot;rule_encounter\u0026quot;;\n}\n\u003c/pre\u003e\u003c/div\u003e"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/690b7313-ab5a-4c5f-8323-916c0025d804",
+  "name": "eCBIS Household Visit",
+  "structure": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+      "mode": "source"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+      "mode": "target"
+    }
+  ],
+  "group": [
+    {
+      "name": "householdRoutineVisit",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "r_bundle_type",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "bundle",
+              "contextType": "variable",
+              "element": "type",
+              "transform": "copy",
+              "parameter": [
+                {
+                  "valueString": "collection"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "rule_ref",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "variable": "referenceGroup",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "questionnaireResponse"
+                },
+                {
+                  "valueString": "$this.subject"
+                }
+              ]
+            }
+          ],
+          "dependent": [
+            {
+              "name": "extractHouseholdRoutineVisitEncounter",
+              "variable": [
+                "questionnaireResponse",
+                "referenceGroup",
+                "bundle"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractHouseholdRoutineVisitEncounter",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "referenceGroup",
+          "type": "Reference",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_encounter",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "bundle",
+              "contextType": "variable",
+              "element": "entry",
+              "variable": "entry"
+            },
+            {
+              "context": "entry",
+              "contextType": "variable",
+              "element": "resource",
+              "variable": "encounter",
+              "transform": "create",
+              "parameter": [
+                {
+                  "valueString": "Encounter"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_en_id",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "id",
+                  "transform": "uuid"
+                }
+              ]
+            },
+            {
+              "name": "rule_en_status",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "status",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "finished"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_class",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "class",
+                  "transform": "c",
+                  "parameter": [
+                    {
+                      "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                    },
+                    {
+                      "valueString": "HH"
+                    },
+                    {
+                      "valueString": "home health"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_type",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "type",
+                  "variable": "concept",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_en_coding",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "concept",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "variable": "coding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "https://smartregister.org/"
+                        },
+                        {
+                          "valueString": "household_visit"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_display",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "coding",
+                          "contextType": "variable",
+                          "element": "display",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Household Visit"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "concept",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Household Visit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_priority",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "priority",
+                  "variable": "priority",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_en_cc_cod",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "priority",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "variable": "priorityCoding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+                        },
+                        {
+                          "valueString": "EL"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "r_en_cod_disp",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "priorityCoding",
+                          "contextType": "variable",
+                          "element": "display",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Elective"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "r_en_prio_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "priority",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Elective"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_subj",
+              "source": [
+                {
+                  "context": "questionnaireResponse",
+                  "element": "subject",
+                  "variable": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "subject",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueId": "referenceGroup"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_period",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "period",
+                  "variable": "period",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Period"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_per_start",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "start",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "questionnaireResponse"
+                        },
+                        {
+                          "valueString": "now()"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "r_per_end",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "end",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "questionnaireResponse"
+                        },
+                        {
+                          "valueString": "now()"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_reason",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "reasonCode",
+                  "variable": "reason",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_en_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "reason",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Household Visit"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_rea_cd",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "reason",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "https://smartregister.org/"
+                        },
+                        {
+                          "valueString": "household_visit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "r_task_id_output",
+              "source": [
+                {
+                  "context": "questionnaireResponse",
+                  "element": "item",
+                  "variable": "item",
+                  "condition": "(linkId = 'task-id')"
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_task_output",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "bundle",
+                      "contextType": "variable",
+                      "element": "entry",
+                      "variable": "entry"
+                    },
+                    {
+                      "context": "entry",
+                      "contextType": "variable",
+                      "element": "resource",
+                      "variable": "task",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Task"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "r_task_id_val",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "task",
+                          "contextType": "variable",
+                          "element": "id",
+                          "variable": "taskId",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "id"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "r_item_task_id_value",
+                          "source": [
+                            {
+                              "context": "questionnaireResponse"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "taskId",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "item"
+                                },
+                                {
+                                  "valueString": "$this.answer.value"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "r_task_output_val",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "task",
+                          "contextType": "variable",
+                          "element": "output",
+                          "variable": "outputTask",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "Task_Output"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "r_task_output_codeable_concept",
+                          "source": [
+                            {
+                              "context": "questionnaireResponse"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "outputTask",
+                              "contextType": "variable",
+                              "element": "type",
+                              "variable": "concept",
+                              "transform": "create",
+                              "parameter": [
+                                {
+                                  "valueString": "CodeableConcept"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "r_task_output_concept_coding",
+                              "source": [
+                                {
+                                  "context": "questionnaireResponse"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "concept",
+                                  "contextType": "variable",
+                                  "element": "coding",
+                                  "variable": "coding",
+                                  "transform": "c",
+                                  "parameter": [
+                                    {
+                                      "valueString": "http:snomed.info/sct"
+                                    },
+                                    {
+                                      "valueString": "371531000"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "rule": [
+                                {
+                                  "name": "r_task_output_coding_display",
+                                  "source": [
+                                    {
+                                      "context": "questionnaireResponse"
+                                    }
+                                  ],
+                                  "target": [
+                                    {
+                                      "context": "coding",
+                                      "contextType": "variable",
+                                      "element": "display",
+                                      "transform": "copy",
+                                      "parameter": [
+                                        {
+                                          "valueString": "Report of clinical encounter (record artifact)"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "r_task_output_reference",
+                          "source": [
+                            {
+                              "context": "questionnaireResponse"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "outputTask",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "reference",
+                              "parameter": [
+                                {
+                                  "valueId": "encounter"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

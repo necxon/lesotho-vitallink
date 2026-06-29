@@ -1,0 +1,1189 @@
+{
+  "resourceType": "StructureMap",
+  "id": "b16b2831-9fe7-43c3-9440-8860b8ca9f79",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/b16b2831-9fe7-43c3-9440-8860b8ca9f79&quot; = 'Remove Family'\n\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse&quot; as source\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\n\ngroup ecbisRemoveFamily(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {\n    questionnaireResponse -&gt; bundle.id = uuid() &quot;rule_bundle_id&quot;;\n    questionnaireResponse -&gt; bundle.type = 'collection' &quot;rule_bundle_type&quot;;\n    questionnaireResponse then extractEncounter(questionnaireResponse, bundle) &quot;rule_bundle_entry_ext_enc&quot;;\n}\n\ngroup extractEncounter(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle) {\n    questionnaireResponse-&gt;bundle.entry as entry,\n    entry.resource = create(&quot;Encounter&quot;) as encounter then {\n        questionnaireResponse-&gt;encounter.id = uuid() &quot;rule_enc_id&quot;;\n        questionnaireResponse-&gt;encounter.status = &quot;finished&quot; &quot;rule_enc_status&quot;;\n        questionnaireResponse-&gt;encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;,&quot;home health&quot;) &quot;rule_enc_class&quot;;\n        questionnaireResponse-&gt;encounter.serviceType = cc(&quot;http://terminology.hl7.org/CodeSystem/service-type&quot;, &quot;85&quot;,&quot;Death Service Information&quot;) &quot;rule_enc_ser_type&quot;;\n        questionnaireResponse -&gt; encounter.type = create('CodeableConcept') as concept then {\n            questionnaireResponse -&gt; concept.coding = c(&quot;https://smartregister.org/&quot;, &quot;remove_family&quot;) as coding then {\n                questionnaireResponse -&gt; coding.display = &quot;Remove family&quot; &quot;rule_display&quot;;\n            } &quot;rule_en_coding&quot;;\n            questionnaireResponse -&gt; concept.text = &quot;Remove family&quot; &quot;rule_text&quot;;\n        } &quot;rule_en_type&quot;;\n        questionnaireResponse -&gt; encounter.priority = create('CodeableConcept') as priority then {\n            questionnaireResponse -&gt; priority.coding = c(&quot;http://terminology.hl7.org/ValueSet/v3-ActPriority&quot;, &quot;EL&quot;) as priorityCoding then {\n                questionnaireResponse -&gt; priorityCoding.display = &quot;Elective&quot; &quot;rule_en_cod_disp&quot;;\n            } &quot;rule_en_cc_cod&quot;;\n            questionnaireResponse -&gt; priority.text = &quot;Elective&quot; &quot;rule_en_prio_text&quot;;\n        } &quot;rule_priority&quot;;\n        questionnaireResponse -&gt; encounter.subject = create('Reference') as ref then {\n            questionnaireResponse-&gt; ref.reference = evaluate(questionnaireResponse, 'Patient/' + $this.item.where(linkId = &quot;261fdbe6-e0aa-48e5-824b-55314b60d8d6&quot;).answer.value) &quot;rule_item_observation_reference&quot;;\n        } &quot;rule_observation_reference&quot;;\n        questionnaireResponse -&gt; encounter.period = create('Period') as period then {\n            questionnaireResponse -&gt; period.start = evaluate(questionnaireResponse, now()) &quot;rule_period_start&quot;;\n            questionnaireResponse -&gt; period.end = evaluate(questionnaireResponse, now()) &quot;rule_period_end&quot;;\n        } &quot;rule_period&quot;;\n        questionnaireResponse -&gt; encounter.reasonCode = create('CodeableConcept') as reason then {\n            questionnaireResponse -&gt; reason.text = &quot;Remove family&quot; &quot;rule_en_text&quot;;\n            questionnaireResponse -&gt; reason.coding = c(&quot;https://smartregister.org/&quot;, &quot;remove_family&quot;) &quot;rule_rea_cd&quot;;\n        } &quot;rule_en_reason&quot;;\n\n        questionnaireResponse then extractReasonForRemoval(questionnaireResponse, bundle, encounter) &quot;rule_enc_ext_observation&quot;;\n        questionnaireResponse then setHouseholdActiveAsFalseAndDelete(questionnaireResponse, bundle) &quot;rule_enc_set_household_active_as_false&quot;;\n    } &quot;rule_bundle_entry_enc&quot;;\n}\n\ngroup extractReasonForRemoval(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle, target encounter: Encounter) {\n    questionnaireResponse.item as questionnaireItem where(linkId = &quot;c072659f-33a1-4ca3-86bb-073afad8290e&quot;) then {\n        questionnaireResponse-&gt;bundle.entry as entry, entry.resource = create(&quot;Observation&quot;) as observation then {\n            questionnaireResponse -&gt; observation.code = cc(&quot;https://smartregister.org/&quot;, &quot;remove-group-reason&quot;, &quot;Family Removal Reason&quot;) &quot;rule_item_removal_reason_observation_code&quot;;\n            questionnaireResponse -&gt; observation.value = create(&quot;CodeableConcept&quot;)as codeableConcept then {\n                questionnaireResponse -&gt; codeableConcept.coding = evaluate(questionnaireItem, $this.answer.value.code) &quot;rule_item_removal_reason_observation_value_cc_coding&quot;;\n                questionnaireResponse -&gt; codeableConcept.text = evaluate(questionnaireResponse, $this.answer.value.display) &quot;rule_item_removal_reason_observation_cc_display&quot;;\n            } &quot;rule_item_removal_reason_observation_value&quot;;\n\n            questionnaireResponse then extractObservations(questionnaireResponse, bundle, encounter, observation) &quot;rule_item_observation_exttraction&quot;;\n\n            questionnaireItem where(answer.value.code = 'moved-away') then extractMoveAwayDate(questionnaireResponse, bundle, encounter) &quot;rule_item_extract_remove_date&quot;;\n            questionnaireItem where(answer.value.code = 'died') then extractDeathDate(questionnaireResponse, bundle, encounter) &quot;rule_item_extract_death_date&quot;;\n            questionnaireItem where(answer.value.code = 'other') then extractOtherIndicateReason(questionnaireResponse, bundle, encounter) &quot;rule_item_extract_other_reason_indicate&quot;;\n        } &quot;rule_observation&quot;;\n    } &quot;rule_item_removal_reason&quot;;\n}\n\ngroup extractMoveAwayDate(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle, target encounter: Encounter) {\n    questionnaireResponse.item as questionnaireItem where(linkId = &quot;859f0b8e-80b6-4a15-f6a5-b1bec78d928c&quot;) then {\n        questionnaireResponse-&gt;bundle.entry as entry, entry.resource = create(&quot;Observation&quot;) as observation then {\n            questionnaireResponse -&gt; observation.code = cc(&quot;https://smartregister.org/&quot;, &quot;removal-reason-date&quot;, &quot;Family Removal Date&quot;) &quot;rule_item_date_reason_moved_away_observation_code&quot;;\n            questionnaireResponse -&gt; observation.value = evaluate(questionnaireItem, $this.answer.value.toString() + 'T00:00:00.00Z') &quot;rule_item_reason_moved_away_date_observation_value&quot;;\n\n            questionnaireResponse then extractObservations(questionnaireResponse, bundle, encounter, observation) &quot;rule_item_observation_exttraction&quot;;\n        } &quot;rule_observation&quot;;\n    } &quot;rule_item_reason_moved_away&quot;;\n}\n\ngroup extractDeathDate(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle, target encounter: Encounter) {\n    questionnaireResponse.item as questionnaireItem where(linkId = &quot;4c495cf6-4ffa-4b14-8998-5f51bd00bce5&quot;) then {\n        questionnaireResponse-&gt;bundle.entry as entry, entry.resource = create(&quot;Observation&quot;) as observation then {\n            questionnaireResponse -&gt; observation.code = cc(&quot;https://smartregister.org/&quot;, &quot;removal-reason-date&quot;, &quot;Family Removal Date&quot;) &quot;rule_item_date_reason_moved_away_observation_code&quot;;\n            questionnaireResponse -&gt; observation.value = evaluate(questionnaireItem, $this.answer.value.toString() + 'T00:00:00.00Z') &quot;rule_item_reason_moved_away_date_observation_value&quot;;\n\n            questionnaireResponse then extractObservations(questionnaireResponse, bundle, encounter, observation) &quot;rule_item_observation_exttraction&quot;;\n        } &quot;rule_observation&quot;;\n    } &quot;rule_item_reason_moved_away&quot;;\n}\n\ngroup extractOtherIndicateReason(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle, target encounter: Encounter) {\n    questionnaireResponse.item as questionnaireItem where(linkId = &quot;b6a432a9-7026-4543-9f56-fc404e1d42c6&quot;) then {\n        questionnaireResponse-&gt;bundle.entry as entry, entry.resource = create(&quot;Observation&quot;) as observation then {\n            questionnaireResponse -&gt; observation.value = create(&quot;CodeableConcept&quot;)as codeableConcept then {\n                questionnaireResponse -&gt; observation.code = cc(&quot;https://smartregister.org/&quot;, &quot;group_other-remove-reason&quot;, &quot;Other Family Removal Reason&quot;) &quot;rule_item_other_indicate_reason_observation_code&quot;;\n                questionnaireResponse -&gt; codeableConcept.coding = evaluate(questionnaireItem, $this.answer.value.code) &quot;rule_item_other_indicate_reason_observation_value_cc_coding&quot;;\n                questionnaireResponse -&gt; codeableConcept.text = 'Removal other reason' &quot;rule_item_other_indicate_reason_observation_cc_display&quot;;\n            } &quot;rule_item_other_indicate_reason_observation_value&quot;;\n            questionnaireResponse then extractObservations(questionnaireResponse, bundle, encounter, observation) &quot;rule_item_observation_exttraction&quot;;\n        } &quot;rule_observation&quot;;\n    } &quot;rule_item_other_indicate_reason&quot;;\n}\n\ngroup extractObservations(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle, target encounter: Encounter,  target observation: Observation) {\n    questionnaireResponse-&gt;observation.id = uuid() &quot;rule_observation_id&quot;;\n    questionnaireResponse-&gt;observation.subject = create(&quot;Reference&quot;)as ref then {\n        questionnaireResponse-&gt;ref.reference = evaluate(questionnaireResponse, 'Patient/' + $this.item.where(linkId = &quot;261fdbe6-e0aa-48e5-824b-55314b60d8d6&quot;).answer.value) &quot;rule_item_observation_reference&quot;;\n    } &quot;rule_observation_reference&quot;;\n    questionnaireResponse-&gt;observation.encounter = reference(encounter) &quot;rule_observation_encounter&quot;;\n    questionnaireResponse-&gt;observation.category = cc(&quot;http://terminology.hl7.org/CodeSystem/observationervation-category&quot;, &quot;social-history&quot;, &quot;Social History&quot;) &quot;rule_observation_catergory&quot;;\n    questionnaireResponse-&gt;observation.effective = evaluate(questionnaireResponse, now()) &quot;rule_observation_effective&quot;;\n    questionnaireResponse -&gt; observation.status = &quot;final&quot; &quot;rule_item_removal_reason_observation_status&quot;;\n}\n\ngroup setHouseholdActiveAsFalseAndDelete(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle) {\n    questionnaireResponse.item as questionnaireItem where(linkId = &quot;261fdbe6-e0aa-48e5-824b-55314b60d8d6&quot;) then {\n        questionnaireResponse-&gt;bundle.entry as entry, entry.resource = create(&quot;Group&quot;) as household then {\n            questionnaireResponse-&gt;household.id = create(&quot;id&quot;) as household_id then {\n                questionnaireResponse-&gt;household_id.value = evaluate(questionnaireItem, $this.answer.value) &quot;rule_item_group_set_pat_id&quot;;\n            } &quot;rule_item_group_create_pat_id&quot;;\n            questionnaireResponse -&gt; household.active = false &quot;rule_item_group_active&quot;;\n            questionnaireResponse -&gt; household.characteristic = create('Group_Characteristic') as excludeFamily then {\n                questionnaireResponse -&gt; excludeFamily.exclude = true &quot;rule_exclude_group_true&quot;;\n            } &quot;rule_group_char&quot;;\n            questionnaireResponse -&gt; household.characteristic = create('Group_Characteristic') as familyCharacteristic then {\n                questionnaireResponse -&gt; familyCharacteristic.code = create('CodeableConcept') as familyCharacteristicCode then{\n                    questionnaireResponse -&gt; familyCharacteristicCode.coding = c(&quot;https://smartregister.org/&quot;, &quot;inactive&quot;) as coding then {\n                       questionnaireResponse -&gt; coding.display = 'inactive' &quot;rule_cod_disp&quot;;\n                    } &quot;rule_grp_vcode&quot;;\n               } &quot;rule_group_char_code&quot;;\n            } &quot;rule_group_char&quot;;\n        } &quot;rule_item_group&quot;;\n    } &quot;rule_item_group_id&quot;;\n}\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/b16b2831-9fe7-43c3-9440-8860b8ca9f79",
+  "name": "Remove Family",
+  "structure": [ {
+    "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse",
+    "mode": "source"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+    "mode": "target"
+  } ],
+  "group": [ {
+    "name": "ecbisRemoveFamily",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_bundle_id",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "id",
+        "transform": "uuid"
+      } ]
+    }, {
+      "name": "rule_bundle_type",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "type",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "collection"
+        } ]
+      } ]
+    }, {
+      "name": "rule_bundle_entry_ext_enc",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "dependent": [ {
+        "name": "extractEncounter",
+        "variable": [ "questionnaireResponse", "bundle" ]
+      } ]
+    } ]
+  }, {
+    "name": "extractEncounter",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_bundle_entry_enc",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "encounter",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Encounter"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_enc_id",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "rule_enc_status",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "finished"
+          } ]
+        } ]
+      }, {
+        "name": "rule_enc_class",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "class",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+          }, {
+            "valueString": "HH"
+          }, {
+            "valueString": "home health"
+          } ]
+        } ]
+      }, {
+        "name": "rule_enc_ser_type",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "serviceType",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/service-type"
+          }, {
+            "valueString": "85"
+          }, {
+            "valueString": "Death Service Information"
+          } ]
+        } ]
+      }, {
+        "name": "rule_en_type",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "type",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_en_coding",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "remove_family"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_display",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Remove family"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Remove family"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_priority",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "priority",
+          "variable": "priority",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_en_cc_cod",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "priority",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "priorityCoding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+            }, {
+              "valueString": "EL"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_en_cod_disp",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "priorityCoding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Elective"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_en_prio_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "priority",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Elective"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_reference",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "subject",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_observation_reference",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "ref",
+            "contextType": "variable",
+            "element": "reference",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "'Patient/' + $this.item.where(linkId = '261fdbe6-e0aa-48e5-824b-55314b60d8d6').answer.value"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_period",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_period_start",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "rule_period_end",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_en_reason",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "reasonCode",
+          "variable": "reason",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_en_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Remove family"
+            } ]
+          } ]
+        }, {
+          "name": "rule_rea_cd",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "remove_family"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_enc_ext_observation",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "extractReasonForRemoval",
+          "variable": [ "questionnaireResponse", "bundle", "encounter" ]
+        } ]
+      }, {
+        "name": "rule_enc_set_household_active_as_false",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "setHouseholdActiveAsFalseAndDelete",
+          "variable": [ "questionnaireResponse", "bundle" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractReasonForRemoval",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_item_removal_reason",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireItem",
+        "condition": "(linkId = 'c072659f-33a1-4ca3-86bb-073afad8290e')"
+      } ],
+      "rule": [ {
+        "name": "rule_observation",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "observation",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Observation"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_removal_reason_observation_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "cc",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "remove-group-reason"
+            }, {
+              "valueString": "Family Removal Reason"
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_removal_reason_observation_value",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "value",
+            "variable": "codeableConcept",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "CodeableConcept"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_item_removal_reason_observation_value_cc_coding",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "codeableConcept",
+              "contextType": "variable",
+              "element": "coding",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireItem"
+              }, {
+                "valueString": "$this.answer.value.code"
+              } ]
+            } ]
+          }, {
+            "name": "rule_item_removal_reason_observation_cc_display",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "codeableConcept",
+              "contextType": "variable",
+              "element": "text",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireResponse"
+              }, {
+                "valueString": "$this.answer.value.display"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_observation_exttraction",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "dependent": [ {
+            "name": "extractObservations",
+            "variable": [ "questionnaireResponse", "bundle", "encounter", "observation" ]
+          } ]
+        }, {
+          "name": "rule_item_extract_remove_date",
+          "source": [ {
+            "context": "questionnaireItem",
+            "condition": "(answer.value.code = 'moved-away')"
+          } ],
+          "dependent": [ {
+            "name": "extractMoveAwayDate",
+            "variable": [ "questionnaireResponse", "bundle", "encounter" ]
+          } ]
+        }, {
+          "name": "rule_item_extract_death_date",
+          "source": [ {
+            "context": "questionnaireItem",
+            "condition": "(answer.value.code = 'died')"
+          } ],
+          "dependent": [ {
+            "name": "extractDeathDate",
+            "variable": [ "questionnaireResponse", "bundle", "encounter" ]
+          } ]
+        }, {
+          "name": "rule_item_extract_other_reason_indicate",
+          "source": [ {
+            "context": "questionnaireItem",
+            "condition": "(answer.value.code = 'other')"
+          } ],
+          "dependent": [ {
+            "name": "extractOtherIndicateReason",
+            "variable": [ "questionnaireResponse", "bundle", "encounter" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractMoveAwayDate",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_item_reason_moved_away",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireItem",
+        "condition": "(linkId = '859f0b8e-80b6-4a15-f6a5-b1bec78d928c')"
+      } ],
+      "rule": [ {
+        "name": "rule_observation",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "observation",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Observation"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_date_reason_moved_away_observation_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "cc",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "removal-reason-date"
+            }, {
+              "valueString": "Family Removal Date"
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_reason_moved_away_date_observation_value",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireItem"
+            }, {
+              "valueString": "$this.answer.value.toString() + 'T00:00:00.00Z'"
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_observation_exttraction",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "dependent": [ {
+            "name": "extractObservations",
+            "variable": [ "questionnaireResponse", "bundle", "encounter", "observation" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractDeathDate",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_item_reason_moved_away",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireItem",
+        "condition": "(linkId = '4c495cf6-4ffa-4b14-8998-5f51bd00bce5')"
+      } ],
+      "rule": [ {
+        "name": "rule_observation",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "observation",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Observation"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_date_reason_moved_away_observation_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "cc",
+            "parameter": [ {
+              "valueString": "https://smartregister.org/"
+            }, {
+              "valueString": "removal-reason-date"
+            }, {
+              "valueString": "Family Removal Date"
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_reason_moved_away_date_observation_value",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireItem"
+            }, {
+              "valueString": "$this.answer.value.toString() + 'T00:00:00.00Z'"
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_observation_exttraction",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "dependent": [ {
+            "name": "extractObservations",
+            "variable": [ "questionnaireResponse", "bundle", "encounter", "observation" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractOtherIndicateReason",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_item_other_indicate_reason",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireItem",
+        "condition": "(linkId = 'b6a432a9-7026-4543-9f56-fc404e1d42c6')"
+      } ],
+      "rule": [ {
+        "name": "rule_observation",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "observation",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Observation"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_other_indicate_reason_observation_value",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "observation",
+            "contextType": "variable",
+            "element": "value",
+            "variable": "codeableConcept",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "CodeableConcept"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_item_other_indicate_reason_observation_code",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "cc",
+              "parameter": [ {
+                "valueString": "https://smartregister.org/"
+              }, {
+                "valueString": "group_other-remove-reason"
+              }, {
+                "valueString": "Other Family Removal Reason"
+              } ]
+            } ]
+          }, {
+            "name": "rule_item_other_indicate_reason_observation_value_cc_coding",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "codeableConcept",
+              "contextType": "variable",
+              "element": "coding",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireItem"
+              }, {
+                "valueString": "$this.answer.value.code"
+              } ]
+            } ]
+          }, {
+            "name": "rule_item_other_indicate_reason_observation_cc_display",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "codeableConcept",
+              "contextType": "variable",
+              "element": "text",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Removal other reason"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_observation_exttraction",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "dependent": [ {
+            "name": "extractObservations",
+            "variable": [ "questionnaireResponse", "bundle", "encounter", "observation" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractObservations",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    }, {
+      "name": "observation",
+      "type": "Observation",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_observation_id",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "id",
+        "transform": "uuid"
+      } ]
+    }, {
+      "name": "rule_observation_reference",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "subject",
+        "variable": "ref",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Reference"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_item_observation_reference",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "'Patient/' + $this.item.where(linkId = '261fdbe6-e0aa-48e5-824b-55314b60d8d6').answer.value"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_observation_encounter",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "encounter",
+        "transform": "reference",
+        "parameter": [ {
+          "valueId": "encounter"
+        } ]
+      } ]
+    }, {
+      "name": "rule_observation_catergory",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "category",
+        "transform": "cc",
+        "parameter": [ {
+          "valueString": "http://terminology.hl7.org/CodeSystem/observationervation-category"
+        }, {
+          "valueString": "social-history"
+        }, {
+          "valueString": "Social History"
+        } ]
+      } ]
+    }, {
+      "name": "rule_observation_effective",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "effective",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "questionnaireResponse"
+        }, {
+          "valueString": "now()"
+        } ]
+      } ]
+    }, {
+      "name": "rule_item_removal_reason_observation_status",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "observation",
+        "contextType": "variable",
+        "element": "status",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "final"
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "setHouseholdActiveAsFalseAndDelete",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_item_group_id",
+      "source": [ {
+        "context": "questionnaireResponse",
+        "element": "item",
+        "variable": "questionnaireItem",
+        "condition": "(linkId = '261fdbe6-e0aa-48e5-824b-55314b60d8d6')"
+      } ],
+      "rule": [ {
+        "name": "rule_item_group",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "household",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Group"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_item_group_create_pat_id",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "household",
+            "contextType": "variable",
+            "element": "id",
+            "variable": "household_id",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "id"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_item_group_set_pat_id",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "household_id",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireItem"
+              }, {
+                "valueString": "$this.answer.value"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_item_group_active",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "household",
+            "contextType": "variable",
+            "element": "active",
+            "transform": "copy",
+            "parameter": [ {
+              "valueBoolean": false
+            } ]
+          } ]
+        }, {
+          "name": "rule_group_char",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "household",
+            "contextType": "variable",
+            "element": "characteristic",
+            "variable": "excludeFamily",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Group_Characteristic"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_exclude_group_true",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "excludeFamily",
+              "contextType": "variable",
+              "element": "exclude",
+              "transform": "copy",
+              "parameter": [ {
+                "valueBoolean": true
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_group_char",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "household",
+            "contextType": "variable",
+            "element": "characteristic",
+            "variable": "familyCharacteristic",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Group_Characteristic"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_group_char_code",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "familyCharacteristic",
+              "contextType": "variable",
+              "element": "code",
+              "variable": "familyCharacteristicCode",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "CodeableConcept"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_grp_vcode",
+              "source": [ {
+                "context": "questionnaireResponse"
+              } ],
+              "target": [ {
+                "context": "familyCharacteristicCode",
+                "contextType": "variable",
+                "element": "coding",
+                "variable": "coding",
+                "transform": "c",
+                "parameter": [ {
+                  "valueString": "https://smartregister.org/"
+                }, {
+                  "valueString": "inactive"
+                } ]
+              } ],
+              "rule": [ {
+                "name": "rule_cod_disp",
+                "source": [ {
+                  "context": "questionnaireResponse"
+                } ],
+                "target": [ {
+                  "context": "coding",
+                  "contextType": "variable",
+                  "element": "display",
+                  "transform": "copy",
+                  "parameter": [ {
+                    "valueString": "inactive"
+                  } ]
+                } ]
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  } ]
+}

@@ -1,0 +1,27 @@
+# fail2ban — copy to /etc/fail2ban/jail.local, then: sudo systemctl restart fail2ban
+# Add your fixed admin source IP to ignoreip if you have one (avoids self-lockout).
+
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled  = true
+port     = ssh
+maxretry = 3
+bantime  = 24h
+
+[nginx-http-auth]
+enabled  = true
+port     = http,https
+logpath  = /var/log/nginx/error.log
+
+[nginx-limit-req]
+enabled  = true
+port     = http,https
+logpath  = /var/log/nginx/error.log
+maxretry = 10
+findtime = 1m
+bantime  = 1h

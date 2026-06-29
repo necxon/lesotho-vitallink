@@ -1,0 +1,186 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/ac3b27ef-bcc7-4e1b-ad0d-fb5082097759" = 'Covid 19 Immunization Encounter'
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+uses "http://hl7.org/fhir/StructureDefinition/CarePlan" as target
+
+group ImmunizationCarePlan(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> create('Encounter') as encounter, create('Encounter') as administrationEncounter then ExtractRecordEncounter(questionnaireResponse, encounter, bundle),
+        ExtractAdministrationEncounter(questionnaireResponse, administrationEncounter, encounter, bundle), ExtractImmunization(questionnaireResponse, administrationEncounter, encounter, bundle) "r_careplan";
+}
+
+group ExtractImmunization(source questionnaireResponse: QuestionnaireResponse, source encounterPartOf: Encounter, source encounter: Encounter, target bundle: Bundle) {
+    questionnaireResponse.item as vaccine where(linkId='current_vaccine') -> bundle.entry as entry, entry.resource = create('Immunization') as immunization then {
+        questionnaireResponse -> immunization.id = uuid(),
+            immunization.recorded = evaluate(questionnaireResponse, now()),
+            immunization.status = "completed",
+            create('dateTime') as vaccineDate,
+            vaccineDate.value = evaluate(questionnaireResponse, $this.descendants().where(linkId='vaccine_date').answer.value.toString()),
+            immunization.occurrence = vaccineDate,
+            immunization.lotNumber = evaluate(questionnaireResponse, $this.descendants().where(linkId='batch_number').answer.value),
+            immunization.patient = evaluate(questionnaireResponse, subject),
+            immunization.encounter = reference(encounter) "rule_ei_11";
+        questionnaireResponse -> immunization.vaccineCode = create('CodeableConcept') as concept,
+            evaluate(questionnaireResponse, $this.item.where(linkId='dose_number').answer.value.display) as dose then {
+                questionnaireResponse -> concept.text = evaluate(vaccine,$this.answer.value.display + ' ' + dose),
+                    concept.coding = evaluate(vaccine,$this.answer.value) "rule_ei_4_2";
+            } "rule_ei_4";
+        questionnaireResponse -> immunization.reasonCode = create('CodeableConcept') as concept then {
+           questionnaireResponse -> concept.text = 'SARS-CoV-2 vaccination', concept.coding = c('http://snomed.info/sct', '840534001', 'SARS-CoV-2 vaccination') "rule_ei_4_2";
+        } "rule_ei_4";
+    } "rule_ei_13";
+}
+
+// Immunization Record Encounter Sample
+group ExtractRecordEncounter(source questionnaireResponse: QuestionnaireResponse, target encounter: Encounter, target bundle: Bundle) {
+    questionnaireResponse -> encounter.id = uuid(),
+        encounter.status = "finished",
+        encounter.type = cc("http://snomed.info/sct", "41000179103", "Immunization record (record artifact)"),
+        encounter.class = c("http://terminology.hl7.org/CodeSystem/v3-ActCode", "HH", "home"),
+        encounter.priority = cc("http://terminology.hl7.org/ValueSet/v3-ActPriority", "EL", "Elective") as encounterPriority,
+        encounterPriority.text = "Elective" "r_en_static";
+    questionnaireResponse -> encounter.subject = evaluate(questionnaireResponse, $this.subject) "r_en_sub";
+    questionnaireResponse -> encounter.period = create("Period") as period then {
+        questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "r_start";
+        questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "r_end";
+    } "r_period";
+    questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as reason then {
+        questionnaireResponse -> reason.coding = create("Coding") as coding then {
+            questionnaireResponse -> coding.system = "http://snomed.info/sct", coding.display = 'Immunization', coding.code = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-code').answer.value)  "r_en_code_coding";
+        } "r_en_reason_code";
+    questionnaireResponse -> reason.text = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-name').answer.value) "r_en_reason_text";
+    } "r_en_reason";
+    questionnaireResponse -> encounter.participant = create("Encounter_Participant") as partComp then {
+        questionnaireResponse -> partComp.individual = create("Reference") as encOwner then {
+            questionnaireResponse -> encOwner.reference = evaluate(questionnaireResponse, "Practitioner/"+ $this.meta.tag.where($this.system = "https://smartregister.org/practitioner-tag-id").code) "r_enc_part_reference";
+        } "r_enc_part_individual";
+    } "r_enc_part_component";
+    questionnaireResponse then ExtractEncounterLocation(questionnaireResponse, encounter) "r_el";
+    questionnaireResponse -> bundle.entry as entry, entry.resource = encounter "r_enc_cp";
+}
+
+// Immunization Administration Encounter
+group ExtractAdministrationEncounter(source questionnaireResponse : QuestionnaireResponse,target administrationEncounter: Encounter,target encounter: Encounter, target bundle : Bundle) {
+        questionnaireResponse -> administrationEncounter.id = uuid(),
+            administrationEncounter.status = "finished",
+            administrationEncounter.type = cc("http://snomed.info/sct", "33879002", "Administration of vaccine to produce active immunity (procedure)") "r_type";
+        questionnaireResponse -> administrationEncounter.subject = evaluate(questionnaireResponse, subject) "r_subject";
+        questionnaireResponse -> administrationEncounter.period = create("Period") as period then {
+            questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "r_start";
+            questionnaireResponse -> period.end = evaluate(questionnaireResponse, now()) "r_end";
+        } "r_period";
+
+        questionnaireResponse -> administrationEncounter.partOf = create('Reference') as ref then {
+            questionnaireResponse -> ref.reference = evaluate(encounter,"Encounter/" + $this.id) "r_ref";
+        } "r_partof";
+        questionnaireResponse then ExtractEncounterLocation(questionnaireResponse, administrationEncounter) "r_el";
+        questionnaireResponse -> bundle.entry as entry, entry.resource = administrationEncounter "r_enc_cp";
+}
+
+//Add Location
+group ExtractEncounterLocation(source questionnaireResponse : QuestionnaireResponse, target encounter: Encounter) {
+    questionnaireResponse.item as item where($this.linkId.where(contains('place')).exists() and $this.answer.value.code = "static") then {
+        questionnaireResponse -> encounter.location=create('Encounter_Location') as loc then {
+            questionnaireResponse->loc.location = create("Reference") as ref then {
+                questionnaireResponse->ref.reference = "#001", ref.display = "Static" "r_enc_subject_ref";
+            } "r_ref";
+            questionnaireResponse -> loc.status = "completed", loc.period = evaluate(encounter, $this.period) "r_location";
+        } "r_enc_l";
+    } "r_hf";
+
+    questionnaireResponse.item as item where($this.linkId.where(contains('place')).exists() and $this.answer.value.code = "outreach") then {
+        questionnaireResponse -> encounter.location=create('Encounter_Location') as loc then {
+            questionnaireResponse->loc.location = create("Reference") as ref then {
+                questionnaireResponse->ref.reference = "#002", ref.display = "Outreach" "r_enc_subject_ref";
+            } "r_ref";
+            questionnaireResponse -> loc.status = "completed", loc.period = evaluate(encounter, $this.period) "r_location";
+        } "r_enc_l";
+    } "r_hf";
+}
+
+group extractTaskOutput(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source taskId: String, source encounterPartOf : Encounter, source encounter : Encounter, source immunization : Immunization) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Task') as task then {
+        questionnaireResponse -> task.id = create('id') as id then {
+            questionnaireResponse -> id.value = taskId "rule_task_id";
+        } "rule_update_task";
+
+        // mark task completed
+        questionnaireResponse -> task.status = 'completed' "r_task_status";
+
+        // Task Encounter Output one
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(encounterPartOf) "rule_task_output_reference";
+        } "rule_task_output";
+
+        // Task Encounter Output two
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(encounter) "rule_task_output_reference";
+        } "rule_task_output";
+
+        // Task Immunization Output
+        questionnaireResponse -> task.output = create('Task_Output') as outputTask then {
+            questionnaireResponse -> outputTask.type = create("CodeableConcept") as concept then {
+                questionnaireResponse-> concept.coding = c("http://snomed.info/sct","41000179103") as coding then {
+                    questionnaireResponse -> coding.display = "Immunization record (record artifact)" "rule_coding_display";
+                } "rule_task_concept_coding";
+            } "rule_codeable_concept";
+            questionnaireResponse -> outputTask.value = reference(immunization) "rule_task_output_reference";
+        } "rule_task_output";
+
+        subject -> evaluate(definition, $this.product.text + ' ' + (currentDose.sequence + 1).toString()) as preReqName,
+        evaluate(careplan, $this.contained.where(description.contains(preReqName) and (code.coding.code != '840534001' or (currentDose.sequence + 1) != 0))) as preReqTask then {
+            subject where(preReqTask.exists()) -> task.partOf = create('Reference') as partOfReference then {
+                subject -> partOfReference.reference = evaluate(preReqTask, 'Task/' + id) "rule_task_reference_id";
+            } "rule_task_part_of";
+        } "rule_dosage";
+
+        subject then extractTaskReferenceInput(subject, task, definition, version, careplan, currentDose) "rule_task_reference_input";
+    } "rule_task";
+}
+
+group extractTaskReferenceInput(source subject: Patient, target task: Task, source definition: ActivityDefinition, source version: Integer, source careplan: CarePlan, source currentDose: definition) {
+    subject -> evaluate(task, $this.partOf.last()) as taskPartOfReference then {
+        subject where(taskPartOfReference.empty().not()) then {
+            subject -> task.input = create('Task_Input') as inputTask then {
+                subject -> inputTask.type = create("CodeableConcept") as concept then {
+                    subject-> concept.coding = c("http://snomed.info/sct","900000000000457003") as coding then {
+                        subject -> coding.display = "Reference set attribute (foundation metadata concept)" "rule_coding_display";
+                    } "rule_task_concept_coding";
+                } "rule_codeable_concept";
+                subject -> inputTask.value = create('Reference') as partOfReference then {
+                    subject -> partOfReference.reference = evaluate(subject, taskPartOfReference.reference.toString()) "rule_task_reference_id";
+                } "rule_task_part_of_reference";
+            } "rule_task_input";
+
+            //add task.input for task dependencies
+            subject -> task.input = create('Task_Input') as inputTask then {
+                subject -> inputTask.type = create("CodeableConcept") as concept then {
+                    subject-> concept.coding = c("http://snomed.info/sct","371154000") as coding then {
+                        subject -> coding.display = "Dependent (qualifier value)" "rule_coding_display";
+                    } "rule_task_concept_coding";
+                } "rule_codeable_concept";
+                subject -> inputTask.value = 0 "rule_input_value";//TODO discuss implementation on how we can make this dynamic for each dosage
+            } "rule_task_input";
+        } "rule_task_part_of_reference_exists";
+
+        //add task.input for dosage info
+        subject -> task.input = create('Task_Input') as inputTask then {
+            subject -> inputTask.type = create("CodeableConcept") as concept then {
+                subject-> concept.coding = c("http://snomed.info/sct", "260911001") as coding then {
+                    subject -> coding.display = "Dosage (attribute)" "r_task_input_dosage_type_coding_display";
+                } "r_task_input_dosage_type_coding";
+            } "r_task_input_dosage_type";
+            subject -> inputTask.value = evaluate(definition, currentDose.select(sequence.toString())) "r_task_input_dosage_value";
+        } "r_task_input_dosage";
+    } "rule_task_part_of_reference";
+}

@@ -1,0 +1,3524 @@
+{
+  "resourceType": "StructureMap",
+  "id": "42d6d826-d6b2-41e9-9787-7424b4deca85",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/42d6d826-d6b2-41e9-9787-7424b4deca85&quot; = &quot;PNC Registration&quot;\r\n\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse&quot; as source\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\r\n\r\ngroup pncRegistration(source src : QuestionnaireResponse, target bundle: Bundle) {    \r\n    src -&gt; bundle.type = &quot;collection&quot; &quot;r_bundle_type&quot;;    \r\n    src -&gt; evaluate(src, $this.subject) as refPatient then extractPNCEncounter(src, bundle, refPatient) &quot;r_bundle_entries&quot;;\r\n}\r\n\r\ngroup extractPNCEncounter(source src : QuestionnaireResponse, target bundle: Bundle, source refPatient: Patient,) {    \r\n    src -&gt; bundle.entry as entry, entry.resource = create('Encounter') as encounter then {        \r\n        src -&gt; encounter.id = uuid() &quot;r_en_id&quot;;        \r\n        src -&gt; encounter.status = 'finished' &quot;r_en_st&quot;;        \r\n        src -&gt; encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;, &quot;Home Health&quot;) &quot;r_en_cls&quot;;        \r\n        src -&gt; encounter.type = create('CodeableConcept') as concept then {            \r\n            src -&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;, &quot;77386006&quot;) as coding then {                \r\n                src -&gt; coding.display = 'Consultation' &quot;r_en_cod_disp&quot;;            \r\n            } &quot;r_en_cc_cod&quot;;            \r\n            src -&gt; concept.text = 'Consultation' &quot;r_en_typ_text&quot;;        \r\n        } &quot;r_en_typ&quot;;        \r\n        src -&gt; encounter.priority = create('CodeableConcept') as concept then {            \r\n            src -&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;, &quot;17621005&quot;) as coding then {                \r\n                src -&gt; coding.display = 'Normal' &quot;r_en_cod_disp&quot;;            \r\n            } &quot;r_en_cc_cod&quot;;            \r\n            src -&gt; concept.text = 'Normal' &quot;r_en_prio_text&quot;;        \r\n        } &quot;r_en_prio&quot;;    \r\n        src -&gt; encounter.subject = evaluate(src, $this.subject) &quot;r_en_sub&quot;;        \r\n        // src -&gt; encounter.participant = automatically set by code in questionnaire view model        \r\n        src -&gt; encounter.period = create('Period') as enPeriod then {            \r\n            src -&gt; enPeriod.start = evaluate(src, now()) &quot;r_en_per_start&quot;;            \r\n            src -&gt; enPeriod.end = evaluate(src, now()) &quot;r_en_per_end&quot;;        \r\n        } &quot;r_en_per&quot;;        \r\n        src -&gt; encounter.reasonCode = create('CodeableConcept') as concept then {            \r\n            src -&gt; concept.coding = c(&quot;http://smartregsiter.org/&quot;, &quot;pregnancy_outcome_registration&quot;) as coding then {                \r\n                src -&gt; coding.display = 'Pregnancy Outcome Registration' &quot;r_en_rc_cod_disp&quot;;            \r\n            } &quot;r_en_rc_cod&quot;;            \r\n            src -&gt; concept.text = 'Pregnancy Outcome Registration' &quot;r_en_text&quot;;        \r\n        } &quot;r_en_reason&quot;;        \r\n        \r\n        src then extractPregnancyOutcomeObservation(src, bundle, refPatient, encounter) &quot;r_extract_observations&quot;;        \r\n        src then extractPNCResources(src, bundle, refPatient, encounter) &quot;r_extract_resources&quot;;    \r\n    } &quot;r_en&quot;;\r\n}\r\n\r\ngroup extractPNCResources(source src : QuestionnaireResponse, target bundle : Bundle, source refPatient : Reference, target encounter : Encounter) {    \r\n    src.item as item_pnc_started where(linkId ='dd90825d-c161-480a-8f9f-ab2921155be2' and answer.value.code = 'live-birth') then {            \r\n        src then extractPNCCondition(src, bundle, encounter, refPatient) &quot;rule_pnc_condition&quot;;            \r\n        src then updateANCCondition(src, bundle, refPatient) &quot;rule_update_anc_condition&quot;;            \r\n        src then extractChildRegistrationTasks(src, bundle, encounter, refPatient) &quot;rule_child_registration&quot;;            \r\n        src -&gt; create('Reference') as refCommodity, create('integer') as previousBal then {                \r\n            src then extractCommodityReference(src, refCommodity, previousBal) &quot;r_populate_commodity_ref&quot;;                \r\n            src then extractObservation(src, bundle, encounter , refCommodity, previousBal) &quot;rule_comodity_observation&quot;;            \r\n        } &quot;r_commodity_ref&quot;;    \r\n    } &quot;rule_live_birth_check&quot;;\r\n}\r\n\r\ngroup extractPregnancyOutcomeObservation(source src : QuestionnaireResponse, target bundle: Bundle, source refPatient: Patient, source encounter : Encounter){    \r\n    src.item where(linkId ='dd90825d-c161-480a-8f9f-ab2921155be2' and answer.value.code = 'live-birth') then {        \r\n        src then extractPregnancyOutcomeObservationLiveBirth(src, bundle, refPatient, encounter) &quot;rule_pregnancy_outcome_observation&quot;;    \r\n    } &quot;rule_pregnancy_outcome_observation&quot;;    \r\n    src.item as item where(linkId ='dd90825d-c161-480a-8f9f-ab2921155be2' and answer.value.code = 'stillbirth') then {        \r\n        src then extractPregnancyOutcomeObservationStillBirth(src, bundle, refPatient, encounter) &quot;rule_pregnancy_outcome_observation&quot;;    \r\n    } &quot;rule_pregnancy_outcome_observation&quot;;    \r\n    src.item as item where(linkId ='dd90825d-c161-480a-8f9f-ab2921155be2' and answer.value.code = 'miscarriage') then {        \r\n        src then extractPregnancyOutcomeObservationWhenMiscarriage(src, bundle, refPatient, encounter) &quot;rule_pregnancy_outcome_observation&quot;;    \r\n    } &quot;rule_pregnancy_outcome_observation&quot;;\r\n}\r\n\r\ngroup extractPregnancyOutcomeObservationLiveBirth(source src : QuestionnaireResponse, target bundle: Bundle, source refPatient: Patient, source encounter : Encounter){\r\n        src -&gt; bundle.entry as entry, entry.resource = create('Observation') as observation then {        \r\n            src -&gt; observation.id = uuid() &quot;rule_observation_id&quot;;        \r\n            src -&gt; observation.code = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'https://smartregister.org/' &quot;rule_observation_coding_system&quot;;                \r\n                    src -&gt; coding.code = '267013003' &quot;r_obs_c_coding_code&quot;;            \r\n                } &quot;r_obs_c_coding&quot;;        \r\n            } &quot;r_obs_code&quot;;        \r\n            src -&gt; observation.subject = refPatient &quot;rule_observation_subject&quot;;        \r\n            src -&gt; observation.encounter = reference(encounter) &quot;rule_observation_encounter&quot;;        \r\n            src -&gt; observation.status = 'final' &quot;rule_observation_status&quot;;        \r\n            src -&gt; observation.category = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                \r\n                    src -&gt; coding.code = '169812000' &quot;rule_observation_code&quot;;                \r\n                    src -&gt; coding.display = 'Place of birth' &quot;rule_observation_coding_display&quot;;            \r\n                } &quot;rule_observation_coding&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'home') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '169813005' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Home' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_home&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'facility') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '52668009' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Facility' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_facility&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'other') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '74964007' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Other' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_facility&quot;;            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                \r\n                    src -&gt; coding.code = '169826009' &quot;rule_observation_code&quot;;                \r\n                    src -&gt; coding.display = 'Pregnancy Outcome Type' &quot;rule_observation_coding_display&quot;;            \r\n                } &quot;rule_observation_coding&quot;;        \r\n            } &quot;rule_observation_code&quot;;        \r\n            src.item as item where(linkId = '5c9a5b34-04ed-4f41-8614-9fb42333871a') then {            \r\n                item.answer first as deliveryDate then {                \r\n                    deliveryDate.value as val -&gt; observation.effective = create('dateTime') as dt,                \r\n                    dt.value = evaluate(val, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;r_effective_current_date_time&quot;;            \r\n                } &quot;r_observation_effective&quot;;        \r\n            }&quot;r_effective_current_date_time&quot;;    \r\n        } &quot;r_observation_v2&quot;;\r\n    }\r\n    \r\n    group extractPregnancyOutcomeObservationStillBirth(source src : QuestionnaireResponse, target bundle: Bundle, source refPatient: Patient, source encounter : Encounter){    \r\n        src -&gt; bundle.entry as entry, entry.resource = create('Observation') as observation then {        \r\n            src -&gt; observation.id = uuid() &quot;rule_observation_id&quot;;        \r\n            src -&gt; observation.code = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'https://smartregister.org/' &quot;rule_observation_coding_system&quot;;                \r\n                    src -&gt; coding.code = '267013003' &quot;r_obs_c_coding_code&quot;;            \r\n                } &quot;r_obs_c_coding&quot;;        \r\n            } &quot;r_obs_code&quot;;        \r\n            src -&gt; observation.subject = refPatient &quot;rule_observation_subject&quot;;        \r\n            src -&gt; observation.encounter = reference(encounter) &quot;rule_observation_encounter&quot;;        \r\n            src -&gt; observation.status = 'final' &quot;rule_observation_status&quot;;        \r\n            src -&gt; observation.category = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                \r\n                    src -&gt; coding.code = '169812000' &quot;rule_observation_code&quot;;                \r\n                    src -&gt; coding.display = 'Place of birth' &quot;rule_observation_coding_display&quot;;            \r\n                } &quot;rule_observation_coding&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'home') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '169813005' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Home' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_home&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'facility') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '52668009' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Facility' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_facility&quot;;            \r\n                src.item as item where(linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22' and answer.value.code = 'other') then {                \r\n                    src -&gt; code.coding = create('Coding') as coding then {                    \r\n                        src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                    \r\n                        src -&gt; coding.code = '74964007' &quot;rule_observation_code&quot;;                    \r\n                        src -&gt; coding.display = 'Other' &quot;rule_observation_coding_display&quot;;                \r\n                    } &quot;rule_observation_coding&quot;;            \r\n                } &quot;r_obs_category_facility&quot;;            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                \r\n                    src -&gt; coding.code = '169827000' &quot;rule_observation_code&quot;;              \r\n                    src -&gt; coding.display = 'Pregnancy Outcome Type' &quot;rule_observation_coding_display&quot;;            \r\n                } &quot;rule_observation_coding&quot;;        \r\n            } &quot;rule_observation_code&quot;;        \r\n            src.item as item where(linkId = '5c9a5b34-04ed-4f41-8614-9fb42333871a') then {            \r\n                item.answer first as deliveryDate then {                \r\n                    deliveryDate.value as val -&gt; observation.effective = create('dateTime') as dt,                \r\n                    dt.value = evaluate(val, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;r_effective_current_date_time&quot;;            \r\n                } &quot;r_observation_effective&quot;;        \r\n            }&quot;r_effective_current_date_time&quot;;    \r\n        } &quot;r_observation_v2&quot;;\r\n    }\r\n    \r\n    group extractPregnancyOutcomeObservationWhenMiscarriage(source src : QuestionnaireResponse, target bundle: Bundle, source refPatient: Patient, source encounter : Encounter){    \r\n        src -&gt; bundle.entry as entry, entry.resource = create('Observation') as observation then {        \r\n            src -&gt; observation.id = uuid() &quot;rule_observation_id&quot;;        \r\n            src -&gt; observation.code = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'https://smartregister.org/' &quot;rule_observation_coding_system&quot;;                \r\n                    src -&gt; coding.code = '267013003' &quot;r_obs_c_coding_code&quot;;            \r\n                } &quot;r_obs_c_coding&quot;;        \r\n            } &quot;r_obs_code&quot;;        \r\n            src -&gt; observation.subject = refPatient &quot;rule_observation_subject&quot;;        \r\n            src -&gt; observation.encounter = reference(encounter) &quot;rule_observation_encounter&quot;;        \r\n            src -&gt; observation.status = 'final' &quot;rule_observation_status&quot;;        \r\n            src -&gt; observation.category = create('CodeableConcept') as code then {            \r\n                src -&gt; code.coding = create('Coding') as coding then {                \r\n                    src -&gt; coding.system = 'http://snomed.info/sct' &quot;rule_observation_system&quot;;                \r\n                    src -&gt; coding.code = '17369002' &quot;rule_observation_code&quot;;                \r\n                    src -&gt; coding.display = 'Pregnancy Outcome Type' &quot;rule_observation_coding_display&quot;;            \r\n                } &quot;rule_observation_coding&quot;;        \r\n            }&quot;r_obs_category&quot;;        \r\n            src.item as item where(linkId = 'd5b97812-ec99-44d1-8cd9-1279c799d293') then {            \r\n                item.answer first as deliveryDate then {                \r\n                    deliveryDate.value as val -&gt; observation.effective = create('dateTime') as dt,                \r\n                    dt.value = evaluate(val, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;r_effective_current_date_time&quot;;            \r\n                } &quot;r_observation_delivery_date&quot;;        \r\n            }&quot;r_effective_delivery_date&quot;;    \r\n        } &quot;r_observation_for_miscarriage&quot;;\r\n    }\r\n    \r\n    \r\n    /* Create the PNC Condition for the patients  */\r\n    group extractPNCCondition(source src : QuestionnaireResponse, target bundle : Bundle, source encounter : Encounter, source refPatient : Reference) {    \r\n        src -&gt; bundle.entry as entry, entry.resource = create(&quot;Condition&quot;) as cnd then {        \r\n            src -&gt; cnd.id = uuid() &quot;r_cnd_id&quot;;     \r\n            src -&gt; cnd.onset = evaluate(src, now()) &quot;r_cnd_onset_date_val&quot;;     \r\n            src -&gt; cnd.clinicalStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-clinical&quot;, &quot;active&quot;) &quot;r_cnd_clinical_st&quot;;        \r\n            src -&gt; cnd.verificationStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-ver-status&quot;, &quot;confirmed&quot;) &quot;r_cnd_verif_st&quot;;        \r\n            src -&gt; cnd.category = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-category&quot;, &quot;encounter-diagnosis&quot;,        \r\n            &quot;Encounter Diagnosis&quot;) &quot;r_cnd_category&quot;;        \r\n            src -&gt; cnd.subject = refPatient &quot;r_cnd_sub&quot;;        \r\n            src -&gt; cnd.recordedDate = evaluate(src, now()) &quot;r_cnd_recorded&quot;;        \r\n            src -&gt; cnd.code = create(&quot;CodeableConcept&quot;) as ccPreg then {             \r\n                src -&gt; ccPreg.coding = c(&quot;http://snomed.info/sct&quot;, &quot;234234234&quot;, &quot;PNC&quot;) as coding, coding.display = 'PNC' &quot;r_cnd_code_coding&quot;;             \r\n                src -&gt; ccPreg.text = &quot;PNC&quot; &quot;r_cnd_code_text&quot;;        \r\n            } &quot;r_cnd_code&quot;;        \r\n            src -&gt; cnd.encounter = reference(encounter) &quot;r_new_fp_encounter&quot;;    \r\n        } &quot;r_cnd&quot;;\r\n    }\r\n    \r\n    /* Update Existing ANC Condition for the patients  */\r\n    group updateANCCondition(source src : QuestionnaireResponse, target bundle : Bundle, source refPatient : Reference) {    \r\n        src.item as item where(linkId = &quot;650dd00d-c60b-4a3d-838a-128aad048277&quot; and answer.value.exists()) then {          \r\n            src-&gt;bundle.entry as entry,          \r\n            entry.resource = create(&quot;Condition&quot;) as cnd then {              \r\n                src-&gt;cnd.id = create(&quot;id&quot;) as cnd_id then {                  \r\n                    src-&gt;cnd_id.value = evaluate(item, $this.answer.value) &quot;r_item_cnd_id_value&quot;;              \r\n                } &quot;r_item_cnd_id&quot;;              \r\n                src -&gt; cnd.clinicalStatus = cc(&quot;http://terminology.hl7.org/CodeSystem/condition-clinical&quot;, &quot;inactive&quot;) &quot;r_cnd_clinical_status&quot;;          \r\n            } &quot;r_cnd&quot;;      \r\n        } &quot;r_item&quot;;\r\n    }\r\n    \r\n    /*Create the Tasks for child registrations*/\r\n    group extractChildRegistrationTasks(source src : QuestionnaireResponse, target bundle : Bundle, source encounter : Encounter, source refPatient : Reference) {     \r\n        // src -&gt; evaluate(src, today()) as start, evaluate(src, today() + '2 \\\\'days\\\\''.toQuantity()) as end, create('Period')\r\n        src -&gt; evaluate(src, today()) as start, evaluate(src, today() + &quot;2 days&quot;.toQuantity()) as end, create('Period')\r\n        // src -&gt; evaluate(src, today()) as start, evaluate(src, today() + &quot;2 \\\\'days\\\\'&quot;.toQuantity()) as end, create('Period')    \r\n        as period,bundle.entry as entry, \r\n            entry.resource = create(&quot;Task&quot;) as pncTask then {        \r\n            src then extractTaskPeriod(start, end, period) &quot;rule_task_period&quot;;        \r\n            \r\n            src -&gt; pncTask.id = uuid(),            \r\n            pncTask.identifier = create('Identifier') as identifier, identifier.value = uuid(), identifier.use = 'official',            \r\n            pncTask.status = 'ready',            \r\n            pncTask.intent = 'plan',            \r\n            pncTask.executionPeriod = period,            \r\n            pncTask.priority = 'routine',            \r\n            pncTask.description = 'New Born registration task',            \r\n            pncTask.for = refPatient,            \r\n            pncTask.authoredOn = evaluate(src, now()),            \r\n            pncTask.encounter = reference(encounter),            \r\n            pncTask.requester = evaluate(src, $this.generalPractitioner.first()),            \r\n            pncTask.owner = evaluate(src, $this.generalPractitioner.first()) &quot;rule_task_data&quot;;            \r\n            \r\n            // child registration form link            \r\n            src -&gt; pncTask.reasonReference = create('Reference') as ref, ref.reference = 'Questionnaire/f0a04fc4-4179-4df4-b2dc-8b2eac444d0b' &quot;r_task_reason_ref&quot;;     \r\n        } &quot;rule_create_task&quot;;\r\n    }\r\n    \r\n    group extractTaskPeriod(source start: DateType, source end: DateType, target period: Period) {    \r\n        start -&gt; period.start = create('dateTime') as dt,             \r\n        dt.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;r_per_start&quot;;    \r\n        \r\n        end -&gt; period.end = create('dateTime') as dt,           \r\n        dt.value = evaluate(end, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;r_per_end&quot;;\r\n    }\r\n    \r\n    group extractObservation(source src : QuestionnaireResponse, target bundle : Bundle, source encounter : Encounter, source refCommodity : Reference, source previousBal: Integer) {    \r\n        src.item as item_given where(linkId='d26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code != 'none') then {        \r\n            src.item as item_given_count where(linkId ='489de7ae-51cc-4f43-c761-12c8fb65266b' and answer.value.exists() and answer.value.toInteger() &gt; 0) then {            \r\n                src -&gt; bundle.entry as entry, entry.resource = create('Observation') as obs then {                \r\n                    src -&gt; obs.id = uuid() &quot;r_obs_id&quot;;                \r\n                    src -&gt; obs.status = 'preliminary' &quot;r_obs_status&quot;;                \r\n                    src -&gt; obs.category = cc('http://snomed.info/sct','386452003', 'Supply management') &quot;r_obs_category_1&quot;;                \r\n                    src -&gt; obs.category = cc('http://hl7.org/fhir/inventoryreport-counttype', 'subtraction', 'Subtraction')&quot;r_obs_category_2&quot;;                \r\n                    src -&gt; obs.code = create('CodeableConcept') as code then {                    \r\n                        src -&gt; code.coding = create('Coding') as coding then {                        \r\n                            src -&gt; coding.system = 'https://smartregister.org/' &quot;r_obs_coding_system&quot;;                        \r\n                            src -&gt; coding.code = 'consumption' &quot;r_obs_c_coding_code&quot;;                        \r\n                            src -&gt; coding.display = 'consumption' &quot;r_obs_c_coding_display&quot;;                    \r\n                        } &quot;r_obs_c_coding&quot;;                    \r\n                        src -&gt; code.text = 'consumption' &quot;r_obs_c_text&quot;;                \r\n                    } &quot;r_obs_code&quot;;                \r\n                    src -&gt; obs.subject = refCommodity &quot;r_obs_subject&quot;;                \r\n                    src -&gt; obs.effective = evaluate(src, now()) &quot;r_effective_current_date_time&quot;;                \r\n                    src -&gt; obs.performer = evaluate(src, $this.generalPractitioner.first()) &quot;r_obs_performer&quot;;                \r\n                    src -&gt; obs.value = create('Quantity') as qty then {                    \r\n                        src -&gt; qty.value = evaluate(item_given_count, $this.answer.value),                        \r\n                        qty.unit = 'Pieces',                        \r\n                        qty.system = 'http://snomed.info/sct',                        \r\n                        qty.code = '767525000' &quot;r_obs_qty&quot;;                \r\n                    } &quot;r_obs_value&quot;;                \r\n                    src -&gt; obs.encounter = reference(encounter) &quot;r_observation_encounter&quot;;                \r\n                    \r\n                    src -&gt; evaluate(item_given_count, $this.answer.value.toInteger()) as qtyDistributed then {                    \r\n                        src -&gt; evaluate(src, (previousBal - qtyDistributed)) as runningTotal  then {                         \r\n                            //Adding the running total component                        \r\n                            src -&gt; obs.component as component then extractRunningBalance(src, component, runningTotal) &quot;r_obs_running_total_component&quot;;                        \r\n                            \r\n                            //create stockout flag if none exists and total balance is Zero or less                        \r\n                            src as stockOut where (runningTotal &lt;= 0) then {                            \r\n                                //create male condom stockout flag                            \r\n                                src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'male-condoms') then {                                \r\n                                    src.item as noMaleCondomFlag where (linkId = '56577a66-15ae-4612-bee9-a2d4168082e8' and answer.value.empty()) then {                                    \r\n                                        src then createStockOutFlag(src, bundle, encounter, refCommodity) &quot;r_create_male_condom_stockout_flag&quot;;                                \r\n                                    } &quot;r_no_male_condom_flag&quot;;                            \r\n                                } &quot;r_check_male_condoms&quot;;                            \r\n                                \r\n                                //create female condom stockout flag                            \r\n                                src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'female-condoms') then {                                \r\n                                    src.item as noFemaleCondomFlag where (linkId = '30be53b9-6a9c-49fd-8ae7-6e8ff1da8830' and answer.value.empty()) then {                                    \r\n                                        src then createStockOutFlag(src, bundle, encounter, refCommodity) &quot;r_create_female_condom_stockout_flag&quot;;                                \r\n                                    } &quot;r_no_female_condom_flag&quot;;                            \r\n                                } &quot;r_check_male_comdoms&quot;;    \r\n                            } &quot;r_bal_is_zero&quot;;                    \r\n                        } &quot;r_running_total_compute&quot;;                \r\n                    } &quot;r_distributed_quantity&quot;;                \r\n                    \r\n                    //Update the current latest male condom observation if it exists                \r\n                    src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'male-condoms') then {                    \r\n                        src.item as latestObservation where(linkId ='955c5b30-0f08-4720-8567-99ef58350615' and answer.value.exists()) then {                        \r\n                            src -&gt;  evaluate(src, $this.item.where(linkId = '955c5b30-0f08-4720-8567-99ef58350615').answer.value) as latestObservationId then updateLatestObservation(src, bundle, latestObservationId)  &quot;r_update_current_latest_obs&quot;;                    \r\n                        } &quot;r_check_latest_obs&quot;;                \r\n                    } &quot;r_check_male_condoms&quot;;                \r\n                    \r\n                    //Update the current latest female condomobservation if it exists                \r\n                    src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'female-condoms') then {                    \r\n                        src.item as latestObservation where(linkId ='3821961e-79db-4120-99db-079548307454' and answer.value.exists()) then {                        \r\n                            src -&gt;  evaluate(src, $this.item.where(linkId = '3821961e-79db-4120-99db-079548307454').answer.value) as latestObservationId then updateLatestObservation(src, bundle, latestObservationId)  &quot;r_update_current_latest_obs&quot;;                    \r\n                        } &quot;r_check_latest_obs&quot;;                \r\n                    } &quot;r_check_female_condoms&quot;;            \r\n                \r\n                } &quot;r_obs&quot;;        \r\n            } &quot;r_condom_given_count_check&quot;;    \r\n        } &quot;r_condom_given_check&quot;;\r\n    }\r\n    \r\n    group extractCommodityReference(source src: QuestionnaireResponse, target ref: Reference, target previousBal: Integer) {    \r\n        src -&gt; previousBal.value = &quot;0&quot; &quot;r_instantiate_bal&quot;;    \r\n        src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'male-condoms') then {        \r\n            //commodity group reference        \r\n            src -&gt; ref.reference = 'Group/651ef234-b303-4ba5-b135-bd4a1f9eb2c0' &quot;r_male_condom_ref&quot;;        \r\n            //stock balance        \r\n            src.item where(linkId = '25cc8d26-ac42-475f-be79-6f1d62a44881' and answer.value.exists()) then {            \r\n                src -&gt; previousBal.value = evaluate(src, $this.item.where(linkId = '25cc8d26-ac42-475f-be79-6f1d62a44881').answer.value.toString()) &quot;r_male_condom_previous_bal&quot;;        \r\n            } &quot;r_check_male_condom_prev_bal&quot;;    \r\n        } &quot;r_male_condom_type_check&quot;;    \r\n        \r\n        src.item where(linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825' and answer.value.code = 'female-condoms') then {        \r\n            //commodity group reference        \r\n            src -&gt; ref.reference = 'Group/7ec6e766-e5dc-4abf-b19a-a403f696d3e2' &quot;r_female_condom_ref&quot;;        \r\n            //stock balance        \r\n            src.item where(linkId = '48245462-0198-48ab-f5c4-ca4ca3da5403' and answer.value.exists()) then {            \r\n                src -&gt; previousBal.value = evaluate(src, $this.item.where(linkId = '48245462-0198-48ab-f5c4-ca4ca3da5403').answer.value.toString()) &quot;r_female_condom_previous_bal&quot;;        \r\n            } &quot;r_check_female_condom_prev_bal&quot;;    \r\n        } &quot;r_female_condom_type_check&quot;;\r\n    }\r\n    \r\n    group extractRunningBalance(source src: QuestionnaireResponse, target component: BackboneElement, source runningTotal : Integer){    \r\n        src -&gt; component.code = create('CodeableConcept') as runningTotalCC then {        \r\n            src -&gt; runningTotalCC.coding = create('Coding') as runningTotalCCCoding then {            \r\n                src -&gt; runningTotalCCCoding.system = 'http://snomed.info/sct' &quot;r_obs_runing_total_cc_coding_system&quot;;            \r\n                src -&gt; runningTotalCCCoding.code = '255619001' &quot;r_obs_runing_total_cc_coding_code&quot;;            \r\n                src -&gt; runningTotalCCCoding.display = 'Total' &quot;r_obs_runing_total_cc_coding_display&quot;;        \r\n            } &quot;r_obs_running_total_cc_coding&quot;;        \r\n            src -&gt; runningTotalCC.text = 'Running total/Cumulative sum' &quot;r_obs_runing_total_cc_text&quot;;    \r\n        } &quot;r_obs_running_total_code&quot;;    \r\n        \r\n        src -&gt; component.value = create('Quantity') as runningTotalQuantity then {        \r\n            src -&gt; runningTotalQuantity.value = runningTotal &quot;r_obs__running_total_qty&quot;;    \r\n        } &quot;r_obs_running_total_quantity&quot;;\r\n    }\r\n    \r\n    group updateLatestObservation(source src: src, target bundle : Bundle, source latestObservationId : String){    \r\n        src -&gt; bundle.entry as entry, entry.resource = create('Observation') as observation then {        \r\n            src -&gt; observation.id = create('id') as id then {            \r\n                src -&gt; id.value = latestObservationId &quot;r_update_obs_id_value&quot;;        \r\n            } &quot;r_update_obs_id&quot;;        \r\n            src -&gt; observation.status = 'final' &quot;r_update_latest_obs_to_final&quot;;    \r\n        } &quot;r_update_latest_obs&quot;;\r\n    }\r\n    \r\n    group createStockOutFlag(source src: src, target bundle : Bundle, source encounter : Encounter, source refCommodity: Reference){    \r\n        src -&gt; bundle.entry as entry, entry.resource = create('Flag') as flag then {        \r\n            src -&gt; flag.id = uuid() &quot;r_flag_id&quot;;        \r\n            src -&gt; flag.status = 'active' &quot;r_flag_status&quot;;        \r\n            src -&gt; flag.category = cc('http://snomed.info/sct','386452003', 'Supply management') &quot;r_flag_category&quot;;        \r\n            src -&gt; flag.code = cc('http://snomed.info/sct','419182006', ' Supplies not available')  &quot;r_flag_code&quot;;        \r\n            src -&gt; flag.subject = refCommodity &quot;r_flag_subject&quot;;        \r\n            src -&gt; flag.period = create('Period') as period then {            \r\n                src -&gt; period.start = evaluate(src, now()) &quot;r_flag_period_start&quot;;        \r\n            } &quot;r_flag_period&quot;;        \r\n            src -&gt; flag.encounter = reference(encounter) &quot;r_flag_encounter&quot;;    \r\n        } &quot;r_flag&quot;;\r\n    }\r\n    \r\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/42d6d826-d6b2-41e9-9787-7424b4deca85",
+  "name": "PNC Registration",
+  "structure": [ {
+    "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+    "mode": "source"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+    "mode": "target"
+  } ],
+  "group": [ {
+    "name": "pncRegistration",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_bundle_type",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "type",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "collection"
+        } ]
+      } ]
+    }, {
+      "name": "r_bundle_entries",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "variable": "refPatient",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "src"
+        }, {
+          "valueString": "$this.subject"
+        } ]
+      } ],
+      "dependent": [ {
+        "name": "extractPNCEncounter",
+        "variable": [ "src", "bundle", "refPatient" ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPNCEncounter",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Patient",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_en",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "encounter",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Encounter"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_en_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_en_st",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "finished"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_cls",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "class",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+          }, {
+            "valueString": "HH"
+          }, {
+            "valueString": "Home Health"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_typ",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "type",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_cc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            }, {
+              "valueString": "77386006"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Consultation"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_typ_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Consultation"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_prio",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "priority",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_cc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            }, {
+              "valueString": "17621005"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Normal"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_prio_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Normal"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_sub",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.subject"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_per",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "enPeriod",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_per_start",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "enPeriod",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "r_en_per_end",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "enPeriod",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_reason",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "reasonCode",
+          "variable": "concept",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_rc_cod",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://smartregsiter.org/"
+            }, {
+              "valueString": "pregnancy_outcome_registration"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_rc_cod_disp",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Pregnancy Outcome Registration"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "concept",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Pregnancy Outcome Registration"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_extract_observations",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPregnancyOutcomeObservation",
+          "variable": [ "src", "bundle", "refPatient", "encounter" ]
+        } ]
+      }, {
+        "name": "r_extract_resources",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPNCResources",
+          "variable": [ "src", "bundle", "refPatient", "encounter" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPNCResources",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Reference",
+      "mode": "source"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_live_birth_check",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item_pnc_started",
+        "condition": "((linkId = 'dd90825d-c161-480a-8f9f-ab2921155be2') and (answer.value.code = 'live-birth'))"
+      } ],
+      "rule": [ {
+        "name": "rule_pnc_condition",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPNCCondition",
+          "variable": [ "src", "bundle", "encounter", "refPatient" ]
+        } ]
+      }, {
+        "name": "rule_update_anc_condition",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "updateANCCondition",
+          "variable": [ "src", "bundle", "refPatient" ]
+        } ]
+      }, {
+        "name": "rule_child_registration",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractChildRegistrationTasks",
+          "variable": [ "src", "bundle", "encounter", "refPatient" ]
+        } ]
+      }, {
+        "name": "r_commodity_ref",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "variable": "refCommodity",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        }, {
+          "variable": "previousBal",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "integer"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_populate_commodity_ref",
+          "source": [ {
+            "context": "src"
+          } ],
+          "dependent": [ {
+            "name": "extractCommodityReference",
+            "variable": [ "src", "refCommodity", "previousBal" ]
+          } ]
+        }, {
+          "name": "rule_comodity_observation",
+          "source": [ {
+            "context": "src"
+          } ],
+          "dependent": [ {
+            "name": "extractObservation",
+            "variable": [ "src", "bundle", "encounter", "refCommodity", "previousBal" ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPregnancyOutcomeObservation",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_pregnancy_outcome_observation",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "condition": "((linkId = 'dd90825d-c161-480a-8f9f-ab2921155be2') and (answer.value.code = 'live-birth'))"
+      } ],
+      "rule": [ {
+        "name": "rule_pregnancy_outcome_observation",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPregnancyOutcomeObservationLiveBirth",
+          "variable": [ "src", "bundle", "refPatient", "encounter" ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_pregnancy_outcome_observation",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item",
+        "condition": "((linkId = 'dd90825d-c161-480a-8f9f-ab2921155be2') and (answer.value.code = 'stillbirth'))"
+      } ],
+      "rule": [ {
+        "name": "rule_pregnancy_outcome_observation",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPregnancyOutcomeObservationStillBirth",
+          "variable": [ "src", "bundle", "refPatient", "encounter" ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_pregnancy_outcome_observation",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item",
+        "condition": "((linkId = 'dd90825d-c161-480a-8f9f-ab2921155be2') and (answer.value.code = 'miscarriage'))"
+      } ],
+      "rule": [ {
+        "name": "rule_pregnancy_outcome_observation",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractPregnancyOutcomeObservationWhenMiscarriage",
+          "variable": [ "src", "bundle", "refPatient", "encounter" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPregnancyOutcomeObservationLiveBirth",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_observation_v2",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "observation",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Observation"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_observation_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_obs_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "code",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_obs_c_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "https://smartregister.org/"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_c_coding_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "267013003"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_subject",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refPatient"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_encounter",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_status",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "final"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "category",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_observation_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "169812000"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_coding_display",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Place of birth"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_home",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'home'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "169813005"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Home"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_facility",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'facility'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "52668009"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Facility"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_facility",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'other'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "74964007"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Other"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_observation_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "169826009"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_coding_display",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Pregnancy Outcome Type"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_effective_current_date_time",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "variable": "item",
+          "condition": "(linkId = '5c9a5b34-04ed-4f41-8614-9fb42333871a')"
+        } ],
+        "rule": [ {
+          "name": "r_observation_effective",
+          "source": [ {
+            "context": "item",
+            "element": "answer",
+            "listMode": "first",
+            "variable": "deliveryDate"
+          } ],
+          "rule": [ {
+            "name": "r_effective_current_date_time",
+            "source": [ {
+              "context": "deliveryDate",
+              "element": "value",
+              "variable": "val"
+            } ],
+            "target": [ {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "effective",
+              "variable": "dt",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "dateTime"
+              } ]
+            }, {
+              "context": "dt",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "val"
+              }, {
+                "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPregnancyOutcomeObservationStillBirth",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_observation_v2",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "observation",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Observation"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_observation_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_obs_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "code",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_obs_c_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "https://smartregister.org/"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_c_coding_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "267013003"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_subject",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refPatient"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_encounter",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_status",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "final"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "category",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_observation_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "169812000"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_coding_display",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Place of birth"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_home",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'home'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "169813005"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Home"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_facility",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'facility'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "52668009"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Facility"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_category_facility",
+          "source": [ {
+            "context": "src",
+            "element": "item",
+            "variable": "item",
+            "condition": "((linkId = '91df4f8b-69ff-44f9-bd45-1648f326fd22') and (answer.value.code = 'other'))"
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "code",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Coding"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_observation_system",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_code",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "74964007"
+                } ]
+              } ]
+            }, {
+              "name": "rule_observation_coding_display",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Other"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_observation_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "169827000"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_coding_display",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Pregnancy Outcome Type"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_effective_current_date_time",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "variable": "item",
+          "condition": "(linkId = '5c9a5b34-04ed-4f41-8614-9fb42333871a')"
+        } ],
+        "rule": [ {
+          "name": "r_observation_effective",
+          "source": [ {
+            "context": "item",
+            "element": "answer",
+            "listMode": "first",
+            "variable": "deliveryDate"
+          } ],
+          "rule": [ {
+            "name": "r_effective_current_date_time",
+            "source": [ {
+              "context": "deliveryDate",
+              "element": "value",
+              "variable": "val"
+            } ],
+            "target": [ {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "effective",
+              "variable": "dt",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "dateTime"
+              } ]
+            }, {
+              "context": "dt",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "val"
+              }, {
+                "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPregnancyOutcomeObservationWhenMiscarriage",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Patient",
+      "mode": "source"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_observation_for_miscarriage",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "observation",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Observation"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_observation_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_obs_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "code",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_obs_c_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_coding_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "https://smartregister.org/"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_c_coding_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "267013003"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_subject",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refPatient"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_encounter",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        } ]
+      }, {
+        "name": "rule_observation_status",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "final"
+          } ]
+        } ]
+      }, {
+        "name": "r_obs_category",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "category",
+          "variable": "code",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_observation_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "code",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_observation_system",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "17369002"
+              } ]
+            } ]
+          }, {
+            "name": "rule_observation_coding_display",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Pregnancy Outcome Type"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_effective_delivery_date",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "variable": "item",
+          "condition": "(linkId = 'd5b97812-ec99-44d1-8cd9-1279c799d293')"
+        } ],
+        "rule": [ {
+          "name": "r_observation_delivery_date",
+          "source": [ {
+            "context": "item",
+            "element": "answer",
+            "listMode": "first",
+            "variable": "deliveryDate"
+          } ],
+          "rule": [ {
+            "name": "r_effective_current_date_time",
+            "source": [ {
+              "context": "deliveryDate",
+              "element": "value",
+              "variable": "val"
+            } ],
+            "target": [ {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "effective",
+              "variable": "dt",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "dateTime"
+              } ]
+            }, {
+              "context": "dt",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "val"
+              }, {
+                "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPNCCondition",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    }, {
+      "name": "refPatient",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_cnd",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "cnd",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Condition"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_cnd_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_cnd_onset_date_val",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "onset",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "now()"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_clinical_st",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "clinicalStatus",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-clinical"
+          }, {
+            "valueString": "active"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_verif_st",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "verificationStatus",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+          }, {
+            "valueString": "confirmed"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_category",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "category",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/condition-category"
+          }, {
+            "valueString": "encounter-diagnosis"
+          }, {
+            "valueString": "Encounter Diagnosis"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_sub",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refPatient"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_recorded",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "recordedDate",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "now()"
+          } ]
+        } ]
+      }, {
+        "name": "r_cnd_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "code",
+          "variable": "ccPreg",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_cnd_code_coding",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "ccPreg",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "c",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            }, {
+              "valueString": "234234234"
+            }, {
+              "valueString": "PNC"
+            } ]
+          }, {
+            "context": "coding",
+            "contextType": "variable",
+            "element": "display",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "PNC"
+            } ]
+          } ]
+        }, {
+          "name": "r_cnd_code_text",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "ccPreg",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "PNC"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_new_fp_encounter",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "cnd",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "updateANCCondition",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "refPatient",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_item",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item",
+        "condition": "((linkId = '650dd00d-c60b-4a3d-838a-128aad048277') and answer.value.exists())"
+      } ],
+      "rule": [ {
+        "name": "r_cnd",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "bundle",
+          "contextType": "variable",
+          "element": "entry",
+          "variable": "entry"
+        }, {
+          "context": "entry",
+          "contextType": "variable",
+          "element": "resource",
+          "variable": "cnd",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Condition"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_item_cnd_id",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "cnd",
+            "contextType": "variable",
+            "element": "id",
+            "variable": "cnd_id",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "id"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_item_cnd_id_value",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "cnd_id",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "item"
+              }, {
+                "valueString": "$this.answer.value"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_cnd_clinical_status",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "cnd",
+            "contextType": "variable",
+            "element": "clinicalStatus",
+            "transform": "cc",
+            "parameter": [ {
+              "valueString": "http://terminology.hl7.org/CodeSystem/condition-clinical"
+            }, {
+              "valueString": "inactive"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractChildRegistrationTasks",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    }, {
+      "name": "refPatient",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_create_task",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "variable": "start",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "src"
+        }, {
+          "valueString": "today()"
+        } ]
+      }, {
+        "variable": "end",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "src"
+        }, {
+          "valueString": "today() + '2 days'.toQuantity()"
+        } ]
+      }, {
+        "variable": "period",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Period"
+        } ]
+      }, {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "pncTask",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Task"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_task_period",
+        "source": [ {
+          "context": "src"
+        } ],
+        "dependent": [ {
+          "name": "extractTaskPeriod",
+          "variable": [ "start", "end", "period" ]
+        } ]
+      }, {
+        "name": "rule_task_data",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "identifier",
+          "variable": "identifier",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Identifier"
+          } ]
+        }, {
+          "context": "identifier",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "uuid"
+        }, {
+          "context": "identifier",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "official"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "ready"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "intent",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "plan"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "executionPeriod",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "period"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "priority",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "routine"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "description",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "New Born registration task"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "for",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refPatient"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "authoredOn",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "now()"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "requester",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.generalPractitioner.first()"
+          } ]
+        }, {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "owner",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "src"
+          }, {
+            "valueString": "$this.generalPractitioner.first()"
+          } ]
+        } ]
+      }, {
+        "name": "r_task_reason_ref",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "pncTask",
+          "contextType": "variable",
+          "element": "reasonReference",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        }, {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Questionnaire/f0a04fc4-4179-4df4-b2dc-8b2eac444d0b"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractTaskPeriod",
+    "typeMode": "none",
+    "input": [ {
+      "name": "start",
+      "type": "DateType",
+      "mode": "source"
+    }, {
+      "name": "end",
+      "type": "DateType",
+      "mode": "source"
+    }, {
+      "name": "period",
+      "type": "Period",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_per_start",
+      "source": [ {
+        "context": "start"
+      } ],
+      "target": [ {
+        "context": "period",
+        "contextType": "variable",
+        "element": "start",
+        "variable": "dt",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "dateTime"
+        } ]
+      }, {
+        "context": "dt",
+        "contextType": "variable",
+        "element": "value",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "start"
+        }, {
+          "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+        } ]
+      } ]
+    }, {
+      "name": "r_per_end",
+      "source": [ {
+        "context": "end"
+      } ],
+      "target": [ {
+        "context": "period",
+        "contextType": "variable",
+        "element": "end",
+        "variable": "dt",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "dateTime"
+        } ]
+      }, {
+        "context": "dt",
+        "contextType": "variable",
+        "element": "value",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "end"
+        }, {
+          "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractObservation",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    }, {
+      "name": "refCommodity",
+      "type": "Reference",
+      "mode": "source"
+    }, {
+      "name": "previousBal",
+      "type": "Integer",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_condom_given_check",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "variable": "item_given",
+        "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code != 'none'))"
+      } ],
+      "rule": [ {
+        "name": "r_condom_given_count_check",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "variable": "item_given_count",
+          "condition": "((linkId = '489de7ae-51cc-4f43-c761-12c8fb65266b') and answer.value.exists() and (answer.value.toInteger() > 0))"
+        } ],
+        "rule": [ {
+          "name": "r_obs",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "bundle",
+            "contextType": "variable",
+            "element": "entry",
+            "variable": "entry"
+          }, {
+            "context": "entry",
+            "contextType": "variable",
+            "element": "resource",
+            "variable": "obs",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Observation"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_obs_id",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "id",
+              "transform": "uuid"
+            } ]
+          }, {
+            "name": "r_obs_status",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "status",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "preliminary"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_category_1",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "category",
+              "transform": "cc",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              }, {
+                "valueString": "386452003"
+              }, {
+                "valueString": "Supply management"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_category_2",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "category",
+              "transform": "cc",
+              "parameter": [ {
+                "valueString": "http://hl7.org/fhir/inventoryreport-counttype"
+              }, {
+                "valueString": "subtraction"
+              }, {
+                "valueString": "Subtraction"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_code",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "code",
+              "variable": "code",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "CodeableConcept"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "r_obs_c_coding",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "code",
+                "contextType": "variable",
+                "element": "coding",
+                "variable": "coding",
+                "transform": "create",
+                "parameter": [ {
+                  "valueString": "Coding"
+                } ]
+              } ],
+              "rule": [ {
+                "name": "r_obs_coding_system",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "context": "coding",
+                  "contextType": "variable",
+                  "element": "system",
+                  "transform": "copy",
+                  "parameter": [ {
+                    "valueString": "https://smartregister.org/"
+                  } ]
+                } ]
+              }, {
+                "name": "r_obs_c_coding_code",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "context": "coding",
+                  "contextType": "variable",
+                  "element": "code",
+                  "transform": "copy",
+                  "parameter": [ {
+                    "valueString": "consumption"
+                  } ]
+                } ]
+              }, {
+                "name": "r_obs_c_coding_display",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "context": "coding",
+                  "contextType": "variable",
+                  "element": "display",
+                  "transform": "copy",
+                  "parameter": [ {
+                    "valueString": "consumption"
+                  } ]
+                } ]
+              } ]
+            }, {
+              "name": "r_obs_c_text",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "code",
+                "contextType": "variable",
+                "element": "text",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "consumption"
+                } ]
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_subject",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "subject",
+              "transform": "copy",
+              "parameter": [ {
+                "valueId": "refCommodity"
+              } ]
+            } ]
+          }, {
+            "name": "r_effective_current_date_time",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "effective",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "src"
+              }, {
+                "valueString": "now()"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_performer",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "performer",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "src"
+              }, {
+                "valueString": "$this.generalPractitioner.first()"
+              } ]
+            } ]
+          }, {
+            "name": "r_obs_value",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "value",
+              "variable": "qty",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "Quantity"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "r_obs_qty",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "context": "qty",
+                "contextType": "variable",
+                "element": "value",
+                "transform": "evaluate",
+                "parameter": [ {
+                  "valueId": "item_given_count"
+                }, {
+                  "valueString": "$this.answer.value"
+                } ]
+              }, {
+                "context": "qty",
+                "contextType": "variable",
+                "element": "unit",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Pieces"
+                } ]
+              }, {
+                "context": "qty",
+                "contextType": "variable",
+                "element": "system",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "http://snomed.info/sct"
+                } ]
+              }, {
+                "context": "qty",
+                "contextType": "variable",
+                "element": "code",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "767525000"
+                } ]
+              } ]
+            } ]
+          }, {
+            "name": "r_observation_encounter",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "context": "obs",
+              "contextType": "variable",
+              "element": "encounter",
+              "transform": "reference",
+              "parameter": [ {
+                "valueId": "encounter"
+              } ]
+            } ]
+          }, {
+            "name": "r_distributed_quantity",
+            "source": [ {
+              "context": "src"
+            } ],
+            "target": [ {
+              "variable": "qtyDistributed",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "item_given_count"
+              }, {
+                "valueString": "$this.answer.value.toInteger()"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "r_running_total_compute",
+              "source": [ {
+                "context": "src"
+              } ],
+              "target": [ {
+                "variable": "runningTotal",
+                "transform": "evaluate",
+                "parameter": [ {
+                  "valueId": "src"
+                }, {
+                  "valueString": "(previousBal - qtyDistributed)"
+                } ]
+              } ],
+              "rule": [ {
+                "name": "r_obs_running_total_component",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "context": "obs",
+                  "contextType": "variable",
+                  "element": "component",
+                  "variable": "component"
+                } ],
+                "dependent": [ {
+                  "name": "extractRunningBalance",
+                  "variable": [ "src", "component", "runningTotal" ]
+                } ]
+              }, {
+                "name": "r_bal_is_zero",
+                "source": [ {
+                  "context": "src",
+                  "variable": "stockOut",
+                  "condition": "(runningTotal <= 0)"
+                } ],
+                "rule": [ {
+                  "name": "r_check_male_condoms",
+                  "source": [ {
+                    "context": "src",
+                    "element": "item",
+                    "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'male-condoms'))"
+                  } ],
+                  "rule": [ {
+                    "name": "r_no_male_condom_flag",
+                    "source": [ {
+                      "context": "src",
+                      "element": "item",
+                      "variable": "noMaleCondomFlag",
+                      "condition": "((linkId = '56577a66-15ae-4612-bee9-a2d4168082e8') and answer.value.empty())"
+                    } ],
+                    "rule": [ {
+                      "name": "r_create_male_condom_stockout_flag",
+                      "source": [ {
+                        "context": "src"
+                      } ],
+                      "dependent": [ {
+                        "name": "createStockOutFlag",
+                        "variable": [ "src", "bundle", "encounter", "refCommodity" ]
+                      } ]
+                    } ]
+                  } ]
+                }, {
+                  "name": "r_check_male_comdoms",
+                  "source": [ {
+                    "context": "src",
+                    "element": "item",
+                    "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'female-condoms'))"
+                  } ],
+                  "rule": [ {
+                    "name": "r_no_female_condom_flag",
+                    "source": [ {
+                      "context": "src",
+                      "element": "item",
+                      "variable": "noFemaleCondomFlag",
+                      "condition": "((linkId = '30be53b9-6a9c-49fd-8ae7-6e8ff1da8830') and answer.value.empty())"
+                    } ],
+                    "rule": [ {
+                      "name": "r_create_female_condom_stockout_flag",
+                      "source": [ {
+                        "context": "src"
+                      } ],
+                      "dependent": [ {
+                        "name": "createStockOutFlag",
+                        "variable": [ "src", "bundle", "encounter", "refCommodity" ]
+                      } ]
+                    } ]
+                  } ]
+                } ]
+              } ]
+            } ]
+          }, {
+            "name": "r_check_male_condoms",
+            "source": [ {
+              "context": "src",
+              "element": "item",
+              "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'male-condoms'))"
+            } ],
+            "rule": [ {
+              "name": "r_check_latest_obs",
+              "source": [ {
+                "context": "src",
+                "element": "item",
+                "variable": "latestObservation",
+                "condition": "((linkId = '955c5b30-0f08-4720-8567-99ef58350615') and answer.value.exists())"
+              } ],
+              "rule": [ {
+                "name": "r_update_current_latest_obs",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "variable": "latestObservationId",
+                  "transform": "evaluate",
+                  "parameter": [ {
+                    "valueId": "src"
+                  }, {
+                    "valueString": "$this.item.where(linkId = '955c5b30-0f08-4720-8567-99ef58350615').answer.value"
+                  } ]
+                } ],
+                "dependent": [ {
+                  "name": "updateLatestObservation",
+                  "variable": [ "src", "bundle", "latestObservationId" ]
+                } ]
+              } ]
+            } ]
+          }, {
+            "name": "r_check_female_condoms",
+            "source": [ {
+              "context": "src",
+              "element": "item",
+              "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'female-condoms'))"
+            } ],
+            "rule": [ {
+              "name": "r_check_latest_obs",
+              "source": [ {
+                "context": "src",
+                "element": "item",
+                "variable": "latestObservation",
+                "condition": "((linkId = '3821961e-79db-4120-99db-079548307454') and answer.value.exists())"
+              } ],
+              "rule": [ {
+                "name": "r_update_current_latest_obs",
+                "source": [ {
+                  "context": "src"
+                } ],
+                "target": [ {
+                  "variable": "latestObservationId",
+                  "transform": "evaluate",
+                  "parameter": [ {
+                    "valueId": "src"
+                  }, {
+                    "valueString": "$this.item.where(linkId = '3821961e-79db-4120-99db-079548307454').answer.value"
+                  } ]
+                } ],
+                "dependent": [ {
+                  "name": "updateLatestObservation",
+                  "variable": [ "src", "bundle", "latestObservationId" ]
+                } ]
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractCommodityReference",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "ref",
+      "type": "Reference",
+      "mode": "target"
+    }, {
+      "name": "previousBal",
+      "type": "Integer",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_instantiate_bal",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "previousBal",
+        "contextType": "variable",
+        "element": "value",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "0"
+        } ]
+      } ]
+    }, {
+      "name": "r_male_condom_type_check",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'male-condoms'))"
+      } ],
+      "rule": [ {
+        "name": "r_male_condom_ref",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Group/651ef234-b303-4ba5-b135-bd4a1f9eb2c0"
+          } ]
+        } ]
+      }, {
+        "name": "r_check_male_condom_prev_bal",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "condition": "((linkId = '25cc8d26-ac42-475f-be79-6f1d62a44881') and answer.value.exists())"
+        } ],
+        "rule": [ {
+          "name": "r_male_condom_previous_bal",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "previousBal",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "$this.item.where(linkId = '25cc8d26-ac42-475f-be79-6f1d62a44881').answer.value.toString()"
+            } ]
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "r_female_condom_type_check",
+      "source": [ {
+        "context": "src",
+        "element": "item",
+        "condition": "((linkId = 'd26cf25a-5811-47dc-bfe9-84899c0e9825') and (answer.value.code = 'female-condoms'))"
+      } ],
+      "rule": [ {
+        "name": "r_female_condom_ref",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Group/7ec6e766-e5dc-4abf-b19a-a403f696d3e2"
+          } ]
+        } ]
+      }, {
+        "name": "r_check_female_condom_prev_bal",
+        "source": [ {
+          "context": "src",
+          "element": "item",
+          "condition": "((linkId = '48245462-0198-48ab-f5c4-ca4ca3da5403') and answer.value.exists())"
+        } ],
+        "rule": [ {
+          "name": "r_female_condom_previous_bal",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "previousBal",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "$this.item.where(linkId = '48245462-0198-48ab-f5c4-ca4ca3da5403').answer.value.toString()"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractRunningBalance",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "component",
+      "type": "BackboneElement",
+      "mode": "target"
+    }, {
+      "name": "runningTotal",
+      "type": "Integer",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_obs_running_total_code",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "component",
+        "contextType": "variable",
+        "element": "code",
+        "variable": "runningTotalCC",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CodeableConcept"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_obs_running_total_cc_coding",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "runningTotalCC",
+          "contextType": "variable",
+          "element": "coding",
+          "variable": "runningTotalCCCoding",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Coding"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_obs_runing_total_cc_coding_system",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "runningTotalCCCoding",
+            "contextType": "variable",
+            "element": "system",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_runing_total_cc_coding_code",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "runningTotalCCCoding",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "255619001"
+            } ]
+          } ]
+        }, {
+          "name": "r_obs_runing_total_cc_coding_display",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "runningTotalCCCoding",
+            "contextType": "variable",
+            "element": "display",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Total"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_obs_runing_total_cc_text",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "runningTotalCC",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Running total/Cumulative sum"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "r_obs_running_total_quantity",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "component",
+        "contextType": "variable",
+        "element": "value",
+        "variable": "runningTotalQuantity",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Quantity"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_obs__running_total_qty",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "runningTotalQuantity",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "runningTotal"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "updateLatestObservation",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "src",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "latestObservationId",
+      "type": "String",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_update_latest_obs",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "observation",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Observation"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_update_obs_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "id",
+          "variable": "id",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "id"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_update_obs_id_value",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "id",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "copy",
+            "parameter": [ {
+              "valueId": "latestObservationId"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_update_latest_obs_to_final",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "observation",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "final"
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "createStockOutFlag",
+    "typeMode": "none",
+    "input": [ {
+      "name": "src",
+      "type": "src",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    }, {
+      "name": "refCommodity",
+      "type": "Reference",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "r_flag",
+      "source": [ {
+        "context": "src"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "flag",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Flag"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_flag_id",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        } ]
+      }, {
+        "name": "r_flag_status",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "active"
+          } ]
+        } ]
+      }, {
+        "name": "r_flag_category",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "category",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://snomed.info/sct"
+          }, {
+            "valueString": "386452003"
+          }, {
+            "valueString": "Supply management"
+          } ]
+        } ]
+      }, {
+        "name": "r_flag_code",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "code",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://snomed.info/sct"
+          }, {
+            "valueString": "419182006"
+          }, {
+            "valueString": " Supplies not available"
+          } ]
+        } ]
+      }, {
+        "name": "r_flag_subject",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "copy",
+          "parameter": [ {
+            "valueId": "refCommodity"
+          } ]
+        } ]
+      }, {
+        "name": "r_flag_period",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_flag_period_start",
+          "source": [ {
+            "context": "src"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "src"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_flag_encounter",
+        "source": [ {
+          "context": "src"
+        } ],
+        "target": [ {
+          "context": "flag",
+          "contextType": "variable",
+          "element": "encounter",
+          "transform": "reference",
+          "parameter": [ {
+            "valueId": "encounter"
+          } ]
+        } ]
+      } ]
+    } ]
+  } ]
+}

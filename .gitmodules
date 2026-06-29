@@ -1,0 +1,3 @@
+[submodule "android/fhircore"]
+	path = android/fhircore
+	url = https://github.com/necxon/fhircore.git

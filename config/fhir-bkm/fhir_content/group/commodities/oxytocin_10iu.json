@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "c2063a18-219b-49d9-89d7-b47a8e3da1a9",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "1"
+        },
+        {
+            "use": "secondary",
+            "value": "OXYTOCIN10IU"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Oxytocin 10 IU",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Ampoules"
+            },
+            "exclude": false
+        }
+    ]
+}

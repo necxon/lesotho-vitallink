@@ -1,0 +1,1525 @@
+{
+  "resourceType": "StructureMap",
+  "id": "d53f1f0b-32df-4fac-9f4c-69f758bf3006",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/d53f1f0b-32df-4fac-9f4c-69f758bf3006&quot; = 'Recurring services encounter'\r\n\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse&quot; as source\r\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\r\n\r\ngroup ExtractEncounter(source questionnaireResponse: QuestionnaireResponse, target bundle: Bundle) {\r\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create(&quot;Encounter&quot;) as encounter then {\r\n        questionnaireResponse -&gt; encounter.id = uuid(),\r\n            encounter.status = &quot;finished&quot;,\r\n            encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;, &quot;home&quot;),\r\n            encounter.priority = cc(&quot;http://terminology.hl7.org/ValueSet/v3-ActPriority&quot;, &quot;EL&quot;, &quot;Elective&quot;) as encounterPriority,\r\n            encounterPriority.text = &quot;Elective&quot; &quot;r_en_static&quot;;\r\n        questionnaireResponse -&gt; encounter.subject = evaluate(questionnaireResponse, $this.subject) &quot;r_en_sub&quot;;\r\n        questionnaireResponse -&gt; encounter.period = create(&quot;Period&quot;) as period then {\r\n            questionnaireResponse -&gt; period.start = evaluate(questionnaireResponse, now()) &quot;r_start&quot;;\r\n            questionnaireResponse -&gt; period.end = evaluate(questionnaireResponse, now()) &quot;r_end&quot;;\r\n        } &quot;r_period&quot;;\r\n\r\n        questionnaireResponse -&gt; encounter.type = create('CodeableConcept') as type then {\r\n            questionnaireResponse -&gt; type.coding = create(&quot;Coding&quot;) as coding then {\r\n                questionnaireResponse -&gt; coding.system = &quot;http://snomed.info/sct&quot;, coding.display = 'Recurring Service', coding.code = '33879002' &quot;r_en_code_coding&quot;;\r\n            } &quot;r_en_reason_code&quot;;\r\n            questionnaireResponse -&gt; type.text = &quot;Recurring Service Event&quot; &quot;r_en_type_text&quot;;\r\n        } &quot;r_en_reason&quot;;\r\n\r\n        questionnaireResponse -&gt; encounter.reasonCode = create('CodeableConcept') as reason then {\r\n            questionnaireResponse -&gt; reason.coding = create(&quot;Coding&quot;) as coding then {\r\n                questionnaireResponse -&gt; coding.system = &quot;http://snomed.info/sct&quot;, coding.display = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-name').answer.value), coding.code = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-code').answer.value)  &quot;r_en_code_coding&quot;;\r\n            } &quot;r_en_reason_code&quot;;\r\n            questionnaireResponse -&gt; reason.text = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-name').answer.value) &quot;r_en_reason_text&quot;;\r\n        } &quot;r_en_reason&quot;;\r\n\r\n        questionnaireResponse -&gt; encounter.participant = create(&quot;Encounter_Participant&quot;) as partComp then {\r\n            questionnaireResponse -&gt; partComp.individual = create(&quot;Reference&quot;) as encounterOwner then {\r\n                questionnaireResponse -&gt; encounterOwner.reference = evaluate(questionnaireResponse, &quot;Practitioner/&quot;+ $this.meta.tag.where($this.system = &quot;https://smartregister.org/practitioner-tag-id&quot;).code) &quot;r_enc_part_reference&quot;;\r\n            } &quot;r_enc_part_individual&quot;;\r\n        } &quot;r_enc_part_component&quot;;\r\n\r\n        questionnaireResponse then extractTaskOutput(questionnaireResponse, bundle, encounter) &quot;rule_task_period_extraction&quot;;\r\n        questionnaireResponse then extractTask(questionnaireResponse, bundle) &quot;rule_task_period_extraction&quot;;\r\n    } &quot;r_encounter&quot;;\r\n}\r\n\r\ngroup extractTaskOutput(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source encounter : Encounter) {\r\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('Task') as task then {\r\n        questionnaireResponse -&gt; task.id = create('id') as id then {\r\n            questionnaireResponse -&gt; id.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-id').answer.value.toString()) &quot;rule_task_id&quot;;\r\n        } &quot;rule_update_task&quot;;\r\n\r\n        // Task Encounter Output one\r\n        questionnaireResponse -&gt; task.output = create('Task_Output') as outputTask then {\r\n            questionnaireResponse -&gt; outputTask.type = create(&quot;CodeableConcept&quot;) as concept then {\r\n                questionnaireResponse-&gt; concept.coding = c(&quot;http://snomed.info/sct&quot;,&quot;41000179103&quot;) as coding then {\r\n                    questionnaireResponse -&gt; coding.display = &quot;Immunization record (record artifact)&quot; &quot;rule_coding_display&quot;;\r\n                } &quot;rule_task_concept_coding&quot;;\r\n            } &quot;rule_codeable_concept&quot;;\r\n            questionnaireResponse -&gt; outputTask.value = reference(encounter) &quot;rule_task_output_reference&quot;;\r\n        } &quot;rule_task_output&quot;;\r\n    } &quot;rule_task&quot;;\r\n}\r\n\r\ngroup extractTask(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {\r\n    // fill task into careplan contained and add reference in activity.outcome\r\n     questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('Task') as task then {\r\n        questionnaireResponse -&gt; task.id =  uuid(),\r\n            task.identifier = create('Identifier') as iden, iden.value = uuid(), iden.use = 'official',\r\n            task.status = 'requested',\r\n            task.intent = 'plan',\r\n            task.priority = 'routine',\r\n            task.for = evaluate(questionnaireResponse, $this.subject),\r\n            task.basedOn = create('Reference') as ref, ref.reference = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-careplan').answer.value.toString()),\r\n            task.authoredOn = evaluate(questionnaireResponse, now()),\r\n            task.requester = create('Reference') as ref, ref.reference = evaluate(questionnaireResponse, &quot;Practitioner/&quot;+ $this.meta.tag.where($this.system = &quot;https://smartregister.org/practitioner-tag-id&quot;).code),\r\n            task.owner = create('Reference') as ref, ref.reference = evaluate(questionnaireResponse, &quot;Practitioner/&quot;+ $this.meta.tag.where($this.system = &quot;https://smartregister.org/practitioner-tag-id&quot;).code) &quot;r_task_data&quot;;\r\n\r\n        questionnaireResponse -&gt; task.executionPeriod = create('Period') as taskPeriod then {\r\n            questionnaireResponse -&gt; taskPeriod.start = evaluate(questionnaireResponse, now()) &quot;r_start&quot;;\r\n            questionnaireResponse -&gt; taskPeriod.end = evaluate(questionnaireResponse, now()) &quot;r_end&quot;;\r\n        } &quot;rule_period&quot;;\r\n\r\n        // task groupIdentifier\r\n        questionnaireResponse -&gt; task.groupIdentifier = create('Identifier') as groupIdentifier then {\r\n            questionnaireResponse -&gt; groupIdentifier.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-group-id').answer.value.toString()) &quot;rule_group_identifierule_value&quot;;\r\n            questionnaireResponse -&gt; groupIdentifier.use = &quot;secondary&quot; &quot;rule_group_identifierule_use&quot;;\r\n        } &quot;rule_group_identifier&quot;;\r\n\r\n        questionnaireResponse then extractPeriod(questionnaireResponse, task) &quot;rule_task_period_extraction&quot;;\r\n        questionnaireResponse then updateVitaminTask(questionnaireResponse, task) &quot;rule_task_period_extraction&quot;;\r\n        questionnaireResponse then addTaskToCarePlan(questionnaireResponse, task, bundle) &quot;rule_task_period_extraction&quot;;\r\n    } &quot;r_task&quot;;\r\n}\r\n\r\n\r\ngroup updateVitaminTask(source questionnaireResponse: QuestionnaireResponse, target task: Task) {\r\n    questionnaireResponse -&gt; task.description = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-description').answer.value.toString()) &quot;rule_task_description&quot;;\r\n    questionnaireResponse -&gt; task.code = create('CodeableConcept') as newCode then {\r\n        questionnaireResponse -&gt; newCode.coding = create('Coding') as newCoding then {\r\n            questionnaireResponse -&gt; newCoding.system = 'http://snomed.info/sct' &quot;rule_task_system&quot;;\r\n            questionnaireResponse -&gt; newCoding.code = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-code').answer.value.toString()) &quot;rule_task_code&quot;;\r\n            questionnaireResponse -&gt; newCoding.display = &quot;Administration of vaccine to produce active immunity (procedure)&quot; &quot;rule_task_display&quot;;\r\n        } &quot;rule_task_coding&quot;;\r\n\r\n        questionnaireResponse -&gt; newCode.text = &quot;Administration of vaccine to produce active immunity (procedure)&quot; &quot;rule_task_codeable_concept_text&quot;;\r\n    } &quot;rule_task_codeable_concept&quot;;\r\n\r\n    questionnaireResponse -&gt; task.reasonCode = create('CodeableConcept') as reasonCode then {\r\n        questionnaireResponse -&gt; reasonCode.coding = create('Coding') as reasonCoding then {\r\n            questionnaireResponse -&gt; reasonCoding.system = 'http://snomed.info/sct' &quot;rule_task_reason_system&quot;;\r\n            questionnaireResponse -&gt; reasonCoding.code = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-reason-code').answer.value.toString()) &quot;rule_task_reason_code&quot;;\r\n            questionnaireResponse -&gt; reasonCoding.display = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-name').answer.value.toString()) &quot;rule_task_reason_display&quot;;\r\n        } &quot;rule_task_coding&quot;;\r\n\r\n        questionnaireResponse -&gt; reasonCode.text = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-description').answer.value.toString()) &quot;rule_task_codeable_concept_text&quot;;\r\n    } &quot;rule_task_codeable_concept&quot;;\r\n\r\n    questionnaireResponse -&gt; task.executionPeriod = create('Period') as newPeriod then {\r\n        questionnaireResponse -&gt; newPeriod.start = evaluate(questionnaireResponse, now()) &quot;r_start&quot;;\r\n        questionnaireResponse -&gt; newPeriod.end = evaluate(questionnaireResponse, (now().toString() + &quot;6 months&quot;).toQuantity()) &quot;r_end&quot;;\r\n    } &quot;rule_period&quot;;\r\n\r\n    // form to be filled\r\n    questionnaireResponse -&gt; task.reasonReference = create('Reference') as ref, ref.reference = 'Questionnaire/73382b6c-5d0b-4171-afb5-0d1d70f6abd3' &quot;r_task_reason_ref&quot;;\r\n    questionnaireResponse -&gt; evaluate(questionnaireResponse, &quot;1795&quot;) as maxDays then extractTaskRestriction(questionnaireResponse, task, maxDays) &quot;rule_task_restriction&quot;;\r\n}\r\n\r\ngroup extractTaskRestriction(source questionnaireResponse: QuestionnaireResponse, target task: Task, source restrictionEndDate: String) {\r\n    questionnaireResponse -&gt; evaluate(task, $this.executionPeriod.start) as start then {\r\n        questionnaireResponse -&gt; create(&quot;Task_Restriction&quot;) as taskRestriction then {\r\n            questionnaireResponse-&gt;taskRestriction.period = create(&quot;Period&quot;) as taskRestrictionPeriod then {\r\n                questionnaireResponse -&gt; taskRestrictionPeriod.start = create('dateTime') as startDateTime,\r\n                    startDateTime.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_start&quot;;\r\n\r\n                questionnaireResponse -&gt; taskRestrictionPeriod.end = create('dateTime') as endDateTime,\r\n                    endDateTime.value = evaluate(start, (($this + (((restrictionEndDate).toString() + ' \\'days\\'')).toQuantity()).value.substring(0,10)) + 'T00:00:00.00Z') &quot;rule_period_end&quot;;\r\n\r\n                questionnaireResponse -&gt; task.restriction = taskRestriction &quot;rule_restriction_period&quot;;\r\n            } &quot;rule_task_restriction_period&quot;;\r\n        } &quot;rule_task_restriction&quot;;\r\n    } &quot;rule_task_execution_period&quot;;\r\n}\r\n\r\ngroup addTaskToCarePlan(source questionnaireResponse: QuestionnaireResponse, source task: Task, target bundle: Bundle) {\r\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('CarePlan') as carePlan then {\r\n        questionnaireResponse -&gt; carePlan.id = create('id') as id then {\r\n            questionnaireResponse -&gt; id.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'task-careplan').answer.value.replaceMatches('/CarePlan/.*', '').toString()) &quot;rule_careplan_id&quot;;\r\n        } &quot;rule_update_careplan&quot;;\r\n        questionnaireResponse -&gt; carePlan.activity = create('CarePlan_Activity') as activity then {\r\n            questionnaireResponse -&gt; activity.detail = create('CarePlan_ActivityDetail') as detail then {\r\n                questionnaireResponse -&gt; detail.kind = 'Task' &quot;rule_task_kind&quot;;\r\n            } &quot;rule_activity_detail&quot;;\r\n            questionnaireResponse -&gt; activity.outcomeReference = create('Reference') as taskReference, evaluate(task, $this.id) as taskId then {\r\n                questionnaireResponse -&gt; taskReference.reference = evaluate(questionnaireResponse, 'Task/' + taskId) &quot;rule_task_reference&quot;;\r\n            } &quot;rule_outcome_reference&quot;;\r\n        } &quot;rule_activity&quot;;\r\n    } &quot;rule_add_task&quot;;\r\n}\r\n\r\ngroup extractPeriod(source questionnaireResponse: QuestionnaireResponse, target task: Task) {\r\n    questionnaireResponse -&gt; evaluate(task, $this.executionPeriod.start) as start, evaluate(task, $this.executionPeriod.end) as end then {\r\n        questionnaireResponse -&gt; create('Period') as period then {\r\n            questionnaireResponse -&gt; period.start = create('dateTime') as startDateTime,\r\n                startDateTime.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_start&quot;;\r\n\r\n            questionnaireResponse -&gt; period.end = create('dateTime') as endDateTime,\r\n                endDateTime.value = evaluate(end, $this.value.substring(0,10) + 'T00:00:00.00Z') &quot;rule_period_end&quot;;\r\n\r\n            questionnaireResponse -&gt; task.executionPeriod = period &quot;rule_execution_period&quot;;\r\n        } &quot;rule_period&quot;;\r\n    } &quot;rule_task_execution_period&quot;;\r\n}\r\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/d53f1f0b-32df-4fac-9f4c-69f758bf3006",
+  "name": "Recurring services encounter",
+  "structure": [ {
+    "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse",
+    "mode": "source"
+  }, {
+    "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+    "mode": "target"
+  } ],
+  "group": [ {
+    "name": "ExtractEncounter",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_encounter",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "encounter",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Encounter"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_en_static",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        }, {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "finished"
+          } ]
+        }, {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "class",
+          "transform": "c",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+          }, {
+            "valueString": "HH"
+          }, {
+            "valueString": "home"
+          } ]
+        }, {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "priority",
+          "variable": "encounterPriority",
+          "transform": "cc",
+          "parameter": [ {
+            "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+          }, {
+            "valueString": "EL"
+          }, {
+            "valueString": "Elective"
+          } ]
+        }, {
+          "context": "encounterPriority",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Elective"
+          } ]
+        } ]
+      }, {
+        "name": "r_en_sub",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "subject",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "$this.subject"
+          } ]
+        } ]
+      }, {
+        "name": "r_period",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "period",
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_start",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "r_end",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_reason",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "type",
+          "variable": "type",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_reason_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "type",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_code_coding",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            }, {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Recurring Service"
+              } ]
+            }, {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "33879002"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_type_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "type",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Recurring Service Event"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_en_reason",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "reasonCode",
+          "variable": "reason",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CodeableConcept"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_en_reason_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "coding",
+            "variable": "coding",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Coding"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_en_code_coding",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "system",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              } ]
+            }, {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "display",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireResponse"
+              }, {
+                "valueString": "$this.item.where(linkId = 'task-name').answer.value"
+              } ]
+            }, {
+              "context": "coding",
+              "contextType": "variable",
+              "element": "code",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireResponse"
+              }, {
+                "valueString": "$this.item.where(linkId = 'task-code').answer.value"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "r_en_reason_text",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reason",
+            "contextType": "variable",
+            "element": "text",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-name').answer.value"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "r_enc_part_component",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "encounter",
+          "contextType": "variable",
+          "element": "participant",
+          "variable": "partComp",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Encounter_Participant"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_enc_part_individual",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "partComp",
+            "contextType": "variable",
+            "element": "individual",
+            "variable": "encounterOwner",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Reference"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "r_enc_part_reference",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "encounterOwner",
+              "contextType": "variable",
+              "element": "reference",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireResponse"
+              }, {
+                "valueString": "'Practitioner/' + $this.meta.tag.where($this.system = 'https://smartregister.org/practitioner-tag-id').code"
+              } ]
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_task_period_extraction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "extractTaskOutput",
+          "variable": [ "questionnaireResponse", "bundle", "encounter" ]
+        } ]
+      }, {
+        "name": "rule_task_period_extraction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "extractTask",
+          "variable": [ "questionnaireResponse", "bundle" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractTaskOutput",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    }, {
+      "name": "encounter",
+      "type": "Encounter",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_task",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "task",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Task"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_update_task",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "task",
+          "contextType": "variable",
+          "element": "id",
+          "variable": "id",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "id"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_task_id",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "id",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-id').answer.value.toString()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_task_output",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "task",
+          "contextType": "variable",
+          "element": "output",
+          "variable": "outputTask",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Task_Output"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_codeable_concept",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "outputTask",
+            "contextType": "variable",
+            "element": "type",
+            "variable": "concept",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "CodeableConcept"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_task_concept_coding",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "concept",
+              "contextType": "variable",
+              "element": "coding",
+              "variable": "coding",
+              "transform": "c",
+              "parameter": [ {
+                "valueString": "http://snomed.info/sct"
+              }, {
+                "valueString": "41000179103"
+              } ]
+            } ],
+            "rule": [ {
+              "name": "rule_coding_display",
+              "source": [ {
+                "context": "questionnaireResponse"
+              } ],
+              "target": [ {
+                "context": "coding",
+                "contextType": "variable",
+                "element": "display",
+                "transform": "copy",
+                "parameter": [ {
+                  "valueString": "Immunization record (record artifact)"
+                } ]
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_task_output_reference",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "outputTask",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "reference",
+            "parameter": [ {
+              "valueId": "encounter"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractTask",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "r_task",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "task",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Task"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_task_data",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "task",
+          "contextType": "variable",
+          "element": "id",
+          "transform": "uuid"
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "identifier",
+          "variable": "iden",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Identifier"
+          } ]
+        }, {
+          "context": "iden",
+          "contextType": "variable",
+          "element": "value",
+          "transform": "uuid"
+        }, {
+          "context": "iden",
+          "contextType": "variable",
+          "element": "use",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "official"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "status",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "requested"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "intent",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "plan"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "priority",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "routine"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "for",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "$this.subject"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "basedOn",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        }, {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "$this.item.where(linkId = 'task-careplan').answer.value.toString()"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "authoredOn",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "now()"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "requester",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        }, {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "'Practitioner/' + $this.meta.tag.where($this.system = 'https://smartregister.org/practitioner-tag-id').code"
+          } ]
+        }, {
+          "context": "task",
+          "contextType": "variable",
+          "element": "owner",
+          "variable": "ref",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Reference"
+          } ]
+        }, {
+          "context": "ref",
+          "contextType": "variable",
+          "element": "reference",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "'Practitioner/' + $this.meta.tag.where($this.system = 'https://smartregister.org/practitioner-tag-id').code"
+          } ]
+        } ]
+      }, {
+        "name": "rule_period",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "task",
+          "contextType": "variable",
+          "element": "executionPeriod",
+          "variable": "taskPeriod",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "r_start",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "taskPeriod",
+            "contextType": "variable",
+            "element": "start",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        }, {
+          "name": "r_end",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "taskPeriod",
+            "contextType": "variable",
+            "element": "end",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "now()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_group_identifier",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "task",
+          "contextType": "variable",
+          "element": "groupIdentifier",
+          "variable": "groupIdentifier",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Identifier"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_group_identifierule_value",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "groupIdentifier",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-group-id').answer.value.toString()"
+            } ]
+          } ]
+        }, {
+          "name": "rule_group_identifierule_use",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "groupIdentifier",
+            "contextType": "variable",
+            "element": "use",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "secondary"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_task_period_extraction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "extractPeriod",
+          "variable": [ "questionnaireResponse", "task" ]
+        } ]
+      }, {
+        "name": "rule_task_period_extraction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "updateVitaminTask",
+          "variable": [ "questionnaireResponse", "task" ]
+        } ]
+      }, {
+        "name": "rule_task_period_extraction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "dependent": [ {
+          "name": "addTaskToCarePlan",
+          "variable": [ "questionnaireResponse", "task", "bundle" ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "updateVitaminTask",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "task",
+      "type": "Task",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_task_description",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "task",
+        "contextType": "variable",
+        "element": "description",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "questionnaireResponse"
+        }, {
+          "valueString": "$this.item.where(linkId = 'task-description').answer.value.toString()"
+        } ]
+      } ]
+    }, {
+      "name": "rule_task_codeable_concept",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "task",
+        "contextType": "variable",
+        "element": "code",
+        "variable": "newCode",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CodeableConcept"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_task_coding",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "newCode",
+          "contextType": "variable",
+          "element": "coding",
+          "variable": "newCoding",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Coding"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_task_system",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "newCoding",
+            "contextType": "variable",
+            "element": "system",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            } ]
+          } ]
+        }, {
+          "name": "rule_task_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "newCoding",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-code').answer.value.toString()"
+            } ]
+          } ]
+        }, {
+          "name": "rule_task_display",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "newCoding",
+            "contextType": "variable",
+            "element": "display",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "Administration of vaccine to produce active immunity (procedure)"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_task_codeable_concept_text",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "newCode",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "copy",
+          "parameter": [ {
+            "valueString": "Administration of vaccine to produce active immunity (procedure)"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_task_codeable_concept",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "task",
+        "contextType": "variable",
+        "element": "reasonCode",
+        "variable": "reasonCode",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CodeableConcept"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_task_coding",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "reasonCode",
+          "contextType": "variable",
+          "element": "coding",
+          "variable": "reasonCoding",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Coding"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_task_reason_system",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reasonCoding",
+            "contextType": "variable",
+            "element": "system",
+            "transform": "copy",
+            "parameter": [ {
+              "valueString": "http://snomed.info/sct"
+            } ]
+          } ]
+        }, {
+          "name": "rule_task_reason_code",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reasonCoding",
+            "contextType": "variable",
+            "element": "code",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-reason-code').answer.value.toString()"
+            } ]
+          } ]
+        }, {
+          "name": "rule_task_reason_display",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "reasonCoding",
+            "contextType": "variable",
+            "element": "display",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-name').answer.value.toString()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_task_codeable_concept_text",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "reasonCode",
+          "contextType": "variable",
+          "element": "text",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "$this.item.where(linkId = 'task-description').answer.value.toString()"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "rule_period",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "task",
+        "contextType": "variable",
+        "element": "executionPeriod",
+        "variable": "newPeriod",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Period"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "r_start",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "newPeriod",
+          "contextType": "variable",
+          "element": "start",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "now()"
+          } ]
+        } ]
+      }, {
+        "name": "r_end",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "newPeriod",
+          "contextType": "variable",
+          "element": "end",
+          "transform": "evaluate",
+          "parameter": [ {
+            "valueId": "questionnaireResponse"
+          }, {
+            "valueString": "(now().toString() + '6 months').toQuantity()"
+          } ]
+        } ]
+      } ]
+    }, {
+      "name": "r_task_reason_ref",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "task",
+        "contextType": "variable",
+        "element": "reasonReference",
+        "variable": "ref",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "Reference"
+        } ]
+      }, {
+        "context": "ref",
+        "contextType": "variable",
+        "element": "reference",
+        "transform": "copy",
+        "parameter": [ {
+          "valueString": "Questionnaire/73382b6c-5d0b-4171-afb5-0d1d70f6abd3"
+        } ]
+      } ]
+    }, {
+      "name": "rule_task_restriction",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "variable": "maxDays",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "questionnaireResponse"
+        }, {
+          "valueString": "'1795'"
+        } ]
+      } ],
+      "dependent": [ {
+        "name": "extractTaskRestriction",
+        "variable": [ "questionnaireResponse", "task", "maxDays" ]
+      } ]
+    } ]
+  }, {
+    "name": "extractTaskRestriction",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "task",
+      "type": "Task",
+      "mode": "target"
+    }, {
+      "name": "restrictionEndDate",
+      "type": "String",
+      "mode": "source"
+    } ],
+    "rule": [ {
+      "name": "rule_task_execution_period",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "variable": "start",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "task"
+        }, {
+          "valueString": "$this.executionPeriod.start"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_task_restriction",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "variable": "taskRestriction",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Task_Restriction"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_task_restriction_period",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "taskRestriction",
+            "contextType": "variable",
+            "element": "period",
+            "variable": "taskRestrictionPeriod",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Period"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_period_start",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "taskRestrictionPeriod",
+              "contextType": "variable",
+              "element": "start",
+              "variable": "startDateTime",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "dateTime"
+              } ]
+            }, {
+              "context": "startDateTime",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "start"
+              }, {
+                "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+              } ]
+            } ]
+          }, {
+            "name": "rule_period_end",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "taskRestrictionPeriod",
+              "contextType": "variable",
+              "element": "end",
+              "variable": "endDateTime",
+              "transform": "create",
+              "parameter": [ {
+                "valueString": "dateTime"
+              } ]
+            }, {
+              "context": "endDateTime",
+              "contextType": "variable",
+              "element": "value",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "start"
+              }, {
+                "valueString": "(($this + (((restrictionEndDate).toString() + ' 'days'')).toQuantity()).value.substring(0, 10)) + 'T00:00:00.00Z'"
+              } ]
+            } ]
+          }, {
+            "name": "rule_restriction_period",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "task",
+              "contextType": "variable",
+              "element": "restriction",
+              "transform": "copy",
+              "parameter": [ {
+                "valueId": "taskRestriction"
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "addTaskToCarePlan",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "task",
+      "type": "Task",
+      "mode": "source"
+    }, {
+      "name": "bundle",
+      "type": "Bundle",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_add_task",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "context": "bundle",
+        "contextType": "variable",
+        "element": "entry",
+        "variable": "entry"
+      }, {
+        "context": "entry",
+        "contextType": "variable",
+        "element": "resource",
+        "variable": "carePlan",
+        "transform": "create",
+        "parameter": [ {
+          "valueString": "CarePlan"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_update_careplan",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "carePlan",
+          "contextType": "variable",
+          "element": "id",
+          "variable": "id",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "id"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_careplan_id",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "id",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "questionnaireResponse"
+            }, {
+              "valueString": "$this.item.where(linkId = 'task-careplan').answer.value.replaceMatches('/CarePlan/.*', '').toString()"
+            } ]
+          } ]
+        } ]
+      }, {
+        "name": "rule_activity",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "context": "carePlan",
+          "contextType": "variable",
+          "element": "activity",
+          "variable": "activity",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "CarePlan_Activity"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_activity_detail",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "activity",
+            "contextType": "variable",
+            "element": "detail",
+            "variable": "detail",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "CarePlan_ActivityDetail"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_task_kind",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "detail",
+              "contextType": "variable",
+              "element": "kind",
+              "transform": "copy",
+              "parameter": [ {
+                "valueString": "Task"
+              } ]
+            } ]
+          } ]
+        }, {
+          "name": "rule_outcome_reference",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "activity",
+            "contextType": "variable",
+            "element": "outcomeReference",
+            "variable": "taskReference",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "Reference"
+            } ]
+          }, {
+            "variable": "taskId",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "task"
+            }, {
+              "valueString": "$this.id"
+            } ]
+          } ],
+          "rule": [ {
+            "name": "rule_task_reference",
+            "source": [ {
+              "context": "questionnaireResponse"
+            } ],
+            "target": [ {
+              "context": "taskReference",
+              "contextType": "variable",
+              "element": "reference",
+              "transform": "evaluate",
+              "parameter": [ {
+                "valueId": "questionnaireResponse"
+              }, {
+                "valueString": "'Task/' + taskId"
+              } ]
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  }, {
+    "name": "extractPeriod",
+    "typeMode": "none",
+    "input": [ {
+      "name": "questionnaireResponse",
+      "type": "QuestionnaireResponse",
+      "mode": "source"
+    }, {
+      "name": "task",
+      "type": "Task",
+      "mode": "target"
+    } ],
+    "rule": [ {
+      "name": "rule_task_execution_period",
+      "source": [ {
+        "context": "questionnaireResponse"
+      } ],
+      "target": [ {
+        "variable": "start",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "task"
+        }, {
+          "valueString": "$this.executionPeriod.start"
+        } ]
+      }, {
+        "variable": "end",
+        "transform": "evaluate",
+        "parameter": [ {
+          "valueId": "task"
+        }, {
+          "valueString": "$this.executionPeriod.end"
+        } ]
+      } ],
+      "rule": [ {
+        "name": "rule_period",
+        "source": [ {
+          "context": "questionnaireResponse"
+        } ],
+        "target": [ {
+          "variable": "period",
+          "transform": "create",
+          "parameter": [ {
+            "valueString": "Period"
+          } ]
+        } ],
+        "rule": [ {
+          "name": "rule_period_start",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "start",
+            "variable": "startDateTime",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "dateTime"
+            } ]
+          }, {
+            "context": "startDateTime",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "start"
+            }, {
+              "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+            } ]
+          } ]
+        }, {
+          "name": "rule_period_end",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "period",
+            "contextType": "variable",
+            "element": "end",
+            "variable": "endDateTime",
+            "transform": "create",
+            "parameter": [ {
+              "valueString": "dateTime"
+            } ]
+          }, {
+            "context": "endDateTime",
+            "contextType": "variable",
+            "element": "value",
+            "transform": "evaluate",
+            "parameter": [ {
+              "valueId": "end"
+            }, {
+              "valueString": "$this.value.substring(0, 10) + 'T00:00:00.00Z'"
+            } ]
+          } ]
+        }, {
+          "name": "rule_execution_period",
+          "source": [ {
+            "context": "questionnaireResponse"
+          } ],
+          "target": [ {
+            "context": "task",
+            "contextType": "variable",
+            "element": "executionPeriod",
+            "transform": "copy",
+            "parameter": [ {
+              "valueId": "period"
+            } ]
+          } ]
+        } ]
+      } ]
+    } ]
+  } ]
+}

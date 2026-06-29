@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "12e24153-eb75-530f-b1d7-c6272ffc64e7",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "IRNFOL"
+        },
+        {
+            "use": "secondary",
+            "value": "IRNFOL"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Iron + Folic Acid",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Tablets"
+            },
+            "exclude": false
+        }
+    ]
+}

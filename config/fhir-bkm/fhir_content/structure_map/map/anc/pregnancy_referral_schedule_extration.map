@@ -1,0 +1,92 @@
+map "http://hl7.org/fhir/StructureMap/ab62f8e8-e6d8-4ffb-b460-64b23e89b370" = 'Pregnancy Referral'
+
+uses "http://hl7.org/fhir/StructureDefinition/Parameters" as source
+uses "http://hl7.org/fhir/StructureDefinition/CarePlan" as target
+
+group pregnancyReferral(source src : Parameters, target tgt: CarePlan) {
+    src -> evaluate(src, $this.parameter.where(name='subject').resource) as subject,
+            evaluate(src, $this.parameter.where(name='definition').resource) as definition,
+            evaluate(subject, today()) as dueDate
+            then ExtractTasks(dueDate, subject, tgt) "r_careplan";
+}
+
+group ExtractTasks(
+    source dueDate: DateType,
+    source subject : Patient,
+    target careplan: CarePlan){
+
+    subject -> dueDate as start,
+                evaluate(subject, today() + "1 months".toQuantity()) as end,
+                create('Period') as period,
+                careplan.contained = create('Task') as task then {
+
+        subject then ExtractPeriod(start, end, period) "r_task_period_extr";
+
+        subject -> task.id = uuid(),
+               task.identifier = create('Identifier') as iden, iden.value = uuid(), iden.use = 'official',
+               task.status = 'ready',
+               task.intent = 'plan',
+               task.executionPeriod = period,
+               task.priority = 'routine',
+               task.description = 'ANC referral visit',
+               task.for = create('Reference') as ref, ref.reference = evaluate(subject, 'Patient/' + $this.id.replaceMatches('/_history/.*', '')),
+               task.authoredOn = evaluate(subject, now()),
+               task.requester = evaluate(subject, $this.generalPractitioner.first()),
+               task.owner = evaluate(subject, $this.generalPractitioner.first()) "r_task_data";
+
+        subject where(careplan.id.exists()) -> task.basedOn = create('Reference') as ref, ref.reference = evaluate(careplan, 'CarePlan/' + $this.id.replaceMatches('/_history/.*', '').replaceMatches('CarePlan/', '')) "r_task_based_on";
+        subject where(careplan.id.exists().not()) -> task.basedOn = reference(careplan) "r_task_based_on";
+
+        // add plan-def reference
+        subject -> task.input = create('Task_Input') as input then {
+            subject -> input.value = create('Reference') as valueRef, valueRef.reference = 'PlanDefinition/d6263f2d-2ebe-456c-bbb7-786dabd3ea22' "r_task_input_value_ref";
+            subject -> input.type = create('CodeableConcept') as taskCode then extractTaskPlanDefinitionCode(subject, taskCode) "r_task_input_cod";
+        } "r_task_input";
+
+        subject -> task.code = create('CodeableConcept') as codeConcept then extractCode(subject, codeConcept) "rule_code";
+
+        subject -> task.groupIdentifier = create('Identifier') as taskIdentifier then {
+            subject -> taskIdentifier.use = "secondary" "rule_use";
+            subject -> taskIdentifier.value = "big_belly_referral" "rule_value";
+        } "rule_task_identifier";
+
+        // pregnancy referral referral form
+        subject -> task.reasonReference = create('Reference') as ref, ref.reference = 'Questionnaire/c309abfa-7536-4c60-baea-cf631201f79e' "r_task_reason_ref";
+
+        // create activity.detail of type/kind Task for this Task if not exists
+        subject where(careplan.activity.where(detail.kind = 'Task').exists().not())
+                -> careplan.activity = create('CarePlan_Activity') as activity then {
+                   subject -> activity.detail = create('CarePlan_ActivityDetail') as det then {
+                       subject -> det.kind = 'Task' "r_act_det_data";
+                   } "r_act_det";
+               } "r_cp_acti";
+
+        // add task to careplan only if its valid and not expired
+        subject where(task.executionPeriod.start >= today() or task.executionPeriod.end >= today()) then {
+                 subject -> evaluate(careplan, activity.where(detail.kind = 'Task')) as activity,
+                            activity.outcomeReference = reference(task) "r_cp_task_ref";
+                 subject -> careplan.contained = task  "r_add_task";
+        } "r_cp_task";
+
+    } "r_cp_acti_outcome";
+}
+
+group extractCode(source subject: Patient, target concept: CodeableConcept) {
+    subject -> concept.coding = c("http://snomed.info/sct", "77386006") as taskCoding then {
+        subject -> taskCoding.display = 'Pregnancy' "rule_task_code_diplay";
+    } "rule_task_code";
+    subject -> concept.text = 'Pregnancy' "rule_code_text";
+}
+
+group ExtractPeriod(source start: DateType, source end: DateType, target period: Period) {
+    start -> period.start = create('dateTime') as dt,
+             dt.value = evaluate(start, $this.value.substring(0,10) + 'T00:00:00.00Z') "r_per_start";
+
+    end -> period.end = create('dateTime') as dt,
+           dt.value = evaluate(end, $this.value.substring(0,10) + 'T00:00:00.00Z') "r_per_end";
+}
+
+group extractTaskPlanDefinitionCode(source subject: Patient, target taskCode: CodeableConcept) {
+    subject -> taskCode.coding = c("http://smartregister.org/", "plan_definition") as coding, coding.display = 'Plan Definition Reference' "r_cp_cod_disp";
+    subject -> taskCode.text = 'Plan Definition Reference' "r_cp_cc_txt";
+}

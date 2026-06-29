@@ -1,0 +1,2204 @@
+{
+  "resourceType": "StructureMap",
+  "id": "a92fbd36-baab-4670-b0bb-717f62072346",
+  "text": {
+    "status": "additional",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><pre>map &quot;https://fhir.labs.smartregister.org/fhir/StructureMap/a92fbd36-baab-4670-b0bb-717f62072346&quot; = &quot;eCBIS Urgent Referral form Extraction&quot;\n\nuses &quot;http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse&quot; as source\nuses &quot;http://hl7.org/fhir/StructureDefinition/Bundle&quot; as target\n\ngroup urgentReferralFormExtraction(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {\n    questionnaireResponse -&gt; bundle.type = &quot;collection&quot; &quot;r_bundle_type&quot;;\n    questionnaireResponse -&gt; evaluate(questionnaireResponse, $this.subject) as patientReference then\n        extractUrgentReferralFormExtraction(questionnaireResponse, patientReference, bundle) &quot;rule_ref&quot;;\n}\n\ngroup extractUrgentReferralFormExtraction(source questionnaireResponse : QuestionnaireResponse, source patientReference : Reference, target bundle: Bundle) {\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('Encounter') as encounter then {\n        questionnaireResponse -&gt; encounter.id = uuid() &quot;rule_en_id&quot;;\n        questionnaireResponse -&gt; encounter.status = 'finished' &quot;rule_en_status&quot;;\n        questionnaireResponse -&gt; encounter.class = c(&quot;http://terminology.hl7.org/CodeSystem/v3-ActCode&quot;, &quot;HH&quot;, &quot;home health&quot;) &quot;rule_en_class&quot;;\n        questionnaireResponse -&gt; encounter.type = create('CodeableConcept') as concept then {\n            questionnaireResponse -&gt; concept.coding = c(&quot;https://smartregister.org/&quot;, &quot;urgent_referral&quot;) as coding then {\n                questionnaireResponse -&gt; coding.display = &quot;Urgent Referral&quot; &quot;rule_display&quot;;\n            } &quot;rule_en_coding&quot;;\n            questionnaireResponse -&gt; concept.text = &quot;Urgent Referral&quot; &quot;rule_text&quot;;\n        } &quot;rule_en_type&quot;;\n        questionnaireResponse -&gt; encounter.priority = create('CodeableConcept') as priority then {\n            questionnaireResponse -&gt; priority.coding = c(&quot;http://terminology.hl7.org/ValueSet/v3-ActPriority&quot;, &quot;EL&quot;) as priorityCoding then {\n                questionnaireResponse -&gt; priorityCoding.display = &quot;Elective&quot; &quot;r_en_cod_disp&quot;;\n            } &quot;r_en_cc_cod&quot;;\n            questionnaireResponse -&gt; priority.text = &quot;Elective&quot; &quot;r_en_prio_text&quot;;\n        } &quot;rule_priority&quot;;\n        questionnaireResponse.subject as subject -&gt; encounter.subject = patientReference &quot;rule_subj&quot;;\n        questionnaireResponse -&gt; encounter.period = create('Period') as period then {\n            questionnaireResponse -&gt; period.start = evaluate(questionnaireResponse, now()) &quot;r_per_start&quot;;\n            questionnaireResponse -&gt; period.end = evaluate(questionnaireResponse, now()) &quot;r_per_end&quot;;\n        } &quot;rule_period&quot;;\n        questionnaireResponse -&gt; encounter.reasonCode = create('CodeableConcept') as reason then {\n            questionnaireResponse -&gt; reason.text = &quot;Urgent Referral Form&quot; &quot;r_en_text&quot;;\n            questionnaireResponse -&gt; reason.coding = c(&quot;https://smartregister.org/&quot;, &quot;urgent_referral&quot;) as coding then {\n                questionnaireResponse -&gt; coding.display = &quot;Urgent Referral&quot; &quot;rule_observation_coding_display&quot;;\n            } &quot;rule_observation_c_coding&quot;;\n        } &quot;rule_en_reason&quot;;\n\n        questionnaireResponse then extractObservationData(questionnaireResponse, patientReference, encounter, bundle) &quot;rule_extract_observation_data&quot;;\n        questionnaireResponse then updateTaskOutput(questionnaireResponse, bundle, encounter) &quot;r_task_output&quot;;\n\n    } &quot;rule_encounter&quot;;\n}\n\ngroup extractObservationData(\n    source questionnaireResponse : QuestionnaireResponse,\n    source patientReference : Reference,\n    source encounter : Encounter,\n    target bundle: Bundle ) {\n    questionnaireResponse -&gt; bundle.entry as entry, entry.resource = create('Observation') as observation then {\n        questionnaireResponse.item as whoIsSick where((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and answer.value.exists()) then {\n\n            // Urgent Referral Observation Code\n            whoIsSick -&gt; create('CodeableConcept') as cmntdCategoryCode,\n                evaluate(whoIsSick, &quot;urgent_referral&quot;) as conceptCode,\n                evaluate(whoIsSick, &quot;Urgent Referral&quot;) as conceptDisplay then {\n                    whoIsSick -&gt; cmntdCategoryCode.coding = c(&quot;http://snomed.info/sct&quot;, conceptCode ) as coding then {\n                        whoIsSick -&gt; coding.display = conceptDisplay &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    whoIsSick -&gt; cmntdCategoryCode.text = conceptDisplay &quot;r_item_obs_cc_display&quot;;\n                whoIsSick -&gt; observation.code = cmntdCategoryCode &quot;rule_observation_code&quot;;\n            } &quot;rule_cmtnd_check_category&quot;;\n\n            // Pregnancy Observation Category\n            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'pregnant-woman') then {\n                whoIsSick -&gt; create('CodeableConcept') as observationCode then {\n                    whoIsSick -&gt; observationCode.coding = c(&quot;http://snomed.info/sct&quot;, &quot;77386006&quot;) as coding then {\n                        whoIsSick -&gt; coding.display = &quot;Pregnancy (finding)&quot; &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    whoIsSick -&gt; observationCode.text = &quot;Pregnancy (finding)&quot; &quot;rule_observation_c_coding_text&quot;;\n                    whoIsSick -&gt; observation.category = observationCode &quot;rule_observation_code&quot;;\n                } &quot;rule_big_belly_category&quot;;\n            } &quot;rule_check_big_belly&quot;;\n\n            // PNC Observation Category\n            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and (answer.value.code = 'new-born-baby-under-28days' or answer.value.code = 'new-born-mother-pnc')) then {\n                whoIsSick -&gt; create('CodeableConcept') as observationCode then {\n                    whoIsSick -&gt; observationCode.coding = c(&quot;http://snomed.info/sct&quot;, &quot;234234234&quot;) as coding then {\n                        whoIsSick -&gt; coding.display = &quot;PNC&quot; &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    whoIsSick -&gt; observationCode.text = &quot;PNC&quot; &quot;rule_observation_c_coding_text&quot;;\n                    whoIsSick -&gt; observation.category = observationCode &quot;rule_observation_code&quot;;\n                } &quot;rule_pnc_category&quot;;\n            } &quot;rule_check_pnc&quot;;\n\n            // FP Observation Category\n            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'woman-using-fp') then {\n                whoIsSick -&gt; create('CodeableConcept') as observationCode then {\n                    whoIsSick -&gt; observationCode.coding = c(&quot;http://snomed.info/sct&quot;, &quot;99998888&quot;) as coding then {\n                        whoIsSick -&gt; coding.display = &quot;Family Planning&quot; &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    whoIsSick -&gt; observationCode.text = &quot;Family Planning&quot; &quot;rule_observation_c_coding_text&quot;;\n                    whoIsSick -&gt; observation.category = observationCode &quot;rule_observation_code&quot;;\n                } &quot;rule_check_fp_category&quot;;\n            } &quot;rule_check_fp&quot;;\n\n            // CEB Observation Category\n            whoIsSick where(linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b' and answer.value.code = 'other-person') then {\n                whoIsSick -&gt; create('CodeableConcept') as observationCode then {\n                    whoIsSick -&gt; observationCode.coding = c(&quot;http://snomed.info/sct&quot;, &quot;99997777&quot;) as coding then {\n                        whoIsSick -&gt; coding.display = &quot;CEB&quot; &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    whoIsSick -&gt; observationCode.text = &quot;CEB&quot; &quot;rule_observation_c_coding_text&quot;;\n                    whoIsSick -&gt; observation.category = observationCode &quot;rule_observation_code&quot;;\n                } &quot;rule_check_ceb_category&quot;;\n            } &quot;rule_check_ceb&quot;;\n\n            // Other Persons &amp; CEB Observation Category\n            questionnaireResponse.item as cmntd where(linkId = 'f5b4220e-8860-41e1-a396-449d979daf63' and answer.value.exists()) then {\n                cmntd as cmntdValue where(linkId = 'f5b4220e-8860-41e1-a396-449d979daf63') then {\n                    cmntdValue -&gt; create('CodeableConcept') as cmntdCode,\n                        evaluate(cmntdValue, $this.answer.value.code) as conceptCode,\n                        evaluate(cmntdValue, $this.answer.value.display) as conceptDisplay then {\n                            cmntdValue -&gt; cmntdCode.coding = c(&quot;http://snomed.info/sct&quot;, conceptCode ) as coding then {\n                                cmntdValue -&gt; coding.display = conceptDisplay &quot;rule_observation_coding_display&quot;;\n                            } &quot;rule_observation_c_coding&quot;;\n                            cmntdValue -&gt; cmntdCode.text = conceptDisplay &quot;r_item_obs_cc_display&quot;;\n\n                        cmntdValue -&gt; observation.category = cmntdCode &quot;rule_observation_code&quot;;\n                    } &quot;rule_cmtnd_check_category&quot;;\n                } &quot;rule_cmtnd_check&quot;;\n\n                // CM-NTD Observation Code\n                cmntd -&gt; create('CodeableConcept') as cmntdCategoryCode,\n                    evaluate(cmntd, &quot;cmntd&quot;) as conceptCode,\n                    evaluate(cmntd, &quot;CM-NTD&quot;) as conceptDisplay then {\n                        cmntd -&gt; cmntdCategoryCode.coding = c(&quot;http://snomed.info/sct&quot;, conceptCode ) as coding then {\n                            cmntd -&gt; coding.display = conceptDisplay &quot;rule_observation_coding_display&quot;;\n                        } &quot;rule_observation_c_coding&quot;;\n                        cmntd -&gt; cmntdCategoryCode.text = conceptDisplay &quot;r_item_obs_cc_display&quot;;\n                    cmntd -&gt; observation.category = cmntdCategoryCode &quot;rule_observation_code&quot;;\n                } &quot;rule_cmtnd_check_category&quot;;\n            } &quot;rule_cmtnd_check&quot;;    \n\n            // Danger Signs Observation Category\n            questionnaireResponse.item as dangerSign where(\n                (linkId = 'e4f9ee8c-109f-40c9-88ff-b17804142a84' \n                or linkId = 'cde34ecc-a7f9-42cc-8af2-80137a7e0653' \n                or linkId = '444ece91-98c6-4139-8957-a208edad6397'\n                or linkId = '1a7cc98a-22ad-4c68-8425-22ab237bfc5c')\n                and answer.value.exists()) then {\n                dangerSign -&gt; create('CodeableConcept') as observationCode then {\n                    dangerSign -&gt; observationCode.coding = c(&quot;https://smartregister.org/&quot;, &quot;danger_signs&quot;) as coding then {\n                        dangerSign -&gt; coding.display = &quot;Danger Signs&quot; &quot;rule_observation_coding_display&quot;;\n                    } &quot;rule_observation_c_coding&quot;;\n                    dangerSign -&gt; observationCode.text = &quot;Danger Signs&quot; &quot;rule_observation_c_coding_text&quot;;\n                    dangerSign -&gt; observation.category = observationCode &quot;rule_observation_code&quot;;\n                } &quot;rule_danger_sign_category&quot;;\n            } &quot;rule_danger_sign&quot;;\n\n            questionnaireResponse.item as referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.exists()) then {\n                referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.code = 'yes') then {\n                    referral -&gt; observation.value = evaluate(referral, &quot;referred&quot;) &quot;rule_observation_value&quot;;\n                } &quot;rule_referral_value&quot;;\n\n                referral where((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa' or linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700') and answer.value.code = 'no') then {\n                    referral -&gt; observation.value = evaluate(referral, &quot;not-referred&quot;) &quot;rule_observation_value&quot;;\n                } &quot;rule_referral_value&quot;;\n            } &quot;rule_referral_check&quot;;\n\n            questionnaireResponse then extractObservation(questionnaireResponse, patientReference, encounter, observation, bundle) &quot;rule_check_ceb_observation&quot;;\n        } &quot;rule_check&quot;;\n    } &quot;rule_observation&quot;;\n}\n\ngroup extractObservation(\n    source questionnaireResponse : QuestionnaireResponse,\n    source patientReference : Reference,\n    source encounter : Encounter,\n    target observation : Observation,\n    target bundle: Bundle ) {\n        questionnaireResponse -&gt; observation.id = uuid() &quot;r_obs_id&quot;;\n        questionnaireResponse -&gt; observation.status = 'final' &quot;r_status&quot;;\n        questionnaireResponse -&gt; observation.subject = patientReference &quot;rule_subj&quot;;\n        questionnaireResponse -&gt; observation.encounter = reference(encounter) &quot;rule_encounter&quot;;\n        questionnaireResponse -&gt; observation.effective = evaluate(questionnaireResponse, now()) &quot;r_item_reason_for_removal_obs_eff&quot;;\n}\n\ngroup updateTaskOutput(source src : QuestionnaireResponse, target bundle: Bundle, source encounter : Encounter) {\n    // Update the linked task with the output\n     src.item as item where(linkId = &quot;task-id&quot;) then {\n         src -&gt; bundle.entry as entry, entry.resource = create(&quot;Task&quot;) as task then {\n           src -&gt; task.id = create(&quot;id&quot;) as taskId then {\n                src -&gt; taskId.value = evaluate(item, $this.answer.value) &quot;r_item_task_id_value&quot;;\n           } &quot;r_task_id_val&quot;;\n           src -&gt; task.output = create('Task_Output') as outputTask then {\n                src -&gt; outputTask.type = create(&quot;CodeableConcept&quot;) as concept then {\n                      src-&gt; concept.coding = c(&quot;http:snomed.info/sct&quot;,&quot;371531000&quot;) as coding then {\n                          src -&gt; coding.display = &quot;Report of clinical encounter (record artifact)&quot; &quot;r_task_output_coding_display&quot;;\n                      } &quot;r_task_output_concept_coding&quot;;\n                } &quot;r_task_output_codeable_concept&quot;;\n                src -&gt; outputTask.value = reference(encounter) &quot;r_task_output_reference&quot;;\n           } &quot;r_task_output_val&quot;;\n         } &quot;r_task_output&quot;;\n     } &quot;r_task_id_output&quot;;\n}\n</pre></div>"
+  },
+  "url": "https://fhir.labs.smartregister.org/fhir/StructureMap/a92fbd36-baab-4670-b0bb-717f62072346",
+  "name": "eCBIS Urgent Referral form Extraction",
+  "structure": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse",
+      "mode": "source"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/Bundle",
+      "mode": "target"
+    }
+  ],
+  "group": [
+    {
+      "name": "urgentReferralFormExtraction",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "r_bundle_type",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "bundle",
+              "contextType": "variable",
+              "element": "type",
+              "transform": "copy",
+              "parameter": [
+                {
+                  "valueString": "collection"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "rule_ref",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "variable": "patientReference",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "questionnaireResponse"
+                },
+                {
+                  "valueString": "$this.subject"
+                }
+              ]
+            }
+          ],
+          "dependent": [
+            {
+              "name": "extractUrgentReferralFormExtraction",
+              "variable": [
+                "questionnaireResponse",
+                "patientReference",
+                "bundle"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractUrgentReferralFormExtraction",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "patientReference",
+          "type": "Reference",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_encounter",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "bundle",
+              "contextType": "variable",
+              "element": "entry",
+              "variable": "entry"
+            },
+            {
+              "context": "entry",
+              "contextType": "variable",
+              "element": "resource",
+              "variable": "encounter",
+              "transform": "create",
+              "parameter": [
+                {
+                  "valueString": "Encounter"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_en_id",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "id",
+                  "transform": "uuid"
+                }
+              ]
+            },
+            {
+              "name": "rule_en_status",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "status",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueString": "finished"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_class",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "class",
+                  "transform": "c",
+                  "parameter": [
+                    {
+                      "valueString": "http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                    },
+                    {
+                      "valueString": "HH"
+                    },
+                    {
+                      "valueString": "home health"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_type",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "type",
+                  "variable": "concept",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_en_coding",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "concept",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "variable": "coding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "https://smartregister.org/"
+                        },
+                        {
+                          "valueString": "urgent_referral"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_display",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "coding",
+                          "contextType": "variable",
+                          "element": "display",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Urgent Referral"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "concept",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Urgent Referral"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_priority",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "priority",
+                  "variable": "priority",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_en_cc_cod",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "priority",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "variable": "priorityCoding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "http://terminology.hl7.org/ValueSet/v3-ActPriority"
+                        },
+                        {
+                          "valueString": "EL"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "r_en_cod_disp",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "priorityCoding",
+                          "contextType": "variable",
+                          "element": "display",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Elective"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "r_en_prio_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "priority",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Elective"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_subj",
+              "source": [
+                {
+                  "context": "questionnaireResponse",
+                  "element": "subject",
+                  "variable": "subject"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "subject",
+                  "transform": "copy",
+                  "parameter": [
+                    {
+                      "valueId": "patientReference"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_period",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "period",
+                  "variable": "period",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Period"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_per_start",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "start",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "questionnaireResponse"
+                        },
+                        {
+                          "valueString": "now()"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "r_per_end",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "period",
+                      "contextType": "variable",
+                      "element": "end",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "questionnaireResponse"
+                        },
+                        {
+                          "valueString": "now()"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_en_reason",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "target": [
+                {
+                  "context": "encounter",
+                  "contextType": "variable",
+                  "element": "reasonCode",
+                  "variable": "reason",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "CodeableConcept"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_en_text",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "reason",
+                      "contextType": "variable",
+                      "element": "text",
+                      "transform": "copy",
+                      "parameter": [
+                        {
+                          "valueString": "Urgent Referral Form"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_observation_c_coding",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "reason",
+                      "contextType": "variable",
+                      "element": "coding",
+                      "variable": "coding",
+                      "transform": "c",
+                      "parameter": [
+                        {
+                          "valueString": "https://smartregister.org/"
+                        },
+                        {
+                          "valueString": "urgent_referral"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_observation_coding_display",
+                      "source": [
+                        {
+                          "context": "questionnaireResponse"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "coding",
+                          "contextType": "variable",
+                          "element": "display",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueString": "Urgent Referral"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rule_extract_observation_data",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "dependent": [
+                {
+                  "name": "extractObservationData",
+                  "variable": [
+                    "questionnaireResponse",
+                    "patientReference",
+                    "encounter",
+                    "bundle"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "r_task_output",
+              "source": [
+                {
+                  "context": "questionnaireResponse"
+                }
+              ],
+              "dependent": [
+                {
+                  "name": "updateTaskOutput",
+                  "variable": [
+                    "questionnaireResponse",
+                    "bundle",
+                    "encounter"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractObservationData",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "patientReference",
+          "type": "Reference",
+          "mode": "source"
+        },
+        {
+          "name": "encounter",
+          "type": "Encounter",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "rule_observation",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "bundle",
+              "contextType": "variable",
+              "element": "entry",
+              "variable": "entry"
+            },
+            {
+              "context": "entry",
+              "contextType": "variable",
+              "element": "resource",
+              "variable": "observation",
+              "transform": "create",
+              "parameter": [
+                {
+                  "valueString": "Observation"
+                }
+              ]
+            }
+          ],
+          "rule": [
+            {
+              "name": "rule_check",
+              "source": [
+                {
+                  "context": "questionnaireResponse",
+                  "element": "item",
+                  "variable": "whoIsSick",
+                  "condition": "((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and answer.value.exists())"
+                }
+              ],
+              "rule": [
+                {
+                  "name": "rule_cmtnd_check_category",
+                  "source": [
+                    {
+                      "context": "whoIsSick"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "variable": "cmntdCategoryCode",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "CodeableConcept"
+                        }
+                      ]
+                    },
+                    {
+                      "variable": "conceptCode",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "whoIsSick"
+                        },
+                        {
+                          "valueString": "'urgent_referral'"
+                        }
+                      ]
+                    },
+                    {
+                      "variable": "conceptDisplay",
+                      "transform": "evaluate",
+                      "parameter": [
+                        {
+                          "valueId": "whoIsSick"
+                        },
+                        {
+                          "valueString": "'Urgent Referral'"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_observation_c_coding",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "cmntdCategoryCode",
+                          "contextType": "variable",
+                          "element": "coding",
+                          "variable": "coding",
+                          "transform": "c",
+                          "parameter": [
+                            {
+                              "valueString": "http://snomed.info/sct"
+                            },
+                            {
+                              "valueId": "conceptCode"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_coding_display",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "coding",
+                              "contextType": "variable",
+                              "element": "display",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "conceptDisplay"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "r_item_obs_cc_display",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "cmntdCategoryCode",
+                          "contextType": "variable",
+                          "element": "text",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueId": "conceptDisplay"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_observation_code",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "observation",
+                          "contextType": "variable",
+                          "element": "code",
+                          "transform": "copy",
+                          "parameter": [
+                            {
+                              "valueId": "cmntdCategoryCode"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_check_big_belly",
+                  "source": [
+                    {
+                      "context": "whoIsSick",
+                      "condition": "((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and (answer.value.code = 'pregnant-woman'))"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_big_belly_category",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "observationCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "77386006"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "whoIsSick"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "Pregnancy (finding)"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_c_coding_text",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "Pregnancy (finding)"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "observationCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_check_pnc",
+                  "source": [
+                    {
+                      "context": "whoIsSick",
+                      "condition": "((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and ((answer.value.code = 'new-born-baby-under-28days') or (answer.value.code = 'new-born-mother-pnc')))"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_pnc_category",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "observationCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "234234234"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "whoIsSick"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "PNC"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_c_coding_text",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "PNC"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "observationCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_check_fp",
+                  "source": [
+                    {
+                      "context": "whoIsSick",
+                      "condition": "((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and (answer.value.code = 'woman-using-fp'))"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_check_fp_category",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "observationCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "99998888"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "whoIsSick"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "Family Planning"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_c_coding_text",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "Family Planning"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "observationCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_check_ceb",
+                  "source": [
+                    {
+                      "context": "whoIsSick",
+                      "condition": "((linkId = '08fa3bb4-e159-476d-8137-621a25e75b2b') and (answer.value.code = 'other-person'))"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_check_ceb_category",
+                      "source": [
+                        {
+                          "context": "whoIsSick"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "observationCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "99997777"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "whoIsSick"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "CEB"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_c_coding_text",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "CEB"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "whoIsSick"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "observationCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_cmtnd_check",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse",
+                      "element": "item",
+                      "variable": "cmntd",
+                      "condition": "((linkId = 'f5b4220e-8860-41e1-a396-449d979daf63') and answer.value.exists())"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_cmtnd_check",
+                      "source": [
+                        {
+                          "context": "cmntd",
+                          "variable": "cmntdValue",
+                          "condition": "(linkId = 'f5b4220e-8860-41e1-a396-449d979daf63')"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_cmtnd_check_category",
+                          "source": [
+                            {
+                              "context": "cmntdValue"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "variable": "cmntdCode",
+                              "transform": "create",
+                              "parameter": [
+                                {
+                                  "valueString": "CodeableConcept"
+                                }
+                              ]
+                            },
+                            {
+                              "variable": "conceptCode",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "cmntdValue"
+                                },
+                                {
+                                  "valueString": "$this.answer.value.code"
+                                }
+                              ]
+                            },
+                            {
+                              "variable": "conceptDisplay",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "cmntdValue"
+                                },
+                                {
+                                  "valueString": "$this.answer.value.display"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_c_coding",
+                              "source": [
+                                {
+                                  "context": "cmntdValue"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "cmntdCode",
+                                  "contextType": "variable",
+                                  "element": "coding",
+                                  "variable": "coding",
+                                  "transform": "c",
+                                  "parameter": [
+                                    {
+                                      "valueString": "http://snomed.info/sct"
+                                    },
+                                    {
+                                      "valueId": "conceptCode"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "rule": [
+                                {
+                                  "name": "rule_observation_coding_display",
+                                  "source": [
+                                    {
+                                      "context": "cmntdValue"
+                                    }
+                                  ],
+                                  "target": [
+                                    {
+                                      "context": "coding",
+                                      "contextType": "variable",
+                                      "element": "display",
+                                      "transform": "copy",
+                                      "parameter": [
+                                        {
+                                          "valueId": "conceptDisplay"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "name": "r_item_obs_cc_display",
+                              "source": [
+                                {
+                                  "context": "cmntdValue"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "cmntdCode",
+                                  "contextType": "variable",
+                                  "element": "text",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueId": "conceptDisplay"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "name": "rule_observation_code",
+                              "source": [
+                                {
+                                  "context": "cmntdValue"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "observation",
+                                  "contextType": "variable",
+                                  "element": "category",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueId": "cmntdCode"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_cmtnd_check_category",
+                      "source": [
+                        {
+                          "context": "cmntd"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "cmntdCategoryCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        },
+                        {
+                          "variable": "conceptCode",
+                          "transform": "evaluate",
+                          "parameter": [
+                            {
+                              "valueId": "cmntd"
+                            },
+                            {
+                              "valueString": "'cmntd'"
+                            }
+                          ]
+                        },
+                        {
+                          "variable": "conceptDisplay",
+                          "transform": "evaluate",
+                          "parameter": [
+                            {
+                              "valueId": "cmntd"
+                            },
+                            {
+                              "valueString": "'CM-NTD'"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "cmntd"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "cmntdCategoryCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http://snomed.info/sct"
+                                },
+                                {
+                                  "valueId": "conceptCode"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "cmntd"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueId": "conceptDisplay"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "r_item_obs_cc_display",
+                          "source": [
+                            {
+                              "context": "cmntd"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "cmntdCategoryCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "conceptDisplay"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "cmntd"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "cmntdCategoryCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_danger_sign",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse",
+                      "element": "item",
+                      "variable": "dangerSign",
+                      "condition": "(((linkId = 'e4f9ee8c-109f-40c9-88ff-b17804142a84') or (linkId = 'cde34ecc-a7f9-42cc-8af2-80137a7e0653') or (linkId = '444ece91-98c6-4139-8957-a208edad6397') or (linkId = '1a7cc98a-22ad-4c68-8425-22ab237bfc5c')) and answer.value.exists())"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_danger_sign_category",
+                      "source": [
+                        {
+                          "context": "dangerSign"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "variable": "observationCode",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_c_coding",
+                          "source": [
+                            {
+                              "context": "dangerSign"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "https://smartregister.org/"
+                                },
+                                {
+                                  "valueString": "danger_signs"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "rule_observation_coding_display",
+                              "source": [
+                                {
+                                  "context": "dangerSign"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "Danger Signs"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_c_coding_text",
+                          "source": [
+                            {
+                              "context": "dangerSign"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observationCode",
+                              "contextType": "variable",
+                              "element": "text",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueString": "Danger Signs"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "name": "rule_observation_code",
+                          "source": [
+                            {
+                              "context": "dangerSign"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "category",
+                              "transform": "copy",
+                              "parameter": [
+                                {
+                                  "valueId": "observationCode"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_referral_check",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse",
+                      "element": "item",
+                      "variable": "referral",
+                      "condition": "(((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa') or (linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700')) and answer.value.exists())"
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "rule_referral_value",
+                      "source": [
+                        {
+                          "context": "referral",
+                          "condition": "(((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa') or (linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700')) and (answer.value.code = 'yes'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_value",
+                          "source": [
+                            {
+                              "context": "referral"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "referral"
+                                },
+                                {
+                                  "valueString": "'referred'"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "rule_referral_value",
+                      "source": [
+                        {
+                          "context": "referral",
+                          "condition": "(((linkId = '6d7ae6ba-c7a8-448a-8101-8353144273aa') or (linkId = '599c96f6-97a0-4a63-80ea-3f8cc5375700')) and (answer.value.code = 'no'))"
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "rule_observation_value",
+                          "source": [
+                            {
+                              "context": "referral"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "observation",
+                              "contextType": "variable",
+                              "element": "value",
+                              "transform": "evaluate",
+                              "parameter": [
+                                {
+                                  "valueId": "referral"
+                                },
+                                {
+                                  "valueString": "'not-referred'"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rule_check_ceb_observation",
+                  "source": [
+                    {
+                      "context": "questionnaireResponse"
+                    }
+                  ],
+                  "dependent": [
+                    {
+                      "name": "extractObservation",
+                      "variable": [
+                        "questionnaireResponse",
+                        "patientReference",
+                        "encounter",
+                        "observation",
+                        "bundle"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extractObservation",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "questionnaireResponse",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "patientReference",
+          "type": "Reference",
+          "mode": "source"
+        },
+        {
+          "name": "encounter",
+          "type": "Encounter",
+          "mode": "source"
+        },
+        {
+          "name": "observation",
+          "type": "Observation",
+          "mode": "target"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        }
+      ],
+      "rule": [
+        {
+          "name": "r_obs_id",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "id",
+              "transform": "uuid"
+            }
+          ]
+        },
+        {
+          "name": "r_status",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "status",
+              "transform": "copy",
+              "parameter": [
+                {
+                  "valueString": "final"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "rule_subj",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "subject",
+              "transform": "copy",
+              "parameter": [
+                {
+                  "valueId": "patientReference"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "rule_encounter",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "encounter",
+              "transform": "reference",
+              "parameter": [
+                {
+                  "valueId": "encounter"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "r_item_reason_for_removal_obs_eff",
+          "source": [
+            {
+              "context": "questionnaireResponse"
+            }
+          ],
+          "target": [
+            {
+              "context": "observation",
+              "contextType": "variable",
+              "element": "effective",
+              "transform": "evaluate",
+              "parameter": [
+                {
+                  "valueId": "questionnaireResponse"
+                },
+                {
+                  "valueString": "now()"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "updateTaskOutput",
+      "typeMode": "none",
+      "input": [
+        {
+          "name": "src",
+          "type": "QuestionnaireResponse",
+          "mode": "source"
+        },
+        {
+          "name": "bundle",
+          "type": "Bundle",
+          "mode": "target"
+        },
+        {
+          "name": "encounter",
+          "type": "Encounter",
+          "mode": "source"
+        }
+      ],
+      "rule": [
+        {
+          "name": "r_task_id_output",
+          "source": [
+            {
+              "context": "src",
+              "element": "item",
+              "variable": "item",
+              "condition": "(linkId = 'task-id')"
+            }
+          ],
+          "rule": [
+            {
+              "name": "r_task_output",
+              "source": [
+                {
+                  "context": "src"
+                }
+              ],
+              "target": [
+                {
+                  "context": "bundle",
+                  "contextType": "variable",
+                  "element": "entry",
+                  "variable": "entry"
+                },
+                {
+                  "context": "entry",
+                  "contextType": "variable",
+                  "element": "resource",
+                  "variable": "task",
+                  "transform": "create",
+                  "parameter": [
+                    {
+                      "valueString": "Task"
+                    }
+                  ]
+                }
+              ],
+              "rule": [
+                {
+                  "name": "r_task_id_val",
+                  "source": [
+                    {
+                      "context": "src"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "id",
+                      "variable": "taskId",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "id"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "r_item_task_id_value",
+                      "source": [
+                        {
+                          "context": "src"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "taskId",
+                          "contextType": "variable",
+                          "element": "value",
+                          "transform": "evaluate",
+                          "parameter": [
+                            {
+                              "valueId": "item"
+                            },
+                            {
+                              "valueString": "$this.answer.value"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "r_task_output_val",
+                  "source": [
+                    {
+                      "context": "src"
+                    }
+                  ],
+                  "target": [
+                    {
+                      "context": "task",
+                      "contextType": "variable",
+                      "element": "output",
+                      "variable": "outputTask",
+                      "transform": "create",
+                      "parameter": [
+                        {
+                          "valueString": "Task_Output"
+                        }
+                      ]
+                    }
+                  ],
+                  "rule": [
+                    {
+                      "name": "r_task_output_codeable_concept",
+                      "source": [
+                        {
+                          "context": "src"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "outputTask",
+                          "contextType": "variable",
+                          "element": "type",
+                          "variable": "concept",
+                          "transform": "create",
+                          "parameter": [
+                            {
+                              "valueString": "CodeableConcept"
+                            }
+                          ]
+                        }
+                      ],
+                      "rule": [
+                        {
+                          "name": "r_task_output_concept_coding",
+                          "source": [
+                            {
+                              "context": "src"
+                            }
+                          ],
+                          "target": [
+                            {
+                              "context": "concept",
+                              "contextType": "variable",
+                              "element": "coding",
+                              "variable": "coding",
+                              "transform": "c",
+                              "parameter": [
+                                {
+                                  "valueString": "http:snomed.info/sct"
+                                },
+                                {
+                                  "valueString": "371531000"
+                                }
+                              ]
+                            }
+                          ],
+                          "rule": [
+                            {
+                              "name": "r_task_output_coding_display",
+                              "source": [
+                                {
+                                  "context": "src"
+                                }
+                              ],
+                              "target": [
+                                {
+                                  "context": "coding",
+                                  "contextType": "variable",
+                                  "element": "display",
+                                  "transform": "copy",
+                                  "parameter": [
+                                    {
+                                      "valueString": "Report of clinical encounter (record artifact)"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "r_task_output_reference",
+                      "source": [
+                        {
+                          "context": "src"
+                        }
+                      ],
+                      "target": [
+                        {
+                          "context": "outputTask",
+                          "contextType": "variable",
+                          "element": "value",
+                          "transform": "reference",
+                          "parameter": [
+                            {
+                              "valueId": "encounter"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

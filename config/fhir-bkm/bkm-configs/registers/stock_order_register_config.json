@@ -1,0 +1,152 @@
+{
+  "appId": "bkm",
+  "configType": "register",
+  "id": "stockOrderRegister",
+  "pageSize": 20,
+  "fhirResource": {
+    "baseResource": {
+      "resource": "Group",
+      "dataQueries": [
+        {
+          "paramName": "code",
+          "filterCriteria": [
+            {
+              "dataType": "CODEABLECONCEPT",
+              "value": {
+                "system": "http://snomed.info/sct",
+                "code": "386452003"
+              }
+            }
+          ]
+        }
+      ],
+      "sortConfigs": [
+        {
+          "paramName": "_lastUpdated",
+          "dataType": "DATE",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    "relatedResources": [
+      {
+        "resource": "Observation",
+        "searchParameter": "subject",
+        "sortConfigs": [
+          {
+            "paramName": "date",
+            "dataType": "DATE",
+            "order": "DESCENDING"
+          }
+        ]
+      }
+    ]
+  },
+  "searchBar": {
+    "visible": true,
+    "display": "Search by name",
+    "computedRules": [
+      "commodityName"
+    ]
+  },
+  "registerCard": {
+    "rules": [
+      {
+        "name": "commodityName",
+        "condition": "true",
+        "actions": [
+          "data.put('commodityName', fhirPath.extractValue(Group, 'Group.name'))"
+        ]
+      },
+      {
+        "name": "commodityId",
+        "condition": "true",
+        "actions": [
+          "data.put('commodityId', fhirPath.extractValue(Group, 'Group.id'))"
+        ]
+      },
+      {
+        "name": "latestObservation",
+        "priority": 1,
+        "condition": "true",
+        "actions": [
+          "data.put('latestObservation', service.filterResources(Observation, 'Observation.status = \"preliminary\"').get(0))"
+        ]
+      },
+      {
+        "name": "stockOnHand",
+        "priority": 2,
+        "condition": "true",
+        "actions": [
+          "data.put('stockOnHand', data.get('latestObservation') != null ? fhirPath.extractValue(data.get('latestObservation'), 'Observation.component.value.value') : '0' )"
+        ]
+      }
+    ],
+    "views": [
+      {
+        "viewType": "COLUMN",
+        "children": [
+          {
+            "viewType": "SERVICE_CARD",
+            "details": [
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "@{commodityName}",
+                "primaryTextColor": "#000000"
+              },
+              {
+                "viewType": "COMPOUND_TEXT",
+                "primaryText": "Available: @{stockOnHand}",
+                "primaryTextColor": "#6F6F6F",
+                "fontSize": 14.0
+              }
+            ],
+            "showVerticalDivider": false,
+            "serviceButton": {
+              "visible": true,
+              "text": "Order",
+              "status": "DUE",
+              "fontSize": 14.0,
+              "buttonType": "BIG",
+              "actions": [
+                {
+                  "trigger": "ON_CLICK",
+                  "workflow": "LAUNCH_QUESTIONNAIRE",
+                  "questionnaire": {
+                    "id": "e1f2a3b4-c5d6-7e8f-9a0b-c1d2e3f4a5b6",
+                    "title": "@{commodityName}",
+                    "saveButtonText": "PLACE ORDER",
+                    "setPractitionerDetails": true,
+                    "setOrganizationDetails": true,
+                    "resourceIdentifier": "@{commodityId}"
+                  },
+                  "params": [
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "d-commodity-name",
+                      "dataType": "STRING",
+                      "key": "commodityName",
+                      "value": "@{commodityName}"
+                    },
+                    {
+                      "paramType": "PREPOPULATE",
+                      "linkId": "stock_on_hand",
+                      "dataType": "INTEGER",
+                      "key": "stockOnHand",
+                      "value": "@{stockOnHand}"
+                    }
+                  ]
+                }
+              ]
+            },
+            "actions": []
+          }
+        ]
+      }
+    ]
+  },
+  "noResults": {
+    "title": "No Commodities",
+    "message": "Sorry, stock commodities have not been setup yet"
+  }
+}

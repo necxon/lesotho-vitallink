@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "ee4b1339-9051-5401-8578-36304faf104e",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "RLBAND"
+        },
+        {
+            "use": "secondary",
+            "value": "RLBAND"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "Roller Bandages",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Rolls"
+            },
+            "exclude": false
+        }
+    ]
+}

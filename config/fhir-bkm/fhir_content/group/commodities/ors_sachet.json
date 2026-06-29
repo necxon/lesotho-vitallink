@@ -1,0 +1,51 @@
+{
+    "resourceType": "Group",
+    "id": "645deb1f-7e33-581f-be47-b1120ffba690",
+    "identifier": [
+        {
+            "use": "official",
+            "value": "ORSACH"
+        },
+        {
+            "use": "secondary",
+            "value": "ORSACH"
+        }
+    ],
+    "active": true,
+    "type": "device",
+    "actual": false,
+    "code": {
+        "coding": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "386452003",
+                "display": "Supply management"
+            }
+        ]
+    },
+    "name": "ORS Sachet",
+    "characteristic": [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767524001",
+                        "display": "Unit of measure"
+                    }
+                ]
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "767525000",
+                        "display": "Unit"
+                    }
+                ],
+                "text": "Sachets"
+            },
+            "exclude": false
+        }
+    ]
+}

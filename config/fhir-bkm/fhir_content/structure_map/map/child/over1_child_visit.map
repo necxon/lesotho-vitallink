@@ -1,0 +1,270 @@
+map "https://fhir.labs.smartregister.org/fhir/StructureMap/b4c2d528-5109-11ed-bdc3-0242ac120002" = "Over 1 Year Child Visit Form"
+
+uses "http://hl7.org/fhir/StructureDefinition/QuestionnaireReponse" as source
+uses "http://hl7.org/fhir/StructureDefinition/Bundle" as target
+
+group SickChild(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle) {
+    questionnaireResponse -> bundle.type = "collection" "r_bundle_type";
+    questionnaireResponse -> evaluate(questionnaireResponse, $this.subject) as refPatient then extractEncounter(questionnaireResponse, bundle, refPatient) "r_bundle_entries";
+}
+
+group extractEncounter(source questionnaireResponse : QuestionnaireResponse, target bundle : Bundle, source refPatient : Reference) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Encounter') as encounter then {
+        questionnaireResponse -> encounter.id = uuid() "r_en_id";
+        questionnaireResponse -> encounter.status = 'finished' "r_en_st";
+        questionnaireResponse -> encounter.class = c("http://terminology.hl7.org/CodeSystem/v3-ActCode", "HH", "home health") "r_en_cls";
+        questionnaireResponse -> encounter.type = create('CodeableConcept') as concept then {
+            questionnaireResponse -> concept.coding = c("https://smartregister.org/", "over1_visit") as coding then {
+                questionnaireResponse -> coding.display = 'Over1 child visit' "r_en_cod_disp";
+            } "r_en_cc_cod";
+            questionnaireResponse -> concept.text = 'Over1 child visit' "r_en_typ_text";
+        } "r_en_typ";
+        questionnaireResponse -> encounter.priority = create('CodeableConcept') as concept then {
+            questionnaireResponse -> concept.coding = c("http://terminology.hl7.org/ValueSet/v3-ActPriority", "EL") as coding then {
+                questionnaireResponse -> coding.display = 'Elective' "r_en_cod_disp";
+            } "r_en_cc_cod";
+            questionnaireResponse -> concept.text = 'Elective' "r_en_prio_text";
+        } "r_en_prio";
+        questionnaireResponse.subject as subject -> encounter.subject = subject "r_en_sub";
+        questionnaireResponse -> encounter.period = create('Period') as enPeriod then {
+            questionnaireResponse -> enPeriod.start = evaluate(questionnaireResponse, now()) "r_en_per_start";
+            questionnaireResponse -> enPeriod.end = evaluate(questionnaireResponse, now()) "r_en_per_end";
+        } "r_en_per";
+        questionnaireResponse -> encounter.reasonCode = create('CodeableConcept') as concept then {
+            questionnaireResponse -> concept.coding = c("https://smartregister.org/", "over1_visit") as coding then {
+                questionnaireResponse -> coding.display = 'Over1 child visit' "r_en_cod_disp";
+            } "r_en_cc_cod";
+            questionnaireResponse -> concept.text = 'Over1 child visit' "r_en_text";
+        } "r_en_reason";
+
+        questionnaireResponse then extractObservation(questionnaireResponse, bundle, encounter, refPatient) "r_en_obs";
+        questionnaireResponse then muacVisitObservation(questionnaireResponse, bundle, refPatient, encounter) "r_en_muac_obs";
+        questionnaireResponse then overOneReferralObservation(questionnaireResponse, bundle, refPatient, encounter) "r_en_referral_obs";
+        questionnaireResponse then updateTaskOutput(questionnaireResponse, bundle, encounter) "r_task_output";
+    } "r_en";
+}
+
+group extractObservation(source questionnaireResponse : QuestionnaireResponse, target bundle : Bundle, target encounter: Encounter, source refPatient : Reference) {
+    //mnp
+    questionnaireResponse.item as mnp where(linkId ='f0cd689d-b567-4cd6-8159-3ef49e9a0058' and answer.value.exists() and answer.value.code = 'yes') then {
+        questionnaireResponse -> create('string') as noCommodityFlag, create('string') as latestObservationId, create('integer') as previousBalance then {
+            //Stock balance
+            questionnaireResponse -> previousBalance.value = '0' "rule_initialize_stock balance";
+            questionnaireResponse.item where(linkId = 'e215bd25-8962-4ef1-8040-149cbb653781' and answer.value.exists()) then {
+                questionnaireResponse -> previousBalance.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'e215bd25-8962-4ef1-8040-149cbb653781').answer.value.toString()) "rule_previous_balance";
+            } "rule_check_previous_balance";
+            //No Stock Flag
+            questionnaireResponse.item where(linkId = '5d788dc8-284c-4c6a-8e0c-70d91bc95c97' and answer.value.exists()) then {
+                questionnaireResponse -> noCommodityFlag.value = evaluate(questionnaireResponse, $this.item.where(linkId = '5d788dc8-284c-4c6a-8e0c-70d91bc95c97').answer.value.toString()) "rule_commodity_flag";
+            } "rule_check_commodity_flag";
+            //Create the latest observation
+            questionnaireResponse.item where(linkId = 'bb342c7f-39a1-4ff7-bc13-28efdc7386ab' and answer.value.exists()) then {
+                questionnaireResponse -> latestObservationId.value = evaluate(questionnaireResponse, $this.item.where(linkId = 'bb342c7f-39a1-4ff7-bc13-28efdc7386ab').answer.value.toString()) "rule_latest_observation";
+            } "rule_check_latest_observation";
+            questionnaireResponse -> evaluate(questionnaireResponse, 1) as qtyValue, evaluate(questionnaireResponse, "Pieces") as qtyUnit, evaluate(questionnaireResponse, "Group/3af23539-850a-44ed-8fb1-d4999e2145ff") as refSubject
+                then extractSpecificObservation(questionnaireResponse, bundle, encounter, refPatient, refSubject, qtyValue, qtyUnit, previousBalance, noCommodityFlag, latestObservationId) "rule_Observation";
+        } "rule_previous_balance_no_commodity_flag_latest_observation_id";
+    } "rule_mnp_observation";
+
+    //albedazole
+    questionnaireResponse.item as deworming where(linkId ='373429a0-8134-41b6-eb15-6fd4bb6cf26c' and answer.value.exists() and answer.value.code = 'yes') then {
+        questionnaireResponse -> create('string') as noCommodityFlag, create('string') as latestObservationId, create('integer') as previousBalance then {
+            //Stock balance
+            questionnaireResponse -> previousBalance.value = '0' "rule_initialize_stock balance";
+            questionnaireResponse.item where(linkId = '0ea6b537-08b3-48b8-aa83-c70e10fe836b' and answer.value.exists()) then {
+                questionnaireResponse -> previousBalance.value = evaluate(questionnaireResponse, $this.item.where(linkId = '0ea6b537-08b3-48b8-aa83-c70e10fe836b').answer.value.toString()) "rule_previous_balance";
+            } "rule_check_previous_balance";
+            //No Stock Flag
+            questionnaireResponse.item where(linkId = '7b02d76c-4752-41d4-98d2-96a1fc91652f' and answer.value.exists()) then {
+                questionnaireResponse -> noCommodityFlag.value = evaluate(questionnaireResponse, $this.item.where(linkId = '7b02d76c-4752-41d4-98d2-96a1fc91652f').answer.value.toString()) "rule_commodity_flag";
+            } "rule_check_commodity_flag";
+            //Create the latest observation
+            questionnaireResponse.item where(linkId = '236022f2-e608-4e51-a56d-c9e21c4271cd' and answer.value.exists()) then {
+                questionnaireResponse -> latestObservationId.value = evaluate(questionnaireResponse, $this.item.where(linkId = '236022f2-e608-4e51-a56d-c9e21c4271cd').answer.value.toString()) "rule_latest_observation";
+        } "rule_check_latest_observation";
+        questionnaireResponse -> evaluate(questionnaireResponse, 1) as qtyValue, evaluate(questionnaireResponse, "Pieces") as qtyUnit, evaluate(questionnaireResponse, "Group/6f3980e0-d1d6-4a7a-a950-939f3ca7b301") as refSubject
+            then extractSpecificObservation(questionnaireResponse, bundle, encounter, refPatient, refSubject, qtyValue, qtyUnit, previousBalance, noCommodityFlag, latestObservationId) "rule_Observation";
+        } "rule_previous_balance_no_commodity_flag_latest_observation_id";
+    } "rule_deworming_observation";
+}
+
+group extractSpecificObservation(source questionnaireResponse : QuestionnaireResponse, target bundle : Bundle, target encounter: Encounter, source refPatient : Reference, source refSubject: String,
+    source qtyValue: Integer, source qtyUnit: String, source previousBalance: Integer, source noCommodityFlag: String, source latestObservationId: String) {
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+        questionnaireResponse -> observation.id = uuid() "r_observation_id";
+        questionnaireResponse -> observation.status = 'preliminary' "r_observation_status";
+        questionnaireResponse -> observation.category = cc('http://snomed.info/sct','386452003', 'Supply management') "r_observation_category_1";
+        questionnaireResponse -> observation.category = cc('http://hl7.org/fhir/inventoryreport-counttype', 'subtraction', 'Subtraction')"r_observation_category_2";
+        questionnaireResponse -> observation.code = create('CodeableConcept') as code then {
+            questionnaireResponse -> code.coding = create('Coding') as coding then {
+                questionnaireResponse -> coding.system = 'https://smartregister.org/' "r_observation_coding_system";
+                questionnaireResponse -> coding.code = 'consumption' "r_observation_c_coding_code";
+                questionnaireResponse -> coding.display = 'consumption' "r_observation_c_coding_display";
+            } "r_observation_c_coding";
+            questionnaireResponse -> code.text = 'consumption' "r_observation_c_text";
+        } "r_observation_code";
+		questionnaireResponse -> observation.subject = create('Reference') as ref then {
+			questionnaireResponse -> ref.reference = refSubject "r_ref_subject";
+		} "r_observation_ref";
+        questionnaireResponse -> observation.effective = evaluate(questionnaireResponse, now()) "r_effective_current_date_time";
+        questionnaireResponse -> observation.performer = evaluate(questionnaireResponse, $this.generalPractitioner.first()) "r_observation_performer";
+		questionnaireResponse -> observation.value = create('Quantity') as qty then {
+			questionnaireResponse -> qty.value = qtyValue,
+				qty.unit = qtyUnit,
+				qty.system = 'http://snomed.info/sct',
+				qty.code = '767525000' "r_observation_qty";
+		} "r_observation_value";
+        questionnaireResponse -> observation.encounter = reference(encounter) "r_observation_encounter";
+        questionnaireResponse -> evaluate(questionnaireResponse, (previousBalance - qtyValue)) as runningTotal  then {
+            questionnaireResponse -> observation.component as component then extractRunningBalance(questionnaireResponse, component, runningTotal) "r_observation_running_total_component";
+            //create stockout flag if none exists and total balance is Zero or less
+            questionnaireResponse as stockOut where (runningTotal <= 0) then {                      
+                questionnaireResponse as noFlag where (noCommodityFlag.empty()) then {
+                    questionnaireResponse then createStockOutFlag(questionnaireResponse, bundle, encounter, refSubject) "r_create_stockout_flag";
+                } "r_no_flag";
+            } "r_bal_is_zero"; 
+
+        } "rule_running_total_compute";
+
+        questionnaireResponse where(latestObservationId.exists()) then updateLatestObservation(questionnaireResponse, bundle, latestObservationId) "rule_update_latest_observationervation_check";
+    } "r_observation";
+}
+
+group extractRunningBalance(source questionnaireResponse: QuestionnaireResponse, target component: BackboneElement, source runningTotal : Integer){
+    questionnaireResponse -> component.code = create('CodeableConcept') as runningTotalCC then {
+        questionnaireResponse -> runningTotalCC.coding = create('Coding') as runningTotalCCCoding then {
+            questionnaireResponse -> runningTotalCCCoding.system = 'http://snomed.info/sct' "r_obs_runing_total_cc_coding_system";
+            questionnaireResponse -> runningTotalCCCoding.code = '255619001' "r_obs_runing_total_cc_coding_code";
+            questionnaireResponse -> runningTotalCCCoding.display = 'Total' "r_obs_runing_total_cc_coding_display";
+        } "r_obs_running_total_cc_coding";
+        questionnaireResponse -> runningTotalCC.text = 'Running total/Cumulative sum' "r_obs_runing_total_cc_text";
+    } "r_obs_running_total_code";
+    questionnaireResponse -> component.value = create('Quantity') as runningTotalQuantity then {
+        questionnaireResponse -> runningTotalQuantity.value = runningTotal "r_obs__running_total_qty";
+    } "r_obs_running_total_quantity";
+}
+
+group updateLatestObservation(source questionnaireResponse: QuestionnaireResponse, target bundle : Bundle, source latestObservationId : String){
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+        questionnaireResponse -> observation.id = create('id') as id then {
+            questionnaireResponse -> id.value = latestObservationId "r_update_obs_id_value";
+        } "r_update_obs_id";
+        questionnaireResponse -> observation.status = 'final' "r_update_latest_obs_to_final";
+    } "r_update_latest_obs";
+}
+
+group createStockOutFlag(source questionnaireResponse: QuestionnaireResponse, target bundle : Bundle, target encounter: Encounter, source refSubject: String){
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Flag') as flag then {
+        questionnaireResponse -> flag.id = uuid() "r_flag_id";
+        questionnaireResponse -> flag.status = 'active' "r_flag_status";
+        questionnaireResponse -> flag.category = cc('http://snomed.info/sct','386452003', 'Supply management') "r_flag_category";
+        questionnaireResponse -> flag.code = cc('http://snomed.info/sct','419182006', ' Supplies not available')  "r_flag_code";
+        questionnaireResponse -> flag.subject = create('Reference') as ref then {
+            questionnaireResponse -> ref.reference = refSubject "r_ref_subject";
+        } "r_flag_ref";
+        questionnaireResponse -> flag.period = create('Period') as period then {
+            questionnaireResponse -> period.start = evaluate(questionnaireResponse, now()) "r_flag_period_start";
+        } "r_flag_period";
+        questionnaireResponse -> flag.encounter = reference(encounter) "r_flag_encounter";
+    } "r_flag";
+}
+
+
+group muacVisitObservation(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source patientReference: Patient, source encounter : Encounter){
+    questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+        questionnaireResponse -> observation.id = uuid() "rule_observation_id";
+        questionnaireResponse -> observation.subject = patientReference "rule_observation_subject";
+        questionnaireResponse -> observation.encounter = reference(encounter) "rule_observation_encounter";
+        questionnaireResponse -> observation.status = 'final' "rule_observation_status";
+        questionnaireResponse -> observation.effective = evaluate(questionnaireResponse, now()) "rule_observation_effective";
+        questionnaireResponse -> observation.category = create('CodeableConcept') as code then {
+            questionnaireResponse -> code.coding = create('Coding') as coding then {
+                questionnaireResponse -> coding.system = 'http://snomed.info/sct' "rule_observation_system";
+                questionnaireResponse -> coding.code = '284473002' "rule_observation_code";
+                questionnaireResponse -> coding.display = 'MUAC' "rule_observation_coding_display";
+            } "rule_observation_coding";
+        } "rule_observation_code";
+
+        questionnaireResponse -> observation.category = create('CodeableConcept') as code then {
+            questionnaireResponse.item as item where(linkId = '4ff5b5b3-57d6-4d39-8f59-abe78ff4fc5a' and answer.value.code = 'red') then {
+                questionnaireResponse -> code.coding = create('Coding') as coding then {
+                    questionnaireResponse -> coding.system = 'http://snomed.info/sct' "rule_observation_system";
+                    questionnaireResponse -> coding.code = '371240000' "rule_observation_code";
+                    questionnaireResponse -> coding.display = 'Red MUAC' "rule_observation_coding_display"; 
+                } "rule_observation_coding";        
+            } "rule_observation_item";
+
+            //yellow MUAC
+            questionnaireResponse.item as item where(linkId = '4ff5b5b3-57d6-4d39-8f59-abe78ff4fc5a' and answer.value.code = 'yellow') then {
+                questionnaireResponse -> code.coding = create('Coding') as coding then {
+                    questionnaireResponse -> coding.system = 'http://snomed.info/sct' "rule_observation_system";
+                    questionnaireResponse -> coding.code = '371244009' "rule_observation_code";
+                    questionnaireResponse -> coding.display = 'Yellow MUAC' "rule_observation_coding_display"; 
+                } "rule_observation_coding";        
+            } "rule_observation_item";
+
+            //green MUAC
+            questionnaireResponse.item as item where(linkId = '4ff5b5b3-57d6-4d39-8f59-abe78ff4fc5a' and answer.value.code = 'green') then {
+                questionnaireResponse -> code.coding = create('Coding') as coding then {
+                    questionnaireResponse -> coding.system = 'http://snomed.info/sct' "rule_observation_system";
+                    questionnaireResponse -> coding.code = '371246006' "rule_observation_code";
+                    questionnaireResponse -> coding.display = 'Green MUAC' "rule_observation_coding_display"; 
+                } "rule_observation_coding";        
+            } "rule_observation_item";
+
+        } "rule_observation_code";
+
+        questionnaireResponse -> observation.code = create('CodeableConcept') as code then {
+            questionnaireResponse -> code.coding = create('Coding') as coding then {
+                questionnaireResponse -> coding.system = 'https://smartregister.org/' "rule_observation_coding_system";
+                questionnaireResponse -> coding.code = 'Over1_visit' "r_obs_c_coding_code";
+                questionnaireResponse -> coding.display = 'Over1' "r_obs_c_coding_display";
+            } "r_obs_c_coding";
+        } "r_obs_code";
+    } "rule_disease_registration_observation";
+}
+
+group overOneReferralObservation(source questionnaireResponse : QuestionnaireResponse, target bundle: Bundle, source patientReference: Patient, source encounter : Encounter){
+    questionnaireResponse.item as item where(linkId = '6670fade-c403-4d5c-8d73-2dadf9fa85b2' and answer.value.code = 'yes') then {
+        questionnaireResponse -> bundle.entry as entry, entry.resource = create('Observation') as observation then {
+            questionnaireResponse -> observation.id = uuid() "rule_observation_id";
+            questionnaireResponse -> observation.subject = patientReference "rule_observation_subject";
+            questionnaireResponse -> observation.encounter = reference(encounter) "rule_observation_encounter";
+            questionnaireResponse -> observation.status = 'final' "rule_observation_status";
+            questionnaireResponse -> observation.effective = evaluate(questionnaireResponse, now()) "rule_observation_effective";
+            questionnaireResponse -> observation.category = create('CodeableConcept') as code then {
+                questionnaireResponse -> code.coding = create('Coding') as coding then {
+                    questionnaireResponse -> coding.system = 'http://snomed.info/sct' "rule_observation_system";
+                    questionnaireResponse -> coding.code = '310449005' "rule_observation_code";
+                    questionnaireResponse -> coding.display = 'Over 1 malnutrition referral' "rule_observation_coding_display";
+                } "rule_observation_coding";
+            } "rule_observation_code";
+            questionnaireResponse -> observation.code = create('CodeableConcept') as code then {
+                questionnaireResponse -> code.coding = create('Coding') as coding then {
+                    questionnaireResponse -> coding.system = 'https://smartregister.org/' "rule_observation_coding_system";
+                    questionnaireResponse -> coding.code = 'over1_visit' "r_obs_c_coding_code";
+                    questionnaireResponse -> coding.display = 'Over1' "r_obs_c_coding_display";
+                } "r_obs_c_coding";
+            } "r_obs_code";
+        } "rule_disease_registration_observation";
+    }"rule_under_one_referral_observation";
+}
+
+group updateTaskOutput(source src : QuestionnaireResponse, target bundle: Bundle, source encounter : Encounter) {
+    // Update the linked task with the output
+     src.item as item where(linkId = "task-id") then {
+         src -> bundle.entry as entry, entry.resource = create("Task") as task then {
+           src -> task.id = create("id") as taskId then {
+                src -> taskId.value = evaluate(item, $this.answer.value) "r_item_task_id_value";
+           } "r_task_id_val";
+           src -> task.output = create('Task_Output') as outputTask then {
+                src -> outputTask.type = create("CodeableConcept") as concept then {
+                      src-> concept.coding = c("http:snomed.info/sct","371531000") as coding then {
+                          src -> coding.display = "Report of clinical encounter (record artifact)" "r_task_output_coding_display";
+                      } "r_task_output_concept_coding";
+                } "r_task_output_codeable_concept";
+                src -> outputTask.value = reference(encounter) "r_task_output_reference";
+           } "r_task_output_val";
+         } "r_task_output";
+     } "r_task_id_output";
+}
