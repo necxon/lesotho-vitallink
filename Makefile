@@ -146,7 +146,7 @@ restore:
 ## per-facility {facility_worker, VHW}). Mediator reads mappings.json (NOT the
 ## .csv — those are vestigial), so swap the JSON profile variant.
 profile-atp:
-	bash -c "cp mediator/mappings.atp.json mediator/mappings.json && cp docker-compose.atp.override.yml docker-compose.override.yml"
+	bash -c "cp mediator/mappings.atp.json mediator/mappings.json && cp config/docker-compose.atp.override.yml docker-compose.override.yml"
 	docker compose up -d --force-recreate bkm-mediator
 	PROFILE=atp SKIP_WAIT=1 bash scripts/seed.sh
 	@# seed.sh restarts the mediator mid-run for OpenHIM auth, which can leave a stale

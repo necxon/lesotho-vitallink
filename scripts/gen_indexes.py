@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-with open('C:/Users/Neels.Lotter/lesotho-vitallink/resources_for_index.txt') as f:
+with open('C:/Users/Neels.Lotter/lesotho-vitallink/config/resources_for_index.txt') as f:
     lines = [l.strip() for l in f if l.strip()]
 
 resources = []

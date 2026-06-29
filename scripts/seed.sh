@@ -96,7 +96,7 @@ DHIS2_DE_STOCK_ON_HAND="StockOnHnd1"
 # Profile: bkm (multi-medicine, 3 VHWs) or atp (Oxytocin 10 IU, 1 VHW)
 # Set via: PROFILE=atp bash scripts/seed.sh  or  make profile-atp
 # DHIS2 UIDs are kept the same across profiles — the mediator env vars (DHIS2_ORDERABLE_DE_MAP etc.)
-# are overridden per-profile via docker-compose.atp.override.yml, not by changing the element UIDs.
+# are overridden per-profile via config/docker-compose.atp.override.yml, not by changing the element UIDs.
 PROFILE="${PROFILE:-atp}"
 
 # Per-medicine dispensed data elements (7 new medicines)
