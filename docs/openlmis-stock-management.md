@@ -190,6 +190,34 @@ Expected response:
 
 ---
 
+## Observe the fan-out in OpenHIM
+
+Every dispense, receipt, and order routed through OpenHIM is logged and visualised in
+the OpenHIM admin console (`http://localhost:9285`, `root@openhim.org`).
+
+### Transaction log
+
+A successful `QuestionnaireResponse` dispense shows the request body and the mediator
+fan-out result - HTTP 201 to OpenSRP, 200 to DHIS2, 201 to OpenLMIS:
+
+![OpenHIM transaction details for a dispense - status Successful, fanning out to OpenSRP, DHIS2 and OpenLMIS](images/openhim-transaction-dispense.png)
+
+### Visualizer
+
+The live visualizer routes each FHIR resource type (MedicationDispense, SupplyDelivery,
+QuestionnaireResponse) through the Vital-Link mediator out to OpenSRP/HAPI FHIR, OpenLMIS
+and DHIS2:
+
+![OpenHIM visualizer - BKM end-to-end flow](images/openhim-visualizer.png)
+
+### Mediator
+
+The Vital-Link Lesotho mediator registers its endpoints and default channels with OpenHIM:
+
+![OpenHIM mediator details - Vital-Link Lesotho mediator](images/openhim-mediator-vital-link.png)
+
+---
+
 ## View in the OpenLMIS UI
 
 1. Open [http://localhost:8082](http://localhost:8082)
