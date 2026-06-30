@@ -18,9 +18,10 @@
 //   preload(): Promise,         // optional one-off fetch before the first load (e.g. name maps)
 //   query(search, pageSize) -> FHIR query string,
 //   items(bundle) -> array,     // domain rows from the bundle
-//   renderItem(item) -> html,   // one row/card
-//   emptyText,                  // shown when items() is empty
-//   wireItems(dataEl, items, reload),  // wire row buttons; call reload() to refetch the page
+//   renderItem(item) -> html,            // card path: one card per row, OR
+//   renderData(rows, bundle) -> html,    // table path: full data-area HTML (table+sort headers)
+//   emptyText,                  // card path only; shown when items() is empty
+//   wireItems(dataEl, items, reload, reRender),  // wire row buttons (reload=refetch, reRender=re-render same bundle, e.g. sort)
 // })
 // Returns { reload }.
 function listPage(opts) {
@@ -30,19 +31,21 @@ function listPage(opts) {
   var pageSize = opts.pageSize || 10;
   var pageSizes = opts.pageSizes || [5, 10, 20, 50];
   var searchTimer = null;
+  var lastBundle = null;
 
   function dataEl()      { return document.getElementById(id('data')); }
   function loadingState(){ dataEl().innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>'; }
   function errorState(m) { dataEl().innerHTML = `<p class="error">${esc(m)}</p>`; }
 
   function renderBundle(bundle) {
+    lastBundle  = bundle;
     var rows    = opts.items ? opts.items(bundle) : entries(bundle);
     var total   = bundle.total !== undefined ? bundle.total : '?';
     var nextUrl = bundleLink(bundle, 'next');
     var prevUrl = bundleLink(bundle, 'previous');
-    var body    = rows.length
-      ? rows.map(opts.renderItem).join('')
-      : `<p>${opts.emptyText || 'No records found.'}</p>`;
+    var body    = opts.renderData
+      ? opts.renderData(rows, bundle)
+      : (rows.length ? rows.map(opts.renderItem).join('') : `<p>${opts.emptyText || 'No records found.'}</p>`);
 
     dataEl().innerHTML = body +
       `<div class="pager">` +
@@ -53,10 +56,12 @@ function listPage(opts) {
         `</div>` +
       `</div>`;
 
-    if (opts.wireItems) opts.wireItems(dataEl(), rows, reload);
+    if (opts.wireItems) opts.wireItems(dataEl(), rows, reload, reRender);
     document.getElementById(id('prev')).onclick = function() { if (prevUrl) loadUrl(prevUrl); };
     document.getElementById(id('next')).onclick = function() { if (nextUrl) loadUrl(nextUrl); };
   }
+
+  function reRender() { if (lastBundle) renderBundle(lastBundle); }
 
   function loadQuery() {
     loadingState();

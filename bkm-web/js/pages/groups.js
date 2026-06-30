@@ -138,111 +138,8 @@ function _grpQuery(search, pageSize) {
   return q;
 }
 
-function _grpRenderTable(el, bundle, search, pageSize) {
-  var groups  = entries(bundle);
-  var total   = bundle.total !== undefined ? bundle.total : '?';
-  var nextUrl = bundleLink(bundle, 'next');
-  var prevUrl = bundleLink(bundle, 'previous');
-
-  var rows = sortedRows(groups, _grpSort, _grpVal).map(function(g) {
-    var mg  = g.managingEntity && (g.managingEntity.display || g.managingEntity.reference) || '—';
-    var qty = g.quantity !== undefined ? g.quantity : (g.member ? g.member.length : '—');
-    return '<tr>' +
-      '<td><a href="#/groups/' + esc(g.id) + '">' + esc(g.name || g.id) + '</a></td>' +
-      '<td>' + esc(g.type || '—') + '</td>' +
-      '<td>' + esc(qty) + '</td>' +
-      '<td>' + esc(mg) + '</td>' +
-      '<td>' +
-        (window.BKM_ROLE === 'admin'
-          ? '<button class="btn btn-sm btn-outline grp-edit" data-id="' + esc(g.id) + '">Edit</button> ' +
-            '<button class="btn btn-sm btn-danger grp-del" data-id="' + esc(g.id) + '" data-name="' + esc(g.name || g.id) + '">Del</button>'
-          : '') +
-      '</td>' +
-      '</tr>';
-  });
-
-  var pager =
-    '<div class="pager">' +
-      '<span class="pager-info">Showing ' + groups.length + ' of ' + total + '</span>' +
-      '<div class="pager-btns">' +
-        '<button class="btn btn-sm btn-outline" id="grp-prev"' + (prevUrl ? '' : ' disabled') + '>← Prev</button>' +
-        '<button class="btn btn-sm btn-outline" id="grp-next"' + (nextUrl ? '' : ' disabled') + '>Next →</button>' +
-      '</div>' +
-    '</div>';
-
-  var grpTableHtml = !groups.length ? '<p>No groups found.</p>' :
-    '<div class="tbl-wrap"><table><thead><tr>' +
-    sortTh('Name','name',_grpSort) + sortTh('Type','type',_grpSort) +
-    sortTh('Members','members',_grpSort) + sortTh('Managing Entity','entity',_grpSort) + '<th></th>' +
-    '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
-  document.getElementById('grp-data').innerHTML = grpTableHtml + pager;
-  wireSortHeaders(document.getElementById('grp-data'), _grpSort, function() {
-    _grpRenderTable(el, bundle, search, pageSize);
-  });
-
-  el.querySelectorAll('.grp-edit').forEach(function(btn) {
-    btn.onclick = function() {
-      fhir('Group/' + btn.getAttribute('data-id')).then(function(g) {
-        openGroupForm(g, function() { _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize); });
-      });
-    };
-  });
-  el.querySelectorAll('.grp-del').forEach(function(btn) {
-    btn.onclick = function() {
-      var gid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-      showConfirm('Delete Group', 'Delete "' + name + '"?', function() {
-        fhirDelete('Group', gid).then(function() {
-          closeModal(); _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize);
-        }).catch(function(e) { alert('Error: ' + e.message); });
-      });
-    };
-  });
-  document.getElementById('grp-prev').onclick = function() {
-    if (prevUrl) _grpLoadFull(el, prevUrl, search, pageSize);
-  };
-  document.getElementById('grp-next').onclick = function() {
-    if (nextUrl) _grpLoadFull(el, nextUrl, search, pageSize);
-  };
-}
-
-function _grpLoadPage(el, query, search, pageSize) {
-  document.getElementById('grp-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhir(query)
-    .then(function(b) { _grpRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('grp-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
-function _grpLoadFull(el, url, search, pageSize) {
-  document.getElementById('grp-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhirFull(url)
-    .then(function(b) { _grpRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('grp-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
 function renderGroups(el) {
-  var search   = '';
-  var pageSize = _grpPageSize;
-
-  el.innerHTML =
-    '<div class="page-header">' +
-      '<h2>Groups (BKM)</h2>' +
-      '<input type="search" id="grp-search" placeholder="Search by name…" style="max-width:240px">' +
-      '<select id="grp-pagesize" style="width:auto">' +
-        [10,20,50,100].map(function(n) {
-          return '<option value="' + n + '"' + (n === pageSize ? ' selected' : '') + '>' + n + ' per page</option>';
-        }).join('') +
-      '</select>' +
-      '<button class="btn btn-primary" id="grp-new">+ New Group</button>' +
-    '</div>' +
-    '<div class="page-tabs">' +
-      '<button class="page-tab active" data-tab="grp-data">Groups</button>' +
-      '<button class="page-tab" data-tab="grp-help">? Help</button>' +
-    '</div>' +
-    '<div id="grp-data"></div>' +
-    '<div id="grp-help" class="help-panel" hidden>' + groupsHelpHTML() + '</div>';
-
-  wirePageTabs(el);
-
+  // Patient name map is used by the group form/detail, not the list - load async, don't block.
   fhir('Patient?_count=200').catch(function() { return { entry: [] }; }).then(function(pb) {
     _grpPatNames = {};
     entries(pb).forEach(function(p) {
@@ -252,24 +149,61 @@ function renderGroups(el) {
     });
   });
 
-  _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize);
-
-  if (window.BKM_ROLE !== 'admin') document.getElementById('grp-new').style.display = 'none';
-  document.getElementById('grp-new').onclick = function() {
-    openGroupForm(null, function() { _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize); });
-  };
-  document.getElementById('grp-pagesize').onchange = function() {
-    pageSize = parseInt(this.value, 10);
-    _grpPageSize = pageSize;
-    _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize);
-  };
-  document.getElementById('grp-search').addEventListener('input', function(e) {
-    clearTimeout(_grpSearchTimer);
-    var val = e.target.value.trim();
-    _grpSearchTimer = setTimeout(function() {
-      search = val;
-      _grpLoadPage(el, _grpQuery(search, pageSize), search, pageSize);
-    }, 350);
+  listPage({
+    el: el,
+    prefix: 'grp',
+    title: 'Groups (BKM)',
+    dataTabLabel: 'Groups',
+    helpHTML: groupsHelpHTML(),
+    searchPlaceholder: 'Search by name…',
+    pageSizes: [10, 20, 50, 100],
+    pageSize: _grpPageSize,
+    onPageSize: function(n) { _grpPageSize = n; },
+    canNew: window.BKM_ROLE === 'admin',
+    newLabel: '+ New Group',
+    onNew: function(reload) { openGroupForm(null, reload); },
+    query: function(search, pageSize) { return _grpQuery(search, pageSize); },
+    items: function(bundle) { return entries(bundle); },
+    renderData: function(groups) {
+      if (!groups.length) return '<p>No groups found.</p>';
+      var rows = sortedRows(groups, _grpSort, _grpVal).map(function(g) {
+        var mg  = g.managingEntity && (g.managingEntity.display || g.managingEntity.reference) || '—';
+        var qty = g.quantity !== undefined ? g.quantity : (g.member ? g.member.length : '—');
+        return '<tr>' +
+          '<td><a href="#/groups/' + esc(g.id) + '">' + esc(g.name || g.id) + '</a></td>' +
+          '<td>' + esc(g.type || '—') + '</td>' +
+          '<td>' + esc(qty) + '</td>' +
+          '<td>' + esc(mg) + '</td>' +
+          '<td>' +
+            (window.BKM_ROLE === 'admin'
+              ? '<button class="btn btn-sm btn-outline grp-edit" data-id="' + esc(g.id) + '">Edit</button> ' +
+                '<button class="btn btn-sm btn-danger grp-del" data-id="' + esc(g.id) + '" data-name="' + esc(g.name || g.id) + '">Del</button>'
+              : '') +
+          '</td>' +
+          '</tr>';
+      });
+      return '<div class="tbl-wrap"><table><thead><tr>' +
+        sortTh('Name', 'name', _grpSort) + sortTh('Type', 'type', _grpSort) +
+        sortTh('Members', 'members', _grpSort) + sortTh('Managing Entity', 'entity', _grpSort) + '<th></th>' +
+        '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+    },
+    wireItems: function(dataEl, groups, reload, reRender) {
+      wireSortHeaders(dataEl, _grpSort, reRender);
+      dataEl.querySelectorAll('.grp-edit').forEach(function(btn) {
+        btn.onclick = function() {
+          fhir('Group/' + btn.getAttribute('data-id')).then(function(g) { openGroupForm(g, reload); });
+        };
+      });
+      dataEl.querySelectorAll('.grp-del').forEach(function(btn) {
+        btn.onclick = function() {
+          var gid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+          showConfirm('Delete Group', 'Delete "' + name + '"?', function() {
+            fhirDelete('Group', gid).then(function() { closeModal(); reload(); })
+              .catch(function(e) { alert('Error: ' + e.message); });
+          });
+        };
+      });
+    }
   });
 }
 
