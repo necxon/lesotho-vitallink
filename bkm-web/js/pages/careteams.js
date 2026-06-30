@@ -173,127 +173,63 @@ function _ctTeamCard(team) {
     `</details></article>`;
 }
 
-function _ctRenderCards(el, bundle, search, pageSize) {
-  var teams   = entries(bundle).filter(function(r) { return r.resourceType === 'CareTeam'; });
-  var total   = bundle.total !== undefined ? bundle.total : '?';
-  var nextUrl = bundleLink(bundle, 'next');
-  var prevUrl = bundleLink(bundle, 'previous');
-
-  var pager =
-    `<div class="pager">` +
-      `<span class="pager-info">Showing ${teams.length} of ${total}</span>` +
-      `<div class="pager-btns">` +
-        `<button class="btn btn-sm btn-outline" id="ct-prev"${prevUrl ? '' : ' disabled'}>← Prev</button>` +
-        `<button class="btn btn-sm btn-outline" id="ct-next"${nextUrl ? '' : ' disabled'}>Next →</button>` +
-      `</div>` +
-    `</div>`;
-
-  document.getElementById('ct-data').innerHTML =
-    (teams.length ? teams.map(_ctTeamCard).join('') : '<p>No care teams found.</p>') + pager;
-
-  el.querySelectorAll('.ct-edit').forEach(function(btn) {
-    btn.onclick = function() {
-      fhir('CareTeam/' + btn.getAttribute('data-id')).then(function(t) {
-        openCareTeamForm(t, function() { _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize); });
-      });
-    };
-  });
-  el.querySelectorAll('.ct-del').forEach(function(btn) {
-    btn.onclick = function() {
-      var tid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-      showConfirm('Delete Care Team', 'Delete "' + name + '"?', function() {
-        fhirDelete('CareTeam', tid).then(function() {
-          closeModal(); _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize);
-        }).catch(function(e) { alert('Error: ' + e.message); });
-      });
-    };
-  });
-  document.getElementById('ct-prev').onclick = function() {
-    if (prevUrl) _ctLoadFull(el, prevUrl, search, pageSize);
-  };
-  document.getElementById('ct-next').onclick = function() {
-    if (nextUrl) _ctLoadFull(el, nextUrl, search, pageSize);
-  };
-}
-
-function _ctLoadPage(el, query, search, pageSize) {
-  document.getElementById('ct-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhir(query)
-    .then(function(b) { _ctRenderCards(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('ct-data').innerHTML = `<p class="error">${esc(e.message)}</p>`; });
-}
-
-function _ctLoadFull(el, url, search, pageSize) {
-  document.getElementById('ct-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhirFull(url)
-    .then(function(b) { _ctRenderCards(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('ct-data').innerHTML = `<p class="error">${esc(e.message)}</p>`; });
-}
-
 function renderCareTeams(el) {
-  var search   = '';
-  var pageSize = _ctPageSize;
-
-  var pageSizeOpts = [5,10,20,50].map(function(n) {
-    return `<option value="${n}"${n === pageSize ? ' selected' : ''}>${n} per page</option>`;
-  }).join('');
-
-  el.innerHTML =
-    `<div class="page-header">` +
-      `<h2>Care Teams (BKM)</h2>` +
-      `<input type="search" id="ct-search" placeholder="Search by name…" style="max-width:240px">` +
-      `<select id="ct-pagesize" style="width:auto">${pageSizeOpts}</select>` +
-      `<button class="btn btn-primary" id="ct-new">+ New Care Team</button>` +
-    `</div>` +
-    `<div class="page-tabs">` +
-      `<button class="page-tab active" data-tab="ct-data">Care Teams</button>` +
-      `<button class="page-tab" data-tab="ct-help">? Help</button>` +
-    `</div>` +
-    `<div id="ct-data"></div>` +
-    `<div id="ct-help" class="help-panel" hidden>${careTeamsHelpHTML()}</div>`;
-
-  wirePageTabs(el);
-
-  Promise.all([
-    fhir('Practitioner?_count=200').catch(function() { return { entry: [] }; }),
-    fhir('PractitionerRole?_count=200').catch(function() { return { entry: [] }; })
-  ]).then(function(results) {
-    var pb = results[0], rb = results[1];
-    _ctPracNames = {};
-    entries(pb).forEach(function(p) {
-      var n      = p.name && p.name[0];
-      var given  = n ? (Array.isArray(n.given) ? n.given.join(' ') : (n.given || '')) : '';
-      var family = n ? (n.family || '') : '';
-      var name   = [given, family].filter(Boolean).join(' ') || p.id;
-      _ctPracNames[p.id]                   = name;
-      _ctPracNames['Practitioner/' + p.id] = name;
-    });
-    _ctPracRoles = {};
-    entries(rb).forEach(function(pr) {
-      var pracRef = pr.practitioner && pr.practitioner.reference;
-      if (!pracRef) return;
-      var code     = pr.code && pr.code[0] && pr.code[0].coding && pr.code[0].coding[0];
-      var roleText = (code && (code.display || code.code)) || (pr.code && pr.code[0] && pr.code[0].text) || '';
-      if (roleText) _ctPracRoles[pracRef] = roleText;
-    });
-    _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize);
-  });
-
-  if (window.BKM_ROLE !== 'admin') document.getElementById('ct-new').style.display = 'none';
-  document.getElementById('ct-new').onclick = function() {
-    openCareTeamForm(null, function() { _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize); });
-  };
-  document.getElementById('ct-pagesize').onchange = function() {
-    pageSize = parseInt(this.value, 10);
-    _ctPageSize = pageSize;
-    _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize);
-  };
-  document.getElementById('ct-search').addEventListener('input', function(e) {
-    clearTimeout(_ctSearchTimer);
-    var val = e.target.value.trim();
-    _ctSearchTimer = setTimeout(function() {
-      search = val;
-      _ctLoadPage(el, _ctQuery(search, pageSize), search, pageSize);
-    }, 350);
+  listPage({
+    el: el,
+    prefix: 'ct',
+    title: 'Care Teams (BKM)',
+    dataTabLabel: 'Care Teams',
+    helpHTML: careTeamsHelpHTML(),
+    searchPlaceholder: 'Search by name…',
+    pageSize: _ctPageSize,
+    onPageSize: function(n) { _ctPageSize = n; },
+    canNew: window.BKM_ROLE === 'admin',
+    newLabel: '+ New Care Team',
+    onNew: function(reload) { openCareTeamForm(null, reload); },
+    preload: function() {
+      return Promise.all([
+        fhir('Practitioner?_count=200').catch(function() { return { entry: [] }; }),
+        fhir('PractitionerRole?_count=200').catch(function() { return { entry: [] }; })
+      ]).then(function(results) {
+        var pb = results[0], rb = results[1];
+        _ctPracNames = {};
+        entries(pb).forEach(function(p) {
+          var n      = p.name && p.name[0];
+          var given  = n ? (Array.isArray(n.given) ? n.given.join(' ') : (n.given || '')) : '';
+          var family = n ? (n.family || '') : '';
+          var name   = [given, family].filter(Boolean).join(' ') || p.id;
+          _ctPracNames[p.id]                   = name;
+          _ctPracNames['Practitioner/' + p.id] = name;
+        });
+        _ctPracRoles = {};
+        entries(rb).forEach(function(pr) {
+          var pracRef = pr.practitioner && pr.practitioner.reference;
+          if (!pracRef) return;
+          var code     = pr.code && pr.code[0] && pr.code[0].coding && pr.code[0].coding[0];
+          var roleText = (code && (code.display || code.code)) || (pr.code && pr.code[0] && pr.code[0].text) || '';
+          if (roleText) _ctPracRoles[pracRef] = roleText;
+        });
+      });
+    },
+    query: function(search, pageSize) { return _ctQuery(search, pageSize); },
+    items: function(bundle) { return entries(bundle).filter(function(r) { return r.resourceType === 'CareTeam'; }); },
+    renderItem: _ctTeamCard,
+    emptyText: 'No care teams found.',
+    wireItems: function(dataEl, teams, reload) {
+      dataEl.querySelectorAll('.ct-edit').forEach(function(btn) {
+        btn.onclick = function() {
+          fhir('CareTeam/' + btn.getAttribute('data-id')).then(function(t) { openCareTeamForm(t, reload); });
+        };
+      });
+      dataEl.querySelectorAll('.ct-del').forEach(function(btn) {
+        btn.onclick = function() {
+          var tid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+          showConfirm('Delete Care Team', 'Delete "' + name + '"?', function() {
+            fhirDelete('CareTeam', tid).then(function() { closeModal(); reload(); })
+              .catch(function(e) { alert('Error: ' + e.message); });
+          });
+        };
+      });
+    }
   });
 }
