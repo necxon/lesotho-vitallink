@@ -1,36 +1,9 @@
-﻿/*
+/*
  * NEC XON (c) Copyright 2025.
  */
 'use strict';
 
-function careTeamsHelpHTML() {
-  return (
-    '<div class="help-section">' +
-      '<h4>What is this page?</h4>' +
-      '<p>Lists all <strong>FHIR CareTeam</strong> resources. A CareTeam groups practitioners — ' +
-      'for example, a VHW team under a supervisor covering a catchment area. CareTeams define which ' +
-      'health workers operate together and who supervises them.</p>' +
-    '</div>' +
-    '<div class="help-section">' +
-      '<h4>CareTeam structure</h4>' +
-      '<table>' +
-        '<thead><tr><th>Field</th><th>Description</th></tr></thead>' +
-        '<tbody>' +
-          '<tr><td><strong>Name</strong></td><td>Human-readable team name (e.g. "Maseru North VHW Team")</td></tr>' +
-          '<tr><td><strong>Status</strong></td><td>active / proposed / inactive</td></tr>' +
-          '<tr><td><strong>Member</strong></td><td>Practitioner reference — each row is one team member</td></tr>' +
-          '<tr><td><strong>Role</strong></td><td>Member\'s role within this team (supervisor, community-health-worker, etc.)</td></tr>' +
-          '<tr><td><strong>Period</strong></td><td>When this member joined the team</td></tr>' +
-        '</tbody>' +
-      '</table>' +
-    '</div>' +
-    '<div class="help-section">' +
-      '<h4>Data source</h4>' +
-      '<p>Reads from HAPI FHIR: <code>GET /fhir/CareTeam?_count=50</code>.<br>' +
-      'The seeded team is <code>team-maseru-north</code> (1 supervisor + 3 VHWs).</p>' +
-    '</div>'
-  );
-}
+// Static help panel lives in js/help/careteams.js (careTeamsHelpHTML, global).
 
 // ── Care Team forms ───────────────────────────────────────────────────────────
 
@@ -43,7 +16,7 @@ function _ctRenderParticipantsList() {
     listEl.innerHTML = '<p style="font-size:13px;color:var(--dhis2-muted);margin:4px 0">No members yet.</p>';
   } else {
     listEl.innerHTML =
-      '<table style="width:100%;margin-bottom:4px"><thead><tr><th>Member</th><th>Role</th><th></th></tr></thead><tbody>' +
+      `<table style="width:100%;margin-bottom:4px"><thead><tr><th>Member</th><th>Role</th><th></th></tr></thead><tbody>` +
       _ctFormParticipants.map(function(p, idx) {
         var ref     = (p.member && p.member.reference) || '';
         var bareId  = ref.replace('Practitioner/', '');
@@ -51,13 +24,10 @@ function _ctRenderParticipantsList() {
         var roleArr    = p.role && p.role[0];
         var roleCoding = roleArr && roleArr.coding && roleArr.coding[0];
         var roleText   = (roleCoding && (roleCoding.display || roleCoding.code)) || (roleArr && roleArr.text) || '—';
-        return '<tr>' +
-          '<td>' + esc(display) + '</td>' +
-          '<td>' + esc(roleText) + '</td>' +
-          '<td><button type="button" class="btn btn-sm btn-danger ct-rm-participant" data-idx="' + idx + '">Remove</button></td>' +
-          '</tr>';
+        return `<tr><td>${esc(display)}</td><td>${esc(roleText)}</td>` +
+          `<td><button type="button" class="btn btn-sm btn-danger ct-rm-participant" data-idx="${idx}">Remove</button></td></tr>`;
       }).join('') +
-      '</tbody></table>';
+      `</tbody></table>`;
   }
   listEl.querySelectorAll('.ct-rm-participant').forEach(function(btn) {
     btn.onclick = function() {
@@ -68,41 +38,40 @@ function _ctRenderParticipantsList() {
 }
 
 function careTeamFormHtml(t) {
-  return (
-    '<div class="form-row"><label>Team name</label>' +
-      '<input id="f-name" value="' + esc(t && t.name || '') + '"></div>' +
-    '<div class="form-row"><label>Status</label>' +
-      '<select id="f-status">' +
-        ['proposed','active','suspended','inactive','entered-in-error'].map(function(s) {
-          return '<option value="' + s + '"' + (t && t.status === s ? ' selected' : '') + '>' + s + '</option>';
-        }).join('') +
-      '</select></div>' +
-    '<div class="form-row"><label>Description (optional)</label>' +
-      '<input id="f-desc" value="' + esc(t && t.note && t.note[0] && t.note[0].text || '') + '"></div>' +
-    '<div class="form-row" style="flex-direction:column;gap:6px">' +
-      '<label style="font-weight:600">Members</label>' +
-      '<div id="ct-participants-list"></div>' +
-      '<div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">' +
-        '<div style="flex:2;min-width:160px"><label style="font-size:12px;font-weight:400">Practitioner</label>' +
-          '<select id="f-add-member">' +
-            '<option value="">— select —</option>' +
-            Object.keys(_ctPracNames)
-              .filter(function(k) { return k.indexOf('Practitioner/') !== 0; })
-              .sort(function(a, b) { return (_ctPracNames[a] || a).localeCompare(_ctPracNames[b] || b); })
-              .map(function(id) {
-                return '<option value="Practitioner/' + esc(id) + '">' + esc(_ctPracNames[id] || id) + '</option>';
-              }).join('') +
-          '</select></div>' +
-        '<div style="flex:1;min-width:120px"><label style="font-size:12px;font-weight:400">Role</label>' +
-          '<input id="f-add-role" placeholder="supervisor / community-health-worker"></div>' +
-        '<button type="button" class="btn btn-outline" id="ct-add-participant" style="flex-shrink:0;align-self:flex-end">+ Add</button>' +
-      '</div>' +
-    '</div>' +
-    '<div class="form-actions">' +
-      '<button class="btn btn-outline" id="form-cancel">Cancel</button>' +
-      '<button class="btn btn-primary" id="form-save">Save</button>' +
-    '</div>'
-  );
+  var statusOpts = ['proposed','active','suspended','inactive','entered-in-error'].map(function(s) {
+    return `<option value="${s}"${t && t.status === s ? ' selected' : ''}>${s}</option>`;
+  }).join('');
+  var memberOpts = Object.keys(_ctPracNames)
+    .filter(function(k) { return k.indexOf('Practitioner/') !== 0; })
+    .sort(function(a, b) { return (_ctPracNames[a] || a).localeCompare(_ctPracNames[b] || b); })
+    .map(function(id) {
+      return `<option value="Practitioner/${esc(id)}">${esc(_ctPracNames[id] || id)}</option>`;
+    }).join('');
+  return `
+    <div class="form-row"><label>Team name</label>
+      <input id="f-name" value="${esc(t && t.name || '')}"></div>
+    <div class="form-row"><label>Status</label>
+      <select id="f-status">${statusOpts}</select></div>
+    <div class="form-row"><label>Description (optional)</label>
+      <input id="f-desc" value="${esc(t && t.note && t.note[0] && t.note[0].text || '')}"></div>
+    <div class="form-row" style="flex-direction:column;gap:6px">
+      <label style="font-weight:600">Members</label>
+      <div id="ct-participants-list"></div>
+      <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:2;min-width:160px"><label style="font-size:12px;font-weight:400">Practitioner</label>
+          <select id="f-add-member">
+            <option value="">— select —</option>
+            ${memberOpts}
+          </select></div>
+        <div style="flex:1;min-width:120px"><label style="font-size:12px;font-weight:400">Role</label>
+          <input id="f-add-role" placeholder="supervisor / community-health-worker"></div>
+        <button type="button" class="btn btn-outline" id="ct-add-participant" style="flex-shrink:0;align-self:flex-end">+ Add</button>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" id="form-cancel">Cancel</button>
+      <button class="btn btn-primary" id="form-save">Save</button>
+    </div>`;
 }
 
 function careTeamFromForm(existing) {
@@ -180,32 +149,28 @@ function _ctTeamCard(team) {
     var roleArr    = p.role && p.role[0];
     var roleCoding = roleArr && roleArr.coding && roleArr.coding[0];
     var roleText   = (roleCoding && (roleCoding.display || roleCoding.code)) || (roleArr && roleArr.text) || '—';
-    return '<tr>' +
-      '<td>' + esc(memberText) + '</td>' +
-      '<td>' + esc(roleText) + '</td>' +
-      '<td>' + (p.period && p.period.start ? fmtDate(p.period.start) : '—') + '</td>' +
-      '</tr>';
+    return `<tr><td>${esc(memberText)}</td><td>${esc(roleText)}</td>` +
+      `<td>${p.period && p.period.start ? fmtDate(p.period.start) : '—'}</td></tr>`;
   });
   var mgOrg = team.managingOrganization && team.managingOrganization[0];
   var memberCount = (team.participant || []).length;
-  return '<article>' +
-    '<details>' +
-      '<summary>' +
-        '<h3>' + esc(team.name || team.id) + '</h3>' +
+  var adminActions = window.BKM_ROLE === 'admin'
+    ? `<div style="margin-left:auto;display:flex;gap:8px" onclick="event.stopPropagation()">` +
+        `<button class="btn btn-sm btn-outline ct-edit" data-id="${esc(team.id)}">Edit</button>` +
+        `<button class="btn btn-sm btn-danger ct-del" data-id="${esc(team.id)}" data-name="${esc(team.name || team.id)}">Delete</button>` +
+      `</div>`
+    : '';
+  return `<article><details>` +
+      `<summary>` +
+        `<h3>${esc(team.name || team.id)}</h3>` +
         badge(team.status || 'unknown') +
         badge(memberCount + ' member' + (memberCount !== 1 ? 's' : ''), 'secondary') +
-        (window.BKM_ROLE === 'admin'
-          ? '<div style="margin-left:auto;display:flex;gap:8px" onclick="event.stopPropagation()">' +
-              '<button class="btn btn-sm btn-outline ct-edit" data-id="' + esc(team.id) + '">Edit</button>' +
-              '<button class="btn btn-sm btn-danger ct-del" data-id="' + esc(team.id) + '" data-name="' + esc(team.name || team.id) + '">Delete</button>' +
-            '</div>'
-          : '') +
-      '</summary>' +
-      '<p><strong>ID:</strong> <code>' + esc(team.id) + '</code></p>' +
-      (mgOrg ? '<p><strong>Organization:</strong> ' + esc(mgOrg.display || mgOrg.reference) + '</p>' : '') +
+        adminActions +
+      `</summary>` +
+      `<p><strong>ID:</strong> <code>${esc(team.id)}</code></p>` +
+      (mgOrg ? `<p><strong>Organization:</strong> ${esc(mgOrg.display || mgOrg.reference)}</p>` : '') +
       table(['Member', 'Role', 'Period'], participants, 'No participants.') +
-    '</details>' +
-    '</article>';
+    `</details></article>`;
 }
 
 function _ctRenderCards(el, bundle, search, pageSize) {
@@ -215,13 +180,13 @@ function _ctRenderCards(el, bundle, search, pageSize) {
   var prevUrl = bundleLink(bundle, 'previous');
 
   var pager =
-    '<div class="pager">' +
-      '<span class="pager-info">Showing ' + teams.length + ' of ' + total + '</span>' +
-      '<div class="pager-btns">' +
-        '<button class="btn btn-sm btn-outline" id="ct-prev"' + (prevUrl ? '' : ' disabled') + '>← Prev</button>' +
-        '<button class="btn btn-sm btn-outline" id="ct-next"' + (nextUrl ? '' : ' disabled') + '>Next →</button>' +
-      '</div>' +
-    '</div>';
+    `<div class="pager">` +
+      `<span class="pager-info">Showing ${teams.length} of ${total}</span>` +
+      `<div class="pager-btns">` +
+        `<button class="btn btn-sm btn-outline" id="ct-prev"${prevUrl ? '' : ' disabled'}>← Prev</button>` +
+        `<button class="btn btn-sm btn-outline" id="ct-next"${nextUrl ? '' : ' disabled'}>Next →</button>` +
+      `</div>` +
+    `</div>`;
 
   document.getElementById('ct-data').innerHTML =
     (teams.length ? teams.map(_ctTeamCard).join('') : '<p>No care teams found.</p>') + pager;
@@ -255,37 +220,37 @@ function _ctLoadPage(el, query, search, pageSize) {
   document.getElementById('ct-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
   fhir(query)
     .then(function(b) { _ctRenderCards(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('ct-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
+    .catch(function(e) { document.getElementById('ct-data').innerHTML = `<p class="error">${esc(e.message)}</p>`; });
 }
 
 function _ctLoadFull(el, url, search, pageSize) {
   document.getElementById('ct-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
   fhirFull(url)
     .then(function(b) { _ctRenderCards(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('ct-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
+    .catch(function(e) { document.getElementById('ct-data').innerHTML = `<p class="error">${esc(e.message)}</p>`; });
 }
 
 function renderCareTeams(el) {
   var search   = '';
   var pageSize = _ctPageSize;
 
+  var pageSizeOpts = [5,10,20,50].map(function(n) {
+    return `<option value="${n}"${n === pageSize ? ' selected' : ''}>${n} per page</option>`;
+  }).join('');
+
   el.innerHTML =
-    '<div class="page-header">' +
-      '<h2>Care Teams (BKM)</h2>' +
-      '<input type="search" id="ct-search" placeholder="Search by name…" style="max-width:240px">' +
-      '<select id="ct-pagesize" style="width:auto">' +
-        [5,10,20,50].map(function(n) {
-          return '<option value="' + n + '"' + (n === pageSize ? ' selected' : '') + '>' + n + ' per page</option>';
-        }).join('') +
-      '</select>' +
-      '<button class="btn btn-primary" id="ct-new">+ New Care Team</button>' +
-    '</div>' +
-    '<div class="page-tabs">' +
-      '<button class="page-tab active" data-tab="ct-data">Care Teams</button>' +
-      '<button class="page-tab" data-tab="ct-help">? Help</button>' +
-    '</div>' +
-    '<div id="ct-data"></div>' +
-    '<div id="ct-help" class="help-panel" hidden>' + careTeamsHelpHTML() + '</div>';
+    `<div class="page-header">` +
+      `<h2>Care Teams (BKM)</h2>` +
+      `<input type="search" id="ct-search" placeholder="Search by name…" style="max-width:240px">` +
+      `<select id="ct-pagesize" style="width:auto">${pageSizeOpts}</select>` +
+      `<button class="btn btn-primary" id="ct-new">+ New Care Team</button>` +
+    `</div>` +
+    `<div class="page-tabs">` +
+      `<button class="page-tab active" data-tab="ct-data">Care Teams</button>` +
+      `<button class="page-tab" data-tab="ct-help">? Help</button>` +
+    `</div>` +
+    `<div id="ct-data"></div>` +
+    `<div id="ct-help" class="help-panel" hidden>${careTeamsHelpHTML()}</div>`;
 
   wirePageTabs(el);
 
