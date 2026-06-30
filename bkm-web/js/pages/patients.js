@@ -166,118 +166,50 @@ function _ptQuery(search, pageSize) {
   return q;
 }
 
-function _ptRenderTable(el, bundle, search, pageSize) {
-  var patients = entries(bundle);
-  var total    = bundle.total !== undefined ? bundle.total : '?';
-  var nextUrl  = bundleLink(bundle, 'next');
-  var prevUrl  = bundleLink(bundle, 'previous');
-
-  var sorted = sortedRows(patients, _ptSort, _ptVal);
-  var tableHtml = !patients.length ? '<p>No patients found.</p>' :
-    '<div class="tbl-wrap"><table><thead><tr>' +
-    sortTh('Name', 'name', _ptSort) + sortTh('ID', 'id', _ptSort) +
-    sortTh('Date of Birth', 'birthDate', _ptSort) + '<th>Age</th>' +
-    sortTh('Gender', 'gender', _ptSort) + '<th></th>' +
-    '</tr></thead><tbody>' +
-    sorted.map(function(p) {
-      return '<tr>' +
-        '<td><a href="#/patients/' + esc(p.id) + '">' + esc(ptName(p)) + '</a></td>' +
-        '<td>' + esc(p.id) + '</td>' +
-        '<td>' + esc(p.birthDate || '—') + '</td>' +
-        '<td>' + esc(age(p.birthDate)) + '</td>' +
-        '<td>' + esc(p.gender || '—') + '</td>' +
-        '<td>' + (window.BKM_ROLE === 'admin' ? '<button class="btn btn-sm btn-outline pt-edit-btn" data-id="' + esc(p.id) + '">Edit</button>' : '') + '</td>' +
-        '</tr>';
-    }).join('') + '</tbody></table></div>';
-
-  var pager =
-    '<div class="pager">' +
-      '<span class="pager-info">Showing ' + patients.length + ' of ' + total + '</span>' +
-      '<div class="pager-btns">' +
-        '<button class="btn btn-sm btn-outline" id="pt-prev"' + (prevUrl ? '' : ' disabled') + '>← Prev</button>' +
-        '<button class="btn btn-sm btn-outline" id="pt-next"' + (nextUrl ? '' : ' disabled') + '>Next →</button>' +
-      '</div>' +
-    '</div>';
-
-  document.getElementById('pts-data').innerHTML = tableHtml + pager;
-
-  wireSortHeaders(document.getElementById('pts-data'), _ptSort, function() {
-    _ptRenderTable(el, bundle, search, pageSize);
-  });
-
-  el.querySelectorAll('.pt-edit-btn').forEach(function(btn) {
-    btn.onclick = function() {
-      var pid = btn.getAttribute('data-id');
-      fhir('Patient/' + pid).then(function(p) {
-        openPatientForm(p, function() { _ptLoadPage(el, _ptQuery(search, pageSize), search, pageSize); });
-      });
-    };
-  });
-
-  document.getElementById('pt-prev').onclick = function() {
-    if (prevUrl) _ptLoadFull(el, prevUrl, search, pageSize);
-  };
-  document.getElementById('pt-next').onclick = function() {
-    if (nextUrl) _ptLoadFull(el, nextUrl, search, pageSize);
-  };
-}
-
-function _ptLoadPage(el, query, search, pageSize) {
-  document.getElementById('pts-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhir(query)
-    .then(function(b) { _ptRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('pts-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
-function _ptLoadFull(el, url, search, pageSize) {
-  document.getElementById('pts-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhirFull(url)
-    .then(function(b) { _ptRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('pts-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
 function renderPatients(el) {
-  var search   = '';
-  var pageSize = _ptPageSize;
-
-  el.innerHTML =
-    '<div class="page-header">' +
-      '<h2>Patients (BKM)</h2>' +
-      '<input type="search" id="pt-search" placeholder="Search by name…" style="max-width:240px">' +
-      '<select id="pt-pagesize" style="width:auto">' +
-        [10,20,50,100].map(function(n) {
-          return '<option value="' + n + '"' + (n === pageSize ? ' selected' : '') + '>' + n + ' per page</option>';
-        }).join('') +
-      '</select>' +
-      '<button class="btn btn-outline" id="pt-export">Export CSV</button>' +
-    '</div>' +
-    '<div class="page-tabs">' +
-      '<button class="page-tab active" data-tab="pts-data">Patients</button>' +
-      '<button class="page-tab" data-tab="pts-help">? Help</button>' +
-    '</div>' +
-    '<div id="pts-data"></div>' +
-    '<div id="pts-help" class="help-panel" hidden>' + patientsHelpHTML() + '</div>';
-
-  wirePageTabs(el);
-  _ptLoadPage(el, _ptQuery(search, pageSize), search, pageSize);
-
-  document.getElementById('pt-export').onclick = function() {
-    exportPatientsCsv(this);
-  };
-
-  document.getElementById('pt-pagesize').onchange = function() {
-    pageSize = parseInt(this.value, 10);
-    _ptPageSize = pageSize;
-    _ptLoadPage(el, _ptQuery(search, pageSize), search, pageSize);
-  };
-
-  document.getElementById('pt-search').addEventListener('input', function(e) {
-    clearTimeout(_ptSearchTimer);
-    var val = e.target.value.trim();
-    _ptSearchTimer = setTimeout(function() {
-      search = val;
-      _ptLoadPage(el, _ptQuery(search, pageSize), search, pageSize);
-    }, 350);
+  listPage({
+    el: el,
+    prefix: 'pt',
+    title: 'Patients (BKM)',
+    dataTabLabel: 'Patients',
+    helpHTML: patientsHelpHTML(),
+    searchPlaceholder: 'Search by name…',
+    pageSizes: [10, 20, 50, 100],
+    pageSize: _ptPageSize,
+    onPageSize: function(n) { _ptPageSize = n; },
+    canNew: false,
+    headerExtra: '<button class="btn btn-outline" id="pt-export">Export CSV</button>',
+    onChrome: function() {
+      document.getElementById('pt-export').onclick = function() { exportPatientsCsv(this); };
+    },
+    query: function(search, pageSize) { return _ptQuery(search, pageSize); },
+    items: function(bundle) { return entries(bundle); },
+    renderData: function(patients) {
+      if (!patients.length) return '<p>No patients found.</p>';
+      var rows = sortedRows(patients, _ptSort, _ptVal).map(function(p) {
+        return '<tr>' +
+          '<td><a href="#/patients/' + esc(p.id) + '">' + esc(ptName(p)) + '</a></td>' +
+          '<td>' + esc(p.id) + '</td>' +
+          '<td>' + esc(p.birthDate || '—') + '</td>' +
+          '<td>' + esc(age(p.birthDate)) + '</td>' +
+          '<td>' + esc(p.gender || '—') + '</td>' +
+          '<td>' + (window.BKM_ROLE === 'admin' ? '<button class="btn btn-sm btn-outline pt-edit-btn" data-id="' + esc(p.id) + '">Edit</button>' : '') + '</td>' +
+          '</tr>';
+      });
+      return '<div class="tbl-wrap"><table><thead><tr>' +
+        sortTh('Name', 'name', _ptSort) + sortTh('ID', 'id', _ptSort) +
+        sortTh('Date of Birth', 'birthDate', _ptSort) + '<th>Age</th>' +
+        sortTh('Gender', 'gender', _ptSort) + '<th></th>' +
+        '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+    },
+    wireItems: function(dataEl, patients, reload, reRender) {
+      wireSortHeaders(dataEl, _ptSort, reRender);
+      dataEl.querySelectorAll('.pt-edit-btn').forEach(function(btn) {
+        btn.onclick = function() {
+          fhir('Patient/' + btn.getAttribute('data-id')).then(function(p) { openPatientForm(p, reload); });
+        };
+      });
+    }
   });
 }
 

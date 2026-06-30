@@ -15,6 +15,8 @@
 //   searchPlaceholder,
 //   pageSizes = [5,10,20,50], pageSize = 10, onPageSize(n),  // onPageSize persists caller state
 //   canNew, newLabel, onNew(reload),                          // New button (omitted if !canNew)
+//   headerExtra,                // optional extra HTML in the header (e.g. an Export button/link)
+//   onChrome(el),               // optional hook after chrome is built (wire headerExtra buttons)
 //   preload(): Promise,         // optional one-off fetch before the first load (e.g. name maps)
 //   query(search, pageSize) -> FHIR query string,
 //   items(bundle) -> array,     // domain rows from the bundle
@@ -83,6 +85,7 @@ function listPage(opts) {
       `<input type="search" id="${id('search')}" placeholder="${esc(opts.searchPlaceholder || 'Search…')}" style="max-width:240px">` +
       `<select id="${id('pagesize')}" style="width:auto">${pageSizeOpts}</select>` +
       (opts.canNew ? `<button class="btn btn-primary" id="${id('new')}">${esc(opts.newLabel || '+ New')}</button>` : '') +
+      (opts.headerExtra || '') +
     `</div>` +
     `<div class="page-tabs">` +
       `<button class="page-tab active" data-tab="${id('data')}">${esc(opts.dataTabLabel || opts.title)}</button>` +
@@ -107,7 +110,9 @@ function listPage(opts) {
     searchTimer = setTimeout(function() { search = val; loadQuery(); }, 350);
   });
 
-  if (opts.preload) opts.preload().then(loadQuery);
+  if (opts.onChrome) opts.onChrome(el);
+
+  if (opts.preload) { loadingState(); opts.preload().then(loadQuery).catch(function(e) { errorState(e.message); }); }
   else loadQuery();
 
   return { reload: reload };

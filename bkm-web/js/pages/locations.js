@@ -109,136 +109,68 @@ function _locQuery(search, pageSize) {
   return q;
 }
 
-function _locRenderTable(el, bundle, search, pageSize) {
-  var locs    = entries(bundle);
-  var total   = bundle.total !== undefined ? bundle.total : '?';
-  var nextUrl = bundleLink(bundle, 'next');
-  var prevUrl = bundleLink(bundle, 'previous');
-
-  var rows = sortedRows(locs, _locSort, _locVal).map(function(l) {
-    return '<tr>' +
-      '<td><a href="#/locations/' + esc(l.id) + '">' + esc(l.name || l.id) + '</a></td>' +
-      '<td>' + esc(locType(l)) + '</td>' +
-      '<td>' + esc(locParentName(l, _allLocs)) + '</td>' +
-      '<td>' + badge(l.status || 'unknown', l.status === 'active' ? 'green' : 'inactive') + '</td>' +
-      '<td>' +
-        (window.BKM_ROLE === 'admin'
-          ? '<button class="btn btn-sm btn-outline loc-edit" data-id="' + esc(l.id) + '">Edit</button> ' +
-            '<button class="btn btn-sm btn-danger loc-del" data-id="' + esc(l.id) + '" data-name="' + esc(l.name || l.id) + '">Del</button>'
-          : '') +
-      '</td>' +
-      '</tr>';
-  });
-
-  var pager =
-    '<div class="pager">' +
-      '<span class="pager-info">Showing ' + locs.length + ' of ' + total + '</span>' +
-      '<div class="pager-btns">' +
-        '<button class="btn btn-sm btn-outline" id="loc-prev"' + (prevUrl ? '' : ' disabled') + '>← Prev</button>' +
-        '<button class="btn btn-sm btn-outline" id="loc-next"' + (nextUrl ? '' : ' disabled') + '>Next →</button>' +
-      '</div>' +
-    '</div>';
-
-  var locTableHtml = !locs.length ? '<p>No locations found.</p>' :
-    '<div class="tbl-wrap"><table><thead><tr>' +
-    sortTh('Name','name',_locSort) + sortTh('Type','type',_locSort) +
-    sortTh('Parent','parent',_locSort) + sortTh('Status','status',_locSort) + '<th></th>' +
-    '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
-  document.getElementById('loc-data').innerHTML = locTableHtml + pager;
-  wireSortHeaders(document.getElementById('loc-data'), _locSort, function() {
-    _locRenderTable(el, bundle, search, pageSize);
-  });
-
-  el.querySelectorAll('.loc-edit').forEach(function(btn) {
-    btn.onclick = function() {
-      fhir('Location/' + btn.getAttribute('data-id')).then(function(l) {
-        openLocationForm(l, _allLocs, function() { _locLoadPage(el, _locQuery(search, pageSize), search, pageSize); });
-      });
-    };
-  });
-  el.querySelectorAll('.loc-del').forEach(function(btn) {
-    btn.onclick = function() {
-      var lid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-      showConfirm('Delete Location', 'Delete "' + name + '"?', function() {
-        fhirDelete('Location', lid).then(function() {
-          _allLocs = _allLocs.filter(function(x) { return x.id !== lid; });
-          closeModal(); _locLoadPage(el, _locQuery(search, pageSize), search, pageSize);
-        }).catch(function(e) { alert('Error: ' + e.message); });
-      });
-    };
-  });
-  document.getElementById('loc-prev').onclick = function() {
-    if (prevUrl) _locLoadFull(el, prevUrl, search, pageSize);
-  };
-  document.getElementById('loc-next').onclick = function() {
-    if (nextUrl) _locLoadFull(el, nextUrl, search, pageSize);
-  };
-}
-
-function _locLoadPage(el, query, search, pageSize) {
-  document.getElementById('loc-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhir(query)
-    .then(function(b) { _locRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('loc-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
-function _locLoadFull(el, url, search, pageSize) {
-  document.getElementById('loc-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhirFull(url)
-    .then(function(b) { _locRenderTable(el, b, search, pageSize); })
-    .catch(function(e) { document.getElementById('loc-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
 function renderLocations(el) {
-  var search   = '';
-  var pageSize = _locPageSize;
-  loading(el);
-
-  fhir('Location?_count=500&_sort=name').then(function(ab) {
-    _allLocs = entries(ab);
-
-    el.innerHTML =
-      '<div class="page-header">' +
-        '<h2>Locations (BKM)</h2>' +
-        '<input type="search" id="loc-search" placeholder="Search by name…" style="max-width:240px">' +
-        '<select id="loc-pagesize" style="width:auto">' +
-          [10,20,50,100].map(function(n) {
-            return '<option value="' + n + '"' + (n === pageSize ? ' selected' : '') + '>' + n + ' per page</option>';
-          }).join('') +
-        '</select>' +
-        '<button class="btn btn-primary" id="loc-new">+ New Location</button>' +
-      '</div>' +
-      '<div class="page-tabs">' +
-        '<button class="page-tab active" data-tab="loc-data">Locations</button>' +
-        '<button class="page-tab" data-tab="loc-help">? Help</button>' +
-      '</div>' +
-      '<div id="loc-data"></div>' +
-      '<div id="loc-help" class="help-panel" hidden>' + locationsHelpHTML() + '</div>';
-
-    wirePageTabs(el);
-    _locLoadPage(el, _locQuery(search, pageSize), search, pageSize);
-
-    if (window.BKM_ROLE !== 'admin') document.getElementById('loc-new').style.display = 'none';
-    document.getElementById('loc-new').onclick = function() {
-      openLocationForm(null, _allLocs, function(saved) {
-        if (saved) _allLocs.push(saved);
-        _locLoadPage(el, _locQuery(search, pageSize), search, pageSize);
+  listPage({
+    el: el,
+    prefix: 'loc',
+    title: 'Locations (BKM)',
+    dataTabLabel: 'Locations',
+    helpHTML: locationsHelpHTML(),
+    searchPlaceholder: 'Search by name…',
+    pageSizes: [10, 20, 50, 100],
+    pageSize: _locPageSize,
+    onPageSize: function(n) { _locPageSize = n; },
+    canNew: window.BKM_ROLE === 'admin',
+    newLabel: '+ New Location',
+    onNew: function(reload) {
+      openLocationForm(null, _allLocs, function(saved) { if (saved) _allLocs.push(saved); reload(); });
+    },
+    preload: function() {
+      return fhir('Location?_count=500&_sort=name').then(function(ab) { _allLocs = entries(ab); });
+    },
+    query: function(search, pageSize) { return _locQuery(search, pageSize); },
+    items: function(bundle) { return entries(bundle); },
+    renderData: function(locs) {
+      if (!locs.length) return '<p>No locations found.</p>';
+      var rows = sortedRows(locs, _locSort, _locVal).map(function(l) {
+        return '<tr>' +
+          '<td><a href="#/locations/' + esc(l.id) + '">' + esc(l.name || l.id) + '</a></td>' +
+          '<td>' + esc(locType(l)) + '</td>' +
+          '<td>' + esc(locParentName(l, _allLocs)) + '</td>' +
+          '<td>' + badge(l.status || 'unknown', l.status === 'active' ? 'green' : 'inactive') + '</td>' +
+          '<td>' +
+            (window.BKM_ROLE === 'admin'
+              ? '<button class="btn btn-sm btn-outline loc-edit" data-id="' + esc(l.id) + '">Edit</button> ' +
+                '<button class="btn btn-sm btn-danger loc-del" data-id="' + esc(l.id) + '" data-name="' + esc(l.name || l.id) + '">Del</button>'
+              : '') +
+          '</td>' +
+          '</tr>';
       });
-    };
-    document.getElementById('loc-pagesize').onchange = function() {
-      pageSize = parseInt(this.value, 10);
-      _locPageSize = pageSize;
-      _locLoadPage(el, _locQuery(search, pageSize), search, pageSize);
-    };
-    document.getElementById('loc-search').addEventListener('input', function(e) {
-      clearTimeout(_locSearchTimer);
-      var val = e.target.value.trim();
-      _locSearchTimer = setTimeout(function() {
-        search = val;
-        _locLoadPage(el, _locQuery(search, pageSize), search, pageSize);
-      }, 350);
-    });
-  }).catch(function(e) { errMsg(el, e.message); });
+      return '<div class="tbl-wrap"><table><thead><tr>' +
+        sortTh('Name', 'name', _locSort) + sortTh('Type', 'type', _locSort) +
+        sortTh('Parent', 'parent', _locSort) + sortTh('Status', 'status', _locSort) + '<th></th>' +
+        '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+    },
+    wireItems: function(dataEl, locs, reload, reRender) {
+      wireSortHeaders(dataEl, _locSort, reRender);
+      dataEl.querySelectorAll('.loc-edit').forEach(function(btn) {
+        btn.onclick = function() {
+          fhir('Location/' + btn.getAttribute('data-id')).then(function(l) { openLocationForm(l, _allLocs, reload); });
+        };
+      });
+      dataEl.querySelectorAll('.loc-del').forEach(function(btn) {
+        btn.onclick = function() {
+          var lid = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+          showConfirm('Delete Location', 'Delete "' + name + '"?', function() {
+            fhirDelete('Location', lid).then(function() {
+              _allLocs = _allLocs.filter(function(x) { return x.id !== lid; });
+              closeModal(); reload();
+            }).catch(function(e) { alert('Error: ' + e.message); });
+          });
+        };
+      });
+    }
+  });
 }
 
 // ── Location detail ───────────────────────────────────────────────────────────

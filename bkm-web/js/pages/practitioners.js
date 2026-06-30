@@ -176,142 +176,79 @@ var _pracSearchTimer = null;
 var _pracPageSize    = 20;
 var _pracRoleMap     = {};  // cached — roles are few, practitioners may be many
 
-function _pracRenderTable(el, bundle, roleMap, search, pageSize) {
-  var pracs   = entries(bundle);
-  var total   = bundle.total !== undefined ? bundle.total : '?';
-  var nextUrl = bundleLink(bundle, 'next');
-  var prevUrl = bundleLink(bundle, 'previous');
-
-  var tableHtml = table(
-    ['Name', 'ID', 'Role', 'Organization', 'Location', ''],
-    pracs.map(function(p) {
-      var role    = roleMap[p.id];
-      var code    = role && role.code && role.code[0];
-      var coding  = code && code.coding && code.coding[0];
-      var roleText = (coding && (coding.display || coding.code)) || (code && code.text) || '—';
-      var org     = role && role.organization;
-      var orgText = (org && org.display) || (org && org.reference && org.reference.split('/')[1]) || '—';
-      var loc     = role && role.location && role.location[0];
-      var locText = (loc && loc.display) || (loc && loc.reference && loc.reference.split('/')[1]) || '—';
-      return '<tr>' +
-        '<td>' + esc(ptName(p)) + '</td>' +
-        '<td><code>' + esc(p.id) + '</code></td>' +
-        '<td>' + esc(roleText) + '</td>' +
-        '<td>' + esc(orgText) + '</td>' +
-        '<td>' + esc(locText) + '</td>' +
-        '<td>' +
-          '<button class="btn btn-sm btn-outline prac-edit" data-id="' + esc(p.id) + '">Edit</button> ' +
-          '<button class="btn btn-sm btn-danger prac-del" data-id="' + esc(p.id) + '" data-name="' + esc(ptName(p)) + '">Del</button>' +
-        '</td>' +
-        '</tr>';
-    }),
-    'No practitioners found.'
-  );
-
-  var pager =
-    '<div class="pager">' +
-      '<span class="pager-info">Showing ' + pracs.length + ' of ' + total + '</span>' +
-      '<div class="pager-btns">' +
-        '<button class="btn btn-sm btn-outline" id="prac-prev"' + (prevUrl ? '' : ' disabled') + '>← Prev</button>' +
-        '<button class="btn btn-sm btn-outline" id="prac-next"' + (nextUrl ? '' : ' disabled') + '>Next →</button>' +
-      '</div>' +
-    '</div>';
-
-  document.getElementById('prac-data').innerHTML = tableHtml + pager;
-
-  el.querySelectorAll('.prac-edit').forEach(function(btn) {
-    btn.onclick = function() {
-      var pid = btn.getAttribute('data-id');
-      fhir('Practitioner/' + pid).then(function(p) {
-        openPractitionerForm(p, _pracRoleMap[pid] || null, function() { _pracLoadPage(el, _pracQuery(search, pageSize), search, pageSize); });
-      });
-    };
-  });
-  el.querySelectorAll('.prac-del').forEach(function(btn) {
-    btn.onclick = function() {
-      showConfirm('Delete Practitioner', 'Delete ' + btn.getAttribute('data-name') + '?', function() {
-        fhirDelete('Practitioner', btn.getAttribute('data-id')).then(function() {
-          closeModal(); _pracLoadPage(el, _pracQuery(search, pageSize), search, pageSize);
-        }).catch(function(e) { alert('Error: ' + e.message); });
-      });
-    };
-  });
-
-  document.getElementById('prac-prev').onclick = function() {
-    if (prevUrl) _pracLoadFull(el, prevUrl, search, pageSize);
-  };
-  document.getElementById('prac-next').onclick = function() {
-    if (nextUrl) _pracLoadFull(el, nextUrl, search, pageSize);
-  };
-}
-
 function _pracQuery(search, pageSize) {
   var q = 'Practitioner?_count=' + pageSize + '&_sort=-_lastUpdated';
   if (search) q += '&name:contains=' + encodeURIComponent(search);
   return q;
 }
 
-function _pracLoadPage(el, query, search, pageSize) {
-  document.getElementById('prac-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhir(query)
-    .then(function(b) { _pracRenderTable(el, b, _pracRoleMap, search, pageSize); })
-    .catch(function(e) { document.getElementById('prac-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
-function _pracLoadFull(el, url, search, pageSize) {
-  document.getElementById('prac-data').innerHTML = '<p aria-busy="true" style="padding:16px">Loading…</p>';
-  fhirFull(url)
-    .then(function(b) { _pracRenderTable(el, b, _pracRoleMap, search, pageSize); })
-    .catch(function(e) { document.getElementById('prac-data').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
-}
-
 function renderPractitioners(el) {
-  var search   = '';
-  var pageSize = _pracPageSize;
-  loading(el);
-
-  fhir('PractitionerRole?_count=500').then(function(rb) {
-    _pracRoleMap = {};
-    entries(rb).forEach(function(r) {
-      var ref = get(r, 'practitioner', 'reference');
-      var pid = ref && ref.split('/')[1];
-      if (pid) _pracRoleMap[pid] = r;
-    });
-
-    el.innerHTML =
-      '<div class="page-header">' +
-        '<h2>Practitioners</h2>' +
-        '<input type="search" id="prac-search" placeholder="Search by name…" style="max-width:240px">' +
-        '<select id="prac-pagesize" style="width:auto">' +
-          [10,20,50,100].map(function(n) {
-            return '<option value="' + n + '"' + (n === pageSize ? ' selected' : '') + '>' + n + ' per page</option>';
-          }).join('') +
-        '</select>' +
-        '<a href="#/mappings" class="btn btn-outline" style="font-size:13px">+ New Field Worker → go to Mappings</a>' +
-      '</div>' +
-      '<div class="page-tabs">' +
-        '<button class="page-tab active" data-tab="prac-data">Practitioners</button>' +
-        '<button class="page-tab" data-tab="prac-help">? Help</button>' +
-      '</div>' +
-      '<div id="prac-data"></div>' +
-      '<div id="prac-help" class="help-panel" hidden>' + practitionersHelpHTML() + '</div>';
-
-    wirePageTabs(el);
-    _pracLoadPage(el, _pracQuery(search, pageSize), search, pageSize);
-
-
-    document.getElementById('prac-pagesize').onchange = function() {
-      pageSize = parseInt(this.value, 10);
-      _pracPageSize = pageSize;
-      _pracLoadPage(el, _pracQuery(search, pageSize), search, pageSize);
-    };
-    document.getElementById('prac-search').addEventListener('input', function(e) {
-      clearTimeout(_pracSearchTimer);
-      var val = e.target.value.trim();
-      _pracSearchTimer = setTimeout(function() {
-        search = val;
-        _pracLoadPage(el, _pracQuery(search, pageSize), search, pageSize);
-      }, 350);
-    });
-  }).catch(function(e) { errMsg(el, e.message); });
+  listPage({
+    el: el,
+    prefix: 'prac',
+    title: 'Practitioners',
+    dataTabLabel: 'Practitioners',
+    helpHTML: practitionersHelpHTML(),
+    searchPlaceholder: 'Search by name…',
+    pageSizes: [10, 20, 50, 100],
+    pageSize: _pracPageSize,
+    onPageSize: function(n) { _pracPageSize = n; },
+    canNew: false,
+    headerExtra: '<a href="#/mappings" class="btn btn-outline" style="font-size:13px">+ New Field Worker → go to Mappings</a>',
+    preload: function() {
+      return fhir('PractitionerRole?_count=500').then(function(rb) {
+        _pracRoleMap = {};
+        entries(rb).forEach(function(r) {
+          var ref = get(r, 'practitioner', 'reference');
+          var pid = ref && ref.split('/')[1];
+          if (pid) _pracRoleMap[pid] = r;
+        });
+      });
+    },
+    query: function(search, pageSize) { return _pracQuery(search, pageSize); },
+    items: function(bundle) { return entries(bundle); },
+    renderData: function(pracs) {
+      return table(
+        ['Name', 'ID', 'Role', 'Organization', 'Location', ''],
+        pracs.map(function(p) {
+          var role     = _pracRoleMap[p.id];
+          var code     = role && role.code && role.code[0];
+          var coding   = code && code.coding && code.coding[0];
+          var roleText = (coding && (coding.display || coding.code)) || (code && code.text) || '—';
+          var org      = role && role.organization;
+          var orgText  = (org && org.display) || (org && org.reference && org.reference.split('/')[1]) || '—';
+          var loc      = role && role.location && role.location[0];
+          var locText  = (loc && loc.display) || (loc && loc.reference && loc.reference.split('/')[1]) || '—';
+          return '<tr>' +
+            '<td>' + esc(ptName(p)) + '</td>' +
+            '<td><code>' + esc(p.id) + '</code></td>' +
+            '<td>' + esc(roleText) + '</td>' +
+            '<td>' + esc(orgText) + '</td>' +
+            '<td>' + esc(locText) + '</td>' +
+            '<td>' +
+              '<button class="btn btn-sm btn-outline prac-edit" data-id="' + esc(p.id) + '">Edit</button> ' +
+              '<button class="btn btn-sm btn-danger prac-del" data-id="' + esc(p.id) + '" data-name="' + esc(ptName(p)) + '">Del</button>' +
+            '</td>' +
+            '</tr>';
+        }),
+        'No practitioners found.'
+      );
+    },
+    wireItems: function(dataEl, pracs, reload, reRender) {
+      dataEl.querySelectorAll('.prac-edit').forEach(function(btn) {
+        btn.onclick = function() {
+          var pid = btn.getAttribute('data-id');
+          fhir('Practitioner/' + pid).then(function(p) { openPractitionerForm(p, _pracRoleMap[pid] || null, reload); });
+        };
+      });
+      dataEl.querySelectorAll('.prac-del').forEach(function(btn) {
+        btn.onclick = function() {
+          showConfirm('Delete Practitioner', 'Delete ' + btn.getAttribute('data-name') + '?', function() {
+            fhirDelete('Practitioner', btn.getAttribute('data-id')).then(function() { closeModal(); reload(); })
+              .catch(function(e) { alert('Error: ' + e.message); });
+          });
+        };
+      });
+    }
+  });
 }
