@@ -1234,7 +1234,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "openhim-password",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1266,7 +1266,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "openhim-password",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1298,7 +1298,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "openhim-password",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1335,7 +1335,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "district",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1377,7 +1377,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "district",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1417,7 +1417,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "district",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1457,7 +1457,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "district",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1514,7 +1514,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "changeme",
+                  "value": "",
                   "type": "string"
                 }
               ]
@@ -1530,7 +1530,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "password"
+                  "value": ""
                 }
               ]
             },
@@ -1736,7 +1736,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "password"
+                  "value": ""
                 }
               ]
             },
@@ -1770,7 +1770,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "admin",
+                  "value": "",
                   "type": "string"
                 }
               ]

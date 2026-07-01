@@ -34,8 +34,9 @@ protected route.
 
 ## Notes
 
-- The demo basic-auth passwords in some requests (DHIS2, OpenHIM, OpenLMIS client) are the
-  sandbox defaults and may differ from the live deployment - update per request if they 401.
+- All passwords are blanked in this committed copy (Keycloak, DHIS2, OpenHIM, OpenLMIS). Fill
+  them in yourself per request / in the collection variables. Keep your filled-in copy local -
+  do not commit credentials back.
 - `facility_id` / `program_id` / `orderable_id` are the old Maseru demo ids. Prod is Mafeteng;
   fetch the real ids via `OpenLMIS -> Facilities/Orderables list` after getting the LMIS token.
 - Some requests still have relative URLs (no host) - prepend `{{mediator}}` / `{{hapi}}` etc.
