@@ -5,12 +5,22 @@
 
 > **Superseded by the site-visit decision.** Service points are **NOT** promoted to OpenLMIS
 > facilities. The chosen model is **one central OpenLMIS, one facility per health centre**,
-> with **Store Manager + Coordinator as two roles on that single facility** (facility-scoped —
-> a HC's users only access their own HC). The store→coordinator→VHW internal supply chain is
-> **logical (mediator allocations/tasks)** within the one facility — **no facility-to-facility
-> transfers**. Service points and VHW villages stay **FHIR Locations** (the hierarchy is kept
-> for app navigation/geo). See `roles-and-permissions-spec.md` for the real model. This doc is
-> retained only as a record of the rejected per-service-point-facility option.
+> facility-scoped so a health centre's users only access their own HC. The
+> store→coordinator→VHW internal supply chain is **logical (mediator allocations/tasks)**
+> within the one facility — **no facility-to-facility transfers**. Service points and VHW
+> villages stay **FHIR Locations** (the hierarchy is kept for app navigation/geo). See
+> `roles-and-permissions-spec.md` for the real model. This doc is retained only as a record
+> of the rejected per-service-point-facility option.
+>
+> **Update (2026-06-22, commit f6bd95c):** the earlier "Store Manager + Coordinator" pair was
+> collapsed — the `store_manager` role was **removed**. The role model is now
+> **admin > coordinator > vhw**, with **Coordinator as the single top facility role** (keeps
+> order / accept / allocate). Anywhere below that mentions a store manager is historical.
+>
+> **Note on the examples below:** the Maseru clinic-a / clinic-b villages and the
+> thabo / lineo / mpho VHWs are the original demo data. The live sandbox and prod have since
+> been reseeded to **Mafeteng** (18 health-centre facilities, 36 VHWs). The examples are kept
+> only to illustrate the mechanism; the specific IDs and names are out of date.
 
 ## 1. Problem
 
