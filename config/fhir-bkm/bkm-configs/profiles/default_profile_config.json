@@ -152,6 +152,13 @@
       ]
     },
     {
+      "name": "practitionerId",
+      "condition": "true",
+      "actions": [
+        "data.put('practitionerId', service.extractPractitionerInfoFromSharedPrefs('PRACTITIONER_ID'))"
+      ]
+    },
+    {
       "name": "patientAge",
       "condition": "true",
       "actions": [
@@ -2550,13 +2557,21 @@
             "title": "Dispense Medicine",
             "resourceIdentifier": "@{patientId}",
             "resourceType": "Patient",
-            "params": [
+            "showSyncButton": true,
+            "extraParams": [
               {
                 "paramType": "PREPOPULATE",
                 "linkId": "patient-id",
                 "dataType": "STRING",
                 "key": "patient-id",
                 "value": "@{patientId}"
+              },
+              {
+                "paramType": "PREPOPULATE",
+                "linkId": "practitioner-id",
+                "dataType": "STRING",
+                "key": "practitioner-id",
+                "value": "@{practitionerId}"
               }
             ]
           }
