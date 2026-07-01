@@ -110,6 +110,7 @@ function renderHome(el) {
             'onerror="this.closest(\'.home-qr-card\').style.display=\'none\'">' +
           '<div style="text-align:center">' +
             '<div style="font-weight:600;color:#212934;font-size:14px">Get the BKM app</div>' +
+            '<div style="font-size:11px;color:#8a94a6;margin-top:1px">Version 2.2.2 &middot; released 1 Jul 2026</div>' +
             '<div style="font-size:12px;color:#4a5768;margin-top:2px">Scan with your phone camera to install</div>' +
           '</div>' +
           '<div style="font-size:11px;color:#4a5768;line-height:1.45;text-align:left;border-top:1px solid #eef1f5;padding-top:8px;margin-top:2px">' +
