@@ -101,15 +101,21 @@ function renderHome(el) {
             )
           : '') +
         // QR code (right corner, next to System Monitoring & Administration).
-        // Just displays the Android team's QR at bkm-web/image.png — scanning it with a
-        // phone camera opens whatever install link that QR encodes. Replace the image to
-        // change the target. Card hides itself if the image is missing.
-        '<div class="home-qr-card" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;background:#fff;border:1px solid #e3e8ef;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05);margin-left:auto;align-self:start;max-width:210px">' +
+        // Displays the install QR at bkm-web/image.png — scanning it with a phone
+        // camera opens the app download link that QR encodes (currently the Google
+        // Drive share link for the latest APK). Replace the image to change the
+        // target. Card hides itself if the image is missing.
+        '<div class="home-qr-card" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;background:#fff;border:1px solid #e3e8ef;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05);margin-left:auto;align-self:start;max-width:260px">' +
           '<img src="image.png" alt="Scan to install the BKM app" width="150" height="150" style="display:block;border-radius:6px" ' +
             'onerror="this.closest(\'.home-qr-card\').style.display=\'none\'">' +
           '<div style="text-align:center">' +
             '<div style="font-weight:600;color:#212934;font-size:14px">Get the BKM app</div>' +
             '<div style="font-size:12px;color:#4a5768;margin-top:2px">Scan with your phone camera to install</div>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#4a5768;line-height:1.45;text-align:left;border-top:1px solid #eef1f5;padding-top:8px;margin-top:2px">' +
+            '<div style="font-weight:600;color:#212934;margin-bottom:4px">Before you install</div>' +
+            '<div style="margin-bottom:6px">If you already have an older build from a different signer, uninstall it first — a debug-signed build will not install over a differently-signed one. Same-signed upgrades keep your data.</div>' +
+            '<div>On first launch, log in against lesotho-bkm.xyz. A clean <b>Clear local data</b> then re-login ensures you get the latest config (new form logic + sync button).</div>' +
           '</div>' +
         '</div>' +
       '</div>';
