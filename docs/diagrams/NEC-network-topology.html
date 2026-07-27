@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<title>NEC — Network Topology</title>
+
+<style>
+  :root {
+    --ground:#f6f7f6; --panel:#ffffff; --panel-2:#eef1f0; --zone-fill:#fbfcfb;
+    --ink:#131a19; --ink-2:#46534f; --ink-3:#6f7d78;
+    --rule:#d8dedb; --rule-soft:#e6eae8;
+    --accent:#0d6b60;
+    --open:#b1560b; --open-soft:#fbeddc; --open-zone:#fdf7ef;
+    --lan:#0d6b60;  --lan-soft:#dcecea;  --lan-zone:#f2f8f7;
+    --loop:#4a5a75; --loop-soft:#e3e8f1; --loop-zone:#f4f6fa;
+    --closed:#5c6a63; --closed-soft:#e8ebe9; --closed-zone:#f5f7f6;
+    --ext:#6f4fa6; --ext-soft:#efe8f8; --ext-zone:#faf7fd;
+    --shadow: 0 1px 2px rgba(19,26,25,.06), 0 8px 24px -16px rgba(19,26,25,.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0e1413; --panel:#151d1c; --panel-2:#1e2827; --zone-fill:#121a19;
+      --ink:#e6ecea; --ink-2:#a9b8b3; --ink-3:#8b9a95;
+      --rule:#2a3634; --rule-soft:#212c2b;
+      --accent:#5fc9b8;
+      --open:#e79a4a; --open-soft:#33240f; --open-zone:#1a1610;
+      --lan:#5fc9b8;  --lan-soft:#12302c;  --lan-zone:#101a19;
+      --loop:#9fb2d1; --loop-soft:#1b2434; --loop-zone:#121720;
+      --closed:#93a49d; --closed-soft:#1e2725; --closed-zone:#131a19;
+      --ext:#b9a3e8; --ext-soft:#241c33; --ext-zone:#171522;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground:#f6f7f6; --panel:#ffffff; --panel-2:#eef1f0; --zone-fill:#fbfcfb;
+    --ink:#131a19; --ink-2:#46534f; --ink-3:#6f7d78;
+    --rule:#d8dedb; --rule-soft:#e6eae8; --accent:#0d6b60;
+    --open:#b1560b; --open-soft:#fbeddc; --open-zone:#fdf7ef;
+    --lan:#0d6b60;  --lan-soft:#dcecea;  --lan-zone:#f2f8f7;
+    --loop:#4a5a75; --loop-soft:#e3e8f1; --loop-zone:#f4f6fa;
+    --closed:#5c6a63; --closed-soft:#e8ebe9; --closed-zone:#f5f7f6;
+    --ext:#6f4fa6; --ext-soft:#efe8f8; --ext-zone:#faf7fd;
+    --shadow: 0 1px 2px rgba(19,26,25,.06), 0 8px 24px -16px rgba(19,26,25,.25);
+  }
+
+  :root[data-theme="dark"] {
+    --ground:#0e1413; --panel:#151d1c; --panel-2:#1e2827; --zone-fill:#121a19;
+    --ink:#e6ecea; --ink-2:#a9b8b3; --ink-3:#8b9a95;
+    --rule:#2a3634; --rule-soft:#212c2b; --accent:#5fc9b8;
+    --open:#e79a4a; --open-soft:#33240f; --open-zone:#1a1610;
+    --lan:#5fc9b8;  --lan-soft:#12302c;  --lan-zone:#101a19;
+    --loop:#9fb2d1; --loop-soft:#1b2434; --loop-zone:#121720;
+    --closed:#93a49d; --closed-soft:#1e2725; --closed-zone:#131a19;
+    --ext:#b9a3e8; --ext-soft:#241c33; --ext-zone:#171522;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 22px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 42px;
+  }
+
+  .masthead { display: flex; flex-direction: column; gap: 10px; }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+  }
+
+  h1 {
+    margin: 0; font-size: clamp(26px, 3.5vw, 36px); line-height: 1.12;
+    letter-spacing: -.018em; font-weight: 640; text-wrap: balance;
+  }
+
+  .standfirst { margin: 0; max-width: 68ch; color: var(--ink-2); font-size: 15.5px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 10px; padding-top: 4px; }
+
+  .key {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px 5px 9px; border: 1px solid var(--rule); border-radius: 999px;
+    background: var(--panel); font-size: 12.5px; color: var(--ink-2);
+  }
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.open{background:var(--open);} .dot.lan{background:var(--lan);}
+  .dot.loop{background:var(--loop);} .dot.closed{background:var(--closed);}
+  .dot.ext{background:var(--ext);}
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+
+  figcaption { display: flex; flex-direction: column; gap: 5px; }
+
+  .fig-no {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+
+  .fig-title { font-size: 17px; font-weight: 640; letter-spacing: -.01em; margin: 0; }
+  .fig-desc { margin: 0; max-width: 74ch; color: var(--ink-2); font-size: 14px; }
+
+  .canvas {
+    overflow-x: auto;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  svg.diagram {
+    display: block;
+    width: 100%;
+    min-width: 900px;
+    height: auto;
+    font-family: ui-sans-serif, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* --- diagram primitives --- */
+
+  .zone { stroke-dasharray: 5 5; stroke-width: 1.2; }
+  .zone.z-open   { fill: var(--open-zone);   stroke: var(--open); }
+  .zone.z-lan    { fill: var(--lan-zone);    stroke: var(--lan); }
+  .zone.z-closed { fill: var(--closed-zone); stroke: var(--closed); }
+  .zone.z-ext    { fill: var(--ext-zone);    stroke: var(--ext); }
+
+  .zlabel {
+    font-size: 10.5px; letter-spacing: .14em; font-weight: 650;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  .zlabel.open{fill:var(--open);} .zlabel.lan{fill:var(--lan);}
+  .zlabel.closed{fill:var(--closed);} .zlabel.ext{fill:var(--ext);}
+
+  .box { fill: var(--panel); stroke: var(--rule); stroke-width: 1; }
+  .box.dashed { stroke-dasharray: 4 3; }
+  .bar.open{fill:var(--open);} .bar.lan{fill:var(--lan);}
+  .bar.loop{fill:var(--loop);} .bar.closed{fill:var(--closed);}
+  .bar.ext{fill:var(--ext);}
+
+  .nt { fill: var(--ink); font-size: 13px; font-weight: 620; }
+  .ns { fill: var(--ink-3); font-size: 10.5px; }
+  .np {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12.5px; font-weight: 700;
+  }
+  .np.open{fill:var(--open);} .np.lan{fill:var(--lan);}
+  .np.loop{fill:var(--loop);} .np.closed{fill:var(--closed);}
+  .np.ext{fill:var(--ext);}
+
+  .nu {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 11px; fill: var(--ink-2);
+  }
+
+  .link { fill: none; stroke: var(--ink-3); stroke-width: 1.3; }
+  .link.open { stroke: var(--open); stroke-width: 1.6; }
+  .link.lan  { stroke: var(--lan); }
+  .link.alt  { stroke: var(--ext); stroke-dasharray: 6 4; }
+  .bus { fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
+  .bus.open { stroke: var(--open); }
+
+  .lbl {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 10.5px; fill: var(--ink-3);
+  }
+  .lbl.open { fill: var(--open); }
+  .lbl.alt { fill: var(--ext); }
+  .lbl.em { fill: var(--ink-2); font-weight: 600; }
+
+  /* --- footer --- */
+
+  .notes {
+    border-top: 1px solid var(--rule); padding-top: 20px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 22px;
+  }
+
+  .note-title {
+    font-size: 11.5px; font-weight: 640; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 7px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  .notes ul { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 6px; }
+  .notes li { font-size: 13px; color: var(--ink-2); }
+
+  .notes code {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12.5px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; color: var(--ink);
+  }
+
+  /* --- print / PDF --- */
+
+  @page { size: A4 landscape; margin: 12mm; }
+
+  @media print {
+    :root, :root[data-theme="dark"], :root[data-theme="light"] {
+      --ground:#ffffff; --panel:#ffffff; --panel-2:#eef1f0; --zone-fill:#fbfcfb;
+      --ink:#131a19; --ink-2:#46534f; --ink-3:#6f7d78;
+      --rule:#d8dedb; --rule-soft:#e6eae8; --accent:#0d6b60;
+      --open:#b1560b; --open-soft:#fbeddc; --open-zone:#fdf7ef;
+      --lan:#0d6b60;  --lan-soft:#dcecea;  --lan-zone:#f2f8f7;
+      --loop:#4a5a75; --loop-soft:#e3e8f1; --loop-zone:#f4f6fa;
+      --closed:#5c6a63; --closed-soft:#e8ebe9; --closed-zone:#f5f7f6;
+      --ext:#6f4fa6; --ext-soft:#efe8f8; --ext-zone:#faf7fd;
+      --shadow: none;
+    }
+
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body { background: #fff; }
+    .wrap { max-width: none; padding: 0; gap: 18px; }
+    .canvas { overflow: visible; padding: 0; border: 0; box-shadow: none; }
+    figcaption { gap: 2px; }
+    .fig-desc { font-size: 11.5px; max-width: none; }
+    .fig-title { font-size: 14px; }
+
+    /* Each figure is scaled to land on a single landscape page. */
+    svg.diagram { min-width: 0; display: block; margin: 0 auto; }
+    figure:nth-of-type(1) svg.diagram { width: 88%; }
+    figure:nth-of-type(2) svg.diagram { width: 75%; }
+    figure:nth-of-type(3) svg.diagram { width: 78%; }
+
+    figure, .notes, .notes > div { break-inside: avoid; }
+    figure { break-after: page; }
+    figure:last-of-type { break-after: auto; }
+    .masthead { break-after: avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Lesotho NEC &middot; network topology</div>
+    <h1>Trust boundaries, traffic paths and listening ports</h1>
+    <p class="standfirst">
+      Three views of the same deployment. The first follows traffic inward from the public internet to
+      the ports the gateway publishes; the second follows it between components once inside; the third
+      shows where each component system can point &mdash; the NEC-hosted instance or a partner-hosted one
+      at another IP. Every link is labelled with the port it actually uses.
+    </p>
+    <div class="legend">
+      <span class="key"><span class="dot open"></span>Public internet</span>
+      <span class="key"><span class="dot lan"></span>Internal network / gateway</span>
+      <span class="key"><span class="dot loop"></span>Host loopback only</span>
+      <span class="key"><span class="dot closed"></span>Container network only</span>
+      <span class="key"><span class="dot ext"></span>Partner-hosted, another IP</span>
+    </div>
+  </header>
+
+  <figure>
+    <figcaption>
+      <span class="fig-no">Figure 1 &middot; north-south</span>
+      <p class="fig-title">Ingress path &mdash; internet to published service ports</p>
+      <p class="fig-desc">
+        Three ports face the internet. The gateway terminates TLS and forwards to the loopback address
+        of each service, so no application port is ever exposed at the firewall.
+      </p>
+    </figcaption>
+
+    <div class="canvas">
+      <svg class="diagram" viewBox="0 0 1200 760" role="img"
+           aria-label="Ingress diagram: citizens, VHW handsets and operators reach the NEC host on ports 443, 80 and 22; nginx forwards to eleven internal service ports.">
+        <defs>
+          <marker id="d1-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"></path>
+          </marker>
+          <marker id="d1-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--open)"></path>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect class="zone z-open" x="20" y="16" width="1160" height="170" rx="8"></rect>
+        <text class="zlabel open" x="36" y="36">UNTRUSTED &mdash; PUBLIC INTERNET</text>
+
+        <rect class="zone z-open" x="20" y="200" width="1160" height="120" rx="8"></rect>
+        <text class="zlabel open" x="36" y="220">EDGE &mdash; API GATEWAY / FIREWALL ON THE NEC HOST</text>
+
+        <rect class="zone z-lan" x="20" y="420" width="1160" height="320" rx="8"></rect>
+        <text class="zlabel lan" x="36" y="442">INTERNAL &mdash; PUBLISHED SERVICE PORTS (LOOPBACK BEHIND THE GATEWAY)</text>
+
+        <!-- internet actors -->
+        <g>
+          <rect class="box" x="110" y="52" width="280" height="64" rx="6"></rect>
+          <rect class="bar open" x="110" y="52" width="3.5" height="64" rx="2"></rect>
+          <text class="nt" x="128" y="79">Citizens &amp; partners</text>
+          <text class="ns" x="128" y="97">Browser &mdash; public web interface</text>
+        </g>
+        <g>
+          <rect class="box" x="460" y="52" width="280" height="64" rx="6"></rect>
+          <rect class="bar open" x="460" y="52" width="3.5" height="64" rx="2"></rect>
+          <text class="nt" x="478" y="79">VHW handsets</text>
+          <text class="ns" x="478" y="97">NEC Android app &mdash; FHIR sync</text>
+        </g>
+        <g>
+          <rect class="box" x="810" y="52" width="280" height="64" rx="6"></rect>
+          <rect class="bar open" x="810" y="52" width="3.5" height="64" rx="2"></rect>
+          <text class="nt" x="828" y="79">Operators</text>
+          <text class="ns" x="828" y="97">Deploy and maintenance over SSH</text>
+        </g>
+
+        <!-- drops to collector -->
+        <path class="link open" d="M250,116 L250,168"></path>
+        <text class="lbl open" x="258" y="146">:443 &middot; :80</text>
+        <path class="link open" d="M600,116 L600,168"></path>
+        <text class="lbl open" x="608" y="146">:443</text>
+        <path class="link open" d="M950,116 L950,168"></path>
+        <text class="lbl open" x="958" y="146">:22</text>
+        <path class="bus open" d="M250,168 L950,168"></path>
+        <path class="link open" d="M450,168 L450,236" marker-end="url(#d1-o)"></path>
+
+        <!-- edge -->
+        <g>
+          <rect class="box" x="330" y="236" width="240" height="68" rx="6"></rect>
+          <rect class="bar open" x="330" y="236" width="3.5" height="68" rx="2"></rect>
+          <text class="nt" x="348" y="262">ufw firewall</text>
+          <text class="ns" x="348" y="280">Inbound allow-list &middot; fail2ban on SSH</text>
+          <text class="np open" x="348" y="297">:22 &nbsp;:80 &nbsp;:443</text>
+        </g>
+        <g>
+          <rect class="box" x="680" y="236" width="280" height="68" rx="6"></rect>
+          <rect class="bar open" x="680" y="236" width="3.5" height="68" rx="2"></rect>
+          <text class="nt" x="698" y="262">nginx reverse proxy</text>
+          <text class="ns" x="698" y="280">TLS termination &middot; certbot renewal</text>
+          <text class="np open" x="698" y="297">:443 &nbsp;:80 &rarr; redirect</text>
+        </g>
+        <path class="link open" d="M570,270 L680,270" marker-end="url(#d1-o)"></path>
+        <text class="lbl open" x="588" y="262">allowed</text>
+        <text class="lbl" x="348" y="330">:22 terminates at the host sshd &mdash; it never reaches nginx</text>
+
+        <!-- gateway to bus -->
+        <path class="link open" d="M820,304 L820,462"></path>
+        <text class="lbl em" x="832" y="392">proxied to 127.0.0.1 upstreams</text>
+        <path class="bus" d="M135,462 L1065,462"></path>
+
+        <!-- row 1 drops -->
+        <path class="link" d="M135,462 L135,500" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M321,462 L321,500" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M507,462 L507,500" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M693,462 L693,500" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M879,462 L879,500" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M1065,462 L1065,500" marker-end="url(#d1-a)"></path>
+        <!-- row 2 drops, threaded through the gaps in row 1 -->
+        <path class="link" d="M228,462 L228,632" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M414,462 L414,632" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M600,462 L600,632" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M786,462 L786,632" marker-end="url(#d1-a)"></path>
+        <path class="link" d="M972,462 L972,632" marker-end="url(#d1-a)"></path>
+
+        <!-- row 1 nodes -->
+        <g>
+          <rect class="box" x="51" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="51" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="66" y="526">NEC web</text>
+          <text class="ns" x="66" y="544">Public interface</text>
+          <text class="np lan" x="66" y="566">:9902</text>
+        </g>
+        <g>
+          <rect class="box" x="237" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="237" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="252" y="526">Keycloak</text>
+          <text class="ns" x="252" y="544">Identity provider</text>
+          <text class="np lan" x="252" y="566">:8083</text>
+        </g>
+        <g>
+          <rect class="box" x="423" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="423" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="438" y="526">OpenHIM</text>
+          <text class="ns" x="438" y="544">Transaction entry</text>
+          <text class="np lan" x="438" y="566">:5001</text>
+        </g>
+        <g>
+          <rect class="box" x="609" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="609" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="624" y="526">FHIR proxy</text>
+          <text class="ns" x="624" y="544">HAPI R4 sync</text>
+          <text class="np lan" x="624" y="566">:8079</text>
+        </g>
+        <g>
+          <rect class="box" x="795" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="795" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="810" y="526">OpenSRP web</text>
+          <text class="ns" x="810" y="544">Community health</text>
+          <text class="np lan" x="810" y="566">:9901</text>
+        </g>
+        <g>
+          <rect class="box" x="981" y="500" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="981" y="500" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="996" y="526">DHIS2</text>
+          <text class="ns" x="996" y="544">Health reporting</text>
+          <text class="np lan" x="996" y="566">:8081</text>
+        </g>
+
+        <!-- row 2 nodes -->
+        <g>
+          <rect class="box" x="144" y="632" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="144" y="632" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="159" y="658">OpenLMIS</text>
+          <text class="ns" x="159" y="676">Logistics / eLMIS</text>
+          <text class="np lan" x="159" y="698">:8082</text>
+        </g>
+        <g>
+          <rect class="box" x="330" y="632" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="330" y="632" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="345" y="658">OpenHIM console</text>
+          <text class="ns" x="345" y="676">Transaction monitor</text>
+          <text class="np lan" x="345" y="698">:9285</text>
+        </g>
+        <g>
+          <rect class="box" x="516" y="632" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="516" y="632" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="531" y="658">Grafana</text>
+          <text class="ns" x="531" y="676">Dashboards</text>
+          <text class="np lan" x="531" y="698">:3005</text>
+        </g>
+        <g>
+          <rect class="box" x="702" y="632" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="702" y="632" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="717" y="658">Prometheus</text>
+          <text class="ns" x="717" y="676">Metrics &middot; basic auth</text>
+          <text class="np lan" x="717" y="698">:9290</text>
+        </g>
+        <g>
+          <rect class="box" x="888" y="632" width="168" height="80" rx="6"></rect>
+          <rect class="bar lan" x="888" y="632" width="3.5" height="80" rx="2"></rect>
+          <text class="nt" x="903" y="658">MailHog</text>
+          <text class="ns" x="903" y="676">Captured mail</text>
+          <text class="np lan" x="903" y="698">:8025</text>
+        </g>
+      </svg>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="fig-no">Figure 2 &middot; east-west</span>
+      <p class="fig-title">Internal path &mdash; orchestration, component systems and data tier</p>
+      <p class="fig-desc">
+        Once inside, traffic is container-to-container on the Docker networks. Ports shown on each link
+        are the ones the connection actually dials; where a service is also published on the host, the
+        host port is noted beneath its name.
+      </p>
+    </figcaption>
+
+    <div class="canvas">
+      <svg class="diagram" viewBox="0 0 1200 890" role="img"
+           aria-label="Internal traffic diagram: OpenHIM 5001 to mediator 3000, fanning out to HAPI FHIR, DHIS2, OpenLMIS, the notification sink and OpenSRP server, then down to PostgreSQL, MongoDB and Redis, with a separate observability chain.">
+        <defs>
+          <marker id="d2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"></path>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect class="zone z-lan" x="20" y="16" width="1160" height="468" rx="8"></rect>
+        <text class="zlabel lan" x="36" y="36">NEC MIDDLEWARE &mdash; health-net / lmis-net CONTAINER NETWORKS</text>
+
+        <rect class="zone z-closed" x="20" y="548" width="1160" height="120" rx="8"></rect>
+        <text class="zlabel closed" x="36" y="568">DATA TIER &mdash; NO HOST BINDING, NO ROUTE FROM OUTSIDE</text>
+
+        <rect class="zone z-closed" x="20" y="690" width="1160" height="176" rx="8"></rect>
+        <text class="zlabel closed" x="36" y="710">OBSERVABILITY &mdash; SCRAPE AND LOG PIPELINE</text>
+
+        <!-- ingress handoff -->
+        <g>
+          <rect class="box" x="480" y="24" width="240" height="64" rx="6"></rect>
+          <rect class="bar lan" x="480" y="24" width="3.5" height="64" rx="2"></rect>
+          <text class="nt" x="498" y="50">OpenHIM core</text>
+          <text class="ns" x="498" y="68">From the gateway on :5001</text>
+        </g>
+
+        <path class="link" d="M600,88 L600,140" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="612" y="118">:3000</text>
+
+        <!-- mediator -->
+        <g>
+          <rect class="box" x="430" y="140" width="340" height="76" rx="6"></rect>
+          <rect class="bar loop" x="430" y="140" width="3.5" height="76" rx="2"></rect>
+          <text class="nt" x="448" y="168">NEC middleware</text>
+          <text class="ns" x="448" y="186">Fan-out orchestration &middot; notifications</text>
+          <text class="np loop" x="448" y="207">:3000 &mdash; loopback only</text>
+        </g>
+
+        <!-- mediator fan-out bus -->
+        <path class="link" d="M600,216 L600,246"></path>
+        <path class="bus" d="M160,246 L1040,246"></path>
+        <path class="link" d="M160,246 L160,286" marker-end="url(#d2-a)"></path>
+        <path class="link" d="M380,246 L380,286" marker-end="url(#d2-a)"></path>
+        <path class="link" d="M600,246 L600,286" marker-end="url(#d2-a)"></path>
+        <path class="link" d="M820,246 L820,286" marker-end="url(#d2-a)"></path>
+        <path class="link" d="M1040,246 L1040,286" marker-end="url(#d2-a)"></path>
+        <text class="lbl em" x="616" y="240">fan-out &mdash; parallel; each target's endpoint is configurable (Figure 3)</text>
+
+        <!-- component systems -->
+        <g>
+          <rect class="box" x="60" y="286" width="200" height="84" rx="6"></rect>
+          <rect class="bar closed" x="60" y="286" width="3.5" height="84" rx="2"></rect>
+          <text class="nt" x="76" y="312">HAPI FHIR</text>
+          <text class="ns" x="76" y="330">Clinical record store</text>
+          <text class="np closed" x="76" y="352">:8080</text>
+          <text class="ns" x="126" y="352">host :8079 / :18079</text>
+        </g>
+        <g>
+          <rect class="box" x="280" y="286" width="200" height="84" rx="6"></rect>
+          <rect class="bar closed" x="280" y="286" width="3.5" height="84" rx="2"></rect>
+          <text class="nt" x="296" y="312">DHIS2</text>
+          <text class="ns" x="296" y="330">Aggregate reporting</text>
+          <text class="np closed" x="296" y="352">:8080</text>
+          <text class="ns" x="346" y="352">host :8081</text>
+        </g>
+        <g>
+          <rect class="box" x="500" y="286" width="200" height="84" rx="6"></rect>
+          <rect class="bar closed" x="500" y="286" width="3.5" height="84" rx="2"></rect>
+          <text class="nt" x="516" y="312">OpenLMIS</text>
+          <text class="ns" x="516" y="330">Stock, orders, requisitions</text>
+          <text class="np closed" x="516" y="352">:80</text>
+          <text class="ns" x="552" y="352">host :8082 &middot; lmis-net</text>
+        </g>
+        <g>
+          <rect class="box" x="720" y="286" width="200" height="84" rx="6"></rect>
+          <rect class="bar closed" x="720" y="286" width="3.5" height="84" rx="2"></rect>
+          <text class="nt" x="736" y="312">Notification sink</text>
+          <text class="ns" x="736" y="330">SMS &middot; push &middot; email</text>
+          <text class="np closed" x="736" y="352">:3001</text>
+          <text class="ns" x="786" y="352">host :8086</text>
+        </g>
+        <g>
+          <rect class="box" x="940" y="286" width="200" height="84" rx="6"></rect>
+          <rect class="bar closed" x="940" y="286" width="3.5" height="84" rx="2"></rect>
+          <text class="nt" x="956" y="312">OpenSRP server</text>
+          <text class="ns" x="956" y="330">Legacy REST API</text>
+          <text class="np closed" x="956" y="352">:8080</text>
+          <text class="ns" x="1006" y="352">host :9900</text>
+        </g>
+
+        <!-- sink to mailhog -->
+        <path class="link" d="M820,370 L820,400" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="832" y="392">:1025</text>
+        <g>
+          <rect class="box" x="710" y="400" width="220" height="64" rx="6"></rect>
+          <rect class="bar closed" x="710" y="400" width="3.5" height="64" rx="2"></rect>
+          <text class="nt" x="726" y="426">MailHog SMTP</text>
+          <text class="ns" x="726" y="444">Mail capture &middot; UI on host :8025</text>
+        </g>
+
+        <!-- database bus -->
+        <path class="link" d="M160,370 L160,510"></path>
+        <path class="link" d="M380,370 L380,510"></path>
+        <path class="link" d="M600,370 L600,510"></path>
+        <path class="link" d="M1000,370 L1000,510"></path>
+        <path class="bus" d="M160,510 L1000,510"></path>
+        <path class="link" d="M600,510 L600,570" marker-end="url(#d2-a)"></path>
+        <text class="lbl em" x="612" y="540">:5432 &mdash; one instance, one schema per service</text>
+
+        <!-- openhim to mongo, routed clear of the systems row -->
+        <path class="link" d="M480,56 L40,56 L40,545 L160,545 L160,570" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="50" y="466">:27017</text>
+
+        <!-- opensrp to redis -->
+        <path class="link" d="M1080,370 L1080,570" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="1092" y="470">:6379</text>
+
+        <!-- data tier -->
+        <g>
+          <rect class="box" x="50" y="570" width="220" height="76" rx="6"></rect>
+          <rect class="bar closed" x="50" y="570" width="3.5" height="76" rx="2"></rect>
+          <text class="nt" x="66" y="598">MongoDB</text>
+          <text class="ns" x="66" y="616">OpenHIM transactions &amp; config</text>
+          <text class="np closed" x="66" y="637">:27017</text>
+        </g>
+        <g>
+          <rect class="box" x="490" y="570" width="220" height="76" rx="6"></rect>
+          <rect class="bar closed" x="490" y="570" width="3.5" height="76" rx="2"></rect>
+          <text class="nt" x="506" y="598">PostgreSQL</text>
+          <text class="ns" x="506" y="616">FHIR, DHIS2, Keycloak, LMIS</text>
+          <text class="np closed" x="506" y="637">:5432</text>
+        </g>
+        <g>
+          <rect class="box" x="930" y="570" width="220" height="76" rx="6"></rect>
+          <rect class="bar closed" x="930" y="570" width="3.5" height="76" rx="2"></rect>
+          <text class="nt" x="946" y="598">Redis</text>
+          <text class="ns" x="946" y="616">OpenSRP cache &amp; write queue</text>
+          <text class="np closed" x="946" y="637">:6379</text>
+        </g>
+
+        <!-- observability -->
+        <g>
+          <rect class="box" x="50" y="730" width="150" height="56" rx="6"></rect>
+          <rect class="bar closed" x="50" y="730" width="3.5" height="56" rx="2"></rect>
+          <text class="nt" x="66" y="754">promtail</text>
+          <text class="ns" x="66" y="772">Container logs</text>
+        </g>
+        <path class="link" d="M200,758 L260,758" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="206" y="750">:3100</text>
+        <g>
+          <rect class="box" x="260" y="730" width="150" height="56" rx="6"></rect>
+          <rect class="bar loop" x="260" y="730" width="3.5" height="56" rx="2"></rect>
+          <text class="nt" x="276" y="754">Loki</text>
+          <text class="ns" x="276" y="772">host :3100 loopback</text>
+        </g>
+
+        <g>
+          <rect class="box" x="470" y="700" width="190" height="50" rx="6"></rect>
+          <rect class="bar closed" x="470" y="700" width="3.5" height="50" rx="2"></rect>
+          <text class="nt" x="486" y="722">cAdvisor</text>
+          <text class="ns" x="486" y="739">Container metrics &middot; :8080</text>
+        </g>
+        <g>
+          <rect class="box" x="470" y="772" width="190" height="50" rx="6"></rect>
+          <rect class="bar closed" x="470" y="772" width="3.5" height="50" rx="2"></rect>
+          <text class="nt" x="486" y="794">postgres-exporter</text>
+          <text class="ns" x="486" y="811">Database metrics &middot; :9187</text>
+        </g>
+        <path class="link" d="M660,725 L690,725 L690,758 L720,758" marker-end="url(#d2-a)"></path>
+        <path class="link" d="M660,797 L690,797 L690,758 L720,758" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="664" y="716">scraped</text>
+
+        <g>
+          <rect class="box" x="720" y="730" width="170" height="56" rx="6"></rect>
+          <rect class="bar lan" x="720" y="730" width="3.5" height="56" rx="2"></rect>
+          <text class="nt" x="736" y="754">Prometheus</text>
+          <text class="ns" x="736" y="772">:9090 &middot; host :9290</text>
+        </g>
+        <path class="link" d="M890,758 L950,758" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="896" y="750">:9090</text>
+        <g>
+          <rect class="box" x="950" y="730" width="170" height="56" rx="6"></rect>
+          <rect class="bar lan" x="950" y="730" width="3.5" height="56" rx="2"></rect>
+          <text class="nt" x="966" y="754">Grafana</text>
+          <text class="ns" x="966" y="772">:3000 &middot; host :3005</text>
+        </g>
+        <path class="link" d="M335,786 L335,842 L1035,842 L1035,786" marker-end="url(#d2-a)"></path>
+        <text class="lbl" x="676" y="836">:3100</text>
+      </svg>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="fig-no">Figure 3 &middot; upstream selection</span>
+      <p class="fig-title">Ours or theirs &mdash; each component system points at one endpoint</p>
+      <p class="fig-desc">
+        The middleware reaches every component system through a single configured base URL, so each one
+        can point either at the NEC-hosted instance in this stack or at a partner-hosted instance on
+        another IP. The choice is made per system, not for the stack as a whole &mdash; the LMIS can be
+        theirs while DHIS2 and OpenSRP stay ours.
+      </p>
+    </figcaption>
+
+    <div class="canvas">
+      <svg class="diagram" viewBox="0 0 1200 860" role="img"
+           aria-label="Upstream selection diagram: for LMIS, DHIS2, OpenSRP and FHIR, the NEC middleware points either at the in-stack instance or at a partner-hosted instance on another IP.">
+        <defs>
+          <marker id="d3-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"></path>
+          </marker>
+          <marker id="d3-l" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--lan)"></path>
+          </marker>
+          <marker id="d3-e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ext)"></path>
+          </marker>
+        </defs>
+
+        <text class="zlabel lan" x="40" y="46">SOLID &mdash; NEC-HOSTED, INSIDE THIS STACK</text>
+        <text class="zlabel ext" x="40" y="70">DASHED &mdash; PARTNER-HOSTED, ANOTHER IP</text>
+
+        <!-- middleware -->
+        <g>
+          <rect class="box" x="40" y="408" width="230" height="96" rx="6"></rect>
+          <rect class="bar loop" x="40" y="408" width="3.5" height="96" rx="2"></rect>
+          <text class="nt" x="58" y="436">NEC middleware</text>
+          <text class="ns" x="58" y="454">One base URL per system,</text>
+          <text class="ns" x="58" y="470">set by environment variable</text>
+          <text class="np loop" x="58" y="492">:3000</text>
+        </g>
+        <path class="link" d="M270,456 L300,456"></path>
+        <path class="bus" d="M300,186 L300,726"></path>
+        <path class="link" d="M300,186 L330,186" marker-end="url(#d3-a)"></path>
+        <path class="link" d="M300,366 L330,366" marker-end="url(#d3-a)"></path>
+        <path class="link" d="M300,546 L330,546" marker-end="url(#d3-a)"></path>
+        <path class="link" d="M300,726 L330,726" marker-end="url(#d3-a)"></path>
+
+        <!-- ROW 1 — LMIS -->
+        <g>
+          <rect class="box" x="330" y="151" width="250" height="70" rx="6"></rect>
+          <text class="nt" x="346" y="177">Logistics / LMIS</text>
+          <text class="nu" x="346" y="196">OPENLMIS_AUTH_URL</text>
+          <text class="nu" x="346" y="212">_MGMT_URL &middot; _REF_URL</text>
+        </g>
+        <path class="link lan" d="M580,186 L620,186 L620,145 L660,145" marker-end="url(#d3-l)"></path>
+        <path class="link alt" d="M580,186 L620,186 L620,227 L660,227" marker-end="url(#d3-e)"></path>
+        <g>
+          <rect class="box" x="660" y="110" width="250" height="70" rx="6"></rect>
+          <rect class="bar lan" x="660" y="110" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="135">NEC OpenLMIS &mdash; in stack</text>
+          <text class="nu" x="676" y="155">http://auth &middot; stockmanagement</text>
+          <text class="ns" x="676" y="171">container :8080 &middot; host :8082 &middot; lmis-net</text>
+        </g>
+        <g>
+          <rect class="box dashed" x="660" y="192" width="250" height="70" rx="6"></rect>
+          <rect class="bar ext" x="660" y="192" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="217">National eLMIS &mdash; partner</text>
+          <text class="nu" x="676" y="237">http://&lt;their-ip&gt;:8082</text>
+          <text class="ns" x="676" y="253">or :443 where TLS-fronted</text>
+        </g>
+
+        <!-- ROW 2 — DHIS2 -->
+        <g>
+          <rect class="box" x="330" y="331" width="250" height="70" rx="6"></rect>
+          <text class="nt" x="346" y="357">Health reporting</text>
+          <text class="nu" x="346" y="376">DHIS2_URL</text>
+          <text class="ns" x="346" y="392">Aggregate push target</text>
+        </g>
+        <path class="link lan" d="M580,366 L620,366 L620,325 L660,325" marker-end="url(#d3-l)"></path>
+        <path class="link alt" d="M580,366 L620,366 L620,407 L660,407" marker-end="url(#d3-e)"></path>
+        <g>
+          <rect class="box" x="660" y="290" width="250" height="70" rx="6"></rect>
+          <rect class="bar lan" x="660" y="290" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="315">NEC DHIS2 &mdash; in stack</text>
+          <text class="nu" x="676" y="335">http://dhis2-web:8080</text>
+          <text class="ns" x="676" y="351">UI on host :8081</text>
+        </g>
+        <g>
+          <rect class="box dashed" x="660" y="372" width="250" height="70" rx="6"></rect>
+          <rect class="bar ext" x="660" y="372" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="397">National DHIS2 &mdash; partner</text>
+          <text class="nu" x="676" y="417">https://&lt;their-host&gt;:443</text>
+          <text class="ns" x="676" y="433">or :8080 direct on their IP</text>
+        </g>
+
+        <!-- ROW 3 — OpenSRP -->
+        <g>
+          <rect class="box" x="330" y="511" width="250" height="70" rx="6"></rect>
+          <text class="nt" x="346" y="537">Community health</text>
+          <text class="nu" x="346" y="556">OPENSRP_URL</text>
+          <text class="ns" x="346" y="572">Client and event sync</text>
+        </g>
+        <path class="link lan" d="M580,546 L620,546 L620,505 L660,505" marker-end="url(#d3-l)"></path>
+        <path class="link alt" d="M580,546 L620,546 L620,587 L660,587" marker-end="url(#d3-e)"></path>
+        <g>
+          <rect class="box" x="660" y="470" width="250" height="70" rx="6"></rect>
+          <rect class="bar lan" x="660" y="470" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="495">NEC OpenSRP &mdash; in stack</text>
+          <text class="nu" x="676" y="515">http://opensrp-server:8080</text>
+          <text class="ns" x="676" y="531">host :9900 &middot; web console on :9901</text>
+        </g>
+        <g>
+          <rect class="box dashed" x="660" y="552" width="250" height="70" rx="6"></rect>
+          <rect class="bar ext" x="660" y="552" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="577">Partner OpenSRP</text>
+          <text class="nu" x="676" y="597">https://&lt;their-host&gt;:443</text>
+          <text class="ns" x="676" y="613">national community-health instance</text>
+        </g>
+
+        <!-- ROW 4 — FHIR -->
+        <g>
+          <rect class="box" x="330" y="691" width="250" height="70" rx="6"></rect>
+          <text class="nt" x="346" y="717">Clinical records</text>
+          <text class="nu" x="346" y="736">HAPI_FHIR_URL</text>
+          <text class="ns" x="346" y="752">Store the field app syncs against</text>
+        </g>
+        <path class="link lan" d="M580,726 L620,726 L620,685 L660,685" marker-end="url(#d3-l)"></path>
+        <path class="link alt" d="M580,726 L620,726 L620,767 L660,767" marker-end="url(#d3-e)"></path>
+        <g>
+          <rect class="box" x="660" y="650" width="250" height="70" rx="6"></rect>
+          <rect class="bar lan" x="660" y="650" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="675">NEC HAPI FHIR &mdash; in stack</text>
+          <text class="nu" x="676" y="695">http://hapi-fhir:8080/fhir</text>
+          <text class="ns" x="676" y="711">host :8079 proxy &middot; :18079 direct</text>
+        </g>
+        <g>
+          <rect class="box dashed" x="660" y="732" width="250" height="70" rx="6"></rect>
+          <rect class="bar ext" x="660" y="732" width="3.5" height="70" rx="2"></rect>
+          <text class="nt" x="676" y="757">Partner FHIR server</text>
+          <text class="nu" x="676" y="777">https://&lt;their-host&gt;:443/fhir</text>
+          <text class="ns" x="676" y="793">external clinical record store</text>
+        </g>
+
+        <text class="lbl em" x="40" y="838">Partner endpoints are outbound calls from the middleware &mdash; they need egress to that IP and port, not an inbound firewall rule.</text>
+      </svg>
+    </div>
+  </figure>
+
+  <div class="notes">
+    <div>
+      <div class="note-title">Reading the diagrams</div>
+      <ul>
+        <li>Dashed outlines are trust boundaries, not subnets &mdash; everything below the edge runs on one host.</li>
+        <li>A port on a node is what that service listens on; a port on a link is what the caller dials.</li>
+        <li>Ports written as <code>host :8081</code> are the host publication of a container port.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="note-title">Deployment variants</div>
+      <ul>
+        <li>Domain server: only 22, 80 and 443 open; Figure 1's service ports stay on loopback.</li>
+        <li>IP-only server with no domain: those eleven service ports are opened directly with <code>ufw allow</code> and served over plain HTTP.</li>
+        <li>Sandbox on a laptop: same bindings, no firewall in front.</li>
+        <li>Mixed hosting: any component system can be repointed at another IP without touching the rest of the stack.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="note-title">Pointing a system elsewhere</div>
+      <ul>
+        <li>Set the system's base URL on the middleware &mdash; <code>OPENLMIS_AUTH_URL</code>, <code>OPENLMIS_MGMT_URL</code>, <code>OPENLMIS_REF_URL</code>, <code>DHIS2_URL</code>, <code>OPENSRP_URL</code> or <code>HAPI_FHIR_URL</code>.</li>
+        <li>The repo default points all six at the in-stack instances; using a partner system is a per-deployment override, not a code change.</li>
+        <li>The in-stack containers can then be left out of the compose file, freeing their host ports.</li>
+        <li>Credentials follow the endpoint &mdash; a partner system needs its own client and token settings.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="note-title">Source of truth</div>
+      <ul>
+        <li><code>docker-compose.yml</code> &mdash; bindings and container ports</li>
+        <li><code>deploy/nginx/</code> &mdash; gateway routing</li>
+        <li><code>deploy/setup-server.sh</code> &mdash; firewall allow-list</li>
+        <li><code>config/prometheus/</code> &mdash; scrape targets</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

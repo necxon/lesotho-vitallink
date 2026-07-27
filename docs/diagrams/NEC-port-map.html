@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<title>NEC — Component Systems &amp; Port Map</title>
+
+<style>
+  :root {
+    --ground:      #f6f7f6;
+    --panel:       #ffffff;
+    --panel-2:     #eef1f0;
+    --ink:         #131a19;
+    --ink-2:       #46534f;
+    --ink-3:       #6f7d78;
+    --rule:        #d8dedb;
+    --rule-soft:   #e6eae8;
+    --accent:      #0d6b60;
+    --accent-soft: #e2efec;
+
+    --open:        #b1560b;
+    --open-soft:   #fbeddc;
+    --lan:         #0d6b60;
+    --lan-soft:    #dcecea;
+    --loop:        #4a5a75;
+    --loop-soft:   #e3e8f1;
+    --closed:      #5c6a63;
+    --closed-soft: #e8ebe9;
+    --ext:         #6f4fa6;
+    --ext-soft:    #efe8f8;
+
+    --shadow: 0 1px 2px rgba(19,26,25,.06), 0 8px 24px -16px rgba(19,26,25,.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0e1413;
+      --panel:       #151d1c;
+      --panel-2:     #1c2625;
+      --ink:         #e6ecea;
+      --ink-2:       #a9b8b3;
+      --ink-3:       #7e8d88;
+      --rule:        #2a3634;
+      --rule-soft:   #212c2b;
+      --accent:      #5fc9b8;
+      --accent-soft: #16302c;
+
+      --open:        #e79a4a;
+      --open-soft:   #33240f;
+      --lan:         #5fc9b8;
+      --lan-soft:    #12302c;
+      --loop:        #9fb2d1;
+      --loop-soft:   #1b2434;
+      --closed:      #93a49d;
+      --closed-soft: #1e2725;
+      --ext:         #b9a3e8;
+      --ext-soft:    #241c33;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground:#f6f7f6; --panel:#ffffff; --panel-2:#eef1f0;
+    --ink:#131a19; --ink-2:#46534f; --ink-3:#6f7d78;
+    --rule:#d8dedb; --rule-soft:#e6eae8;
+    --accent:#0d6b60; --accent-soft:#e2efec;
+    --open:#b1560b; --open-soft:#fbeddc;
+    --lan:#0d6b60; --lan-soft:#dcecea;
+    --loop:#4a5a75; --loop-soft:#e3e8f1;
+    --closed:#5c6a63; --closed-soft:#e8ebe9;
+    --ext:#6f4fa6; --ext-soft:#efe8f8;
+    --shadow: 0 1px 2px rgba(19,26,25,.06), 0 8px 24px -16px rgba(19,26,25,.25);
+  }
+
+  :root[data-theme="dark"] {
+    --ground:#0e1413; --panel:#151d1c; --panel-2:#1c2625;
+    --ink:#e6ecea; --ink-2:#a9b8b3; --ink-3:#7e8d88;
+    --rule:#2a3634; --rule-soft:#212c2b;
+    --accent:#5fc9b8; --accent-soft:#16302c;
+    --open:#e79a4a; --open-soft:#33240f;
+    --lan:#5fc9b8; --lan-soft:#12302c;
+    --loop:#9fb2d1; --loop-soft:#1b2434;
+    --closed:#93a49d; --closed-soft:#1e2725;
+    --ext:#b9a3e8; --ext-soft:#241c33;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .mono {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 10px; }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(26px, 3.6vw, 38px);
+    line-height: 1.12;
+    letter-spacing: -.018em;
+    font-weight: 640;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 66ch;
+    color: var(--ink-2);
+    font-size: 15.5px;
+  }
+
+  /* ---------- legend ---------- */
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding-top: 6px;
+  }
+
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px 5px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: var(--panel);
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.open   { background: var(--open); }
+  .dot.lan    { background: var(--lan); }
+  .dot.loop   { background: var(--loop); }
+  .dot.closed { background: var(--closed); }
+  .dot.ext    { background: var(--ext); }
+
+  /* ---------- topology ---------- */
+
+  .topology { display: flex; flex-direction: column; gap: 18px; }
+
+  .zone {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .zone-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .zone-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 640;
+    letter-spacing: -.01em;
+  }
+
+  .zone-note {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  .nodes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(216px, 1fr));
+    gap: 12px;
+  }
+
+  .node {
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--edge, var(--rule));
+    border-radius: 7px;
+    background: var(--panel-2);
+    padding: 12px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .node.open   { --edge: var(--open); }
+  .node.lan    { --edge: var(--lan); }
+  .node.loop   { --edge: var(--loop); }
+  .node.closed { --edge: var(--closed); }
+  .node.ext    { --edge: var(--ext); border-style: dashed; border-left-style: solid; }
+
+  .node-name {
+    font-size: 13.5px;
+    font-weight: 620;
+    letter-spacing: -.005em;
+  }
+
+  .node-desc {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    line-height: 1.45;
+  }
+
+  .ports { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  .port {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2.5px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .port.open   { color: var(--open);   background: var(--open-soft); }
+  .port.lan    { color: var(--lan);    background: var(--lan-soft); }
+  .port.loop   { color: var(--loop);   background: var(--loop-soft); }
+  .port.closed { color: var(--closed); background: var(--closed-soft); }
+  .port.ext    { color: var(--ext);    background: var(--ext-soft); }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--ink-3);
+    font-size: 12px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    letter-spacing: .04em;
+  }
+
+  .flow::before, .flow::after {
+    content: "";
+    height: 1px;
+    flex: 1 1 auto;
+    max-width: 180px;
+    background: linear-gradient(to right, transparent, var(--rule), transparent);
+  }
+
+  /* ---------- tables ---------- */
+
+  section.block { display: flex; flex-direction: column; gap: 14px; }
+
+  h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 660;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  .lede { margin: -4px 0 0; max-width: 68ch; color: var(--ink-2); font-size: 14px; }
+
+  .scroller {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+  }
+
+  table { border-collapse: collapse; width: 100%; min-width: 640px; }
+
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 620;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel-2);
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 13.5px;
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+
+  td.num {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 620;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  td.svc { color: var(--ink); font-weight: 560; white-space: nowrap; }
+
+  td.bind {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  tr.group th {
+    text-align: left;
+    padding: 12px 14px 8px;
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 660;
+    border-bottom: 1px solid var(--rule);
+    border-top: 1px solid var(--rule);
+    background: var(--panel-2);
+  }
+
+  tr.group.open th   { color: var(--open); }
+  tr.group.lan th    { color: var(--lan); }
+  tr.group.loop th   { color: var(--loop); }
+  tr.group.closed th { color: var(--closed); }
+  tr.group.ext th    { color: var(--ext); }
+
+  tr.group:first-child th { border-top: 0; }
+
+  /* ---------- footer ---------- */
+
+  .notes {
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .note-title {
+    font-size: 12px;
+    font-weight: 640;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  .notes p, .notes li { font-size: 13px; color: var(--ink-2); margin: 0; }
+  .notes ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+  .notes code {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12.5px;
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+
+  /* --- print / PDF --- */
+
+  @page { size: A4 portrait; margin: 12mm; }
+
+  @media print {
+    :root, :root[data-theme="dark"], :root[data-theme="light"] {
+      --ground:#ffffff; --panel:#ffffff; --panel-2:#eef1f0;
+      --ink:#131a19; --ink-2:#46534f; --ink-3:#6f7d78;
+      --rule:#d8dedb; --rule-soft:#e6eae8;
+      --accent:#0d6b60; --accent-soft:#e2efec;
+      --open:#b1560b; --open-soft:#fbeddc;
+      --lan:#0d6b60; --lan-soft:#dcecea;
+      --loop:#4a5a75; --loop-soft:#e3e8f1;
+      --closed:#5c6a63; --closed-soft:#e8ebe9;
+      --ext:#6f4fa6; --ext-soft:#efe8f8;
+      --shadow: none;
+    }
+
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body { background: #fff; font-size: 13px; }
+    .wrap { max-width: none; padding: 0; gap: 26px; }
+    .scroller { overflow: visible; box-shadow: none; }
+    table { min-width: 0; }
+    tbody td { font-size: 11.5px; padding: 5px 9px; }
+    thead th { font-size: 9.5px; padding: 7px 9px; }
+    thead { display: table-header-group; }
+    tr, .zone, .node, section.block > .scroller, .notes > div { break-inside: avoid; }
+    .masthead { break-after: avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Lesotho NEC &middot; middleware &amp; component systems</div>
+    <h1>Port map: what listens where, and who can reach it</h1>
+    <p class="standfirst">
+      Every TCP port the NEC stack binds, grouped by how far it is exposed. Only three ports
+      are open to the public internet; everything else is reachable from the internal network, from
+      the host loopback, or only from inside the Docker network. Each component system can also be
+      pointed at a partner-hosted instance on another IP &mdash; those are outbound connections, listed
+      at the end.
+    </p>
+    <div class="legend">
+      <span class="key"><span class="dot open"></span>Public internet</span>
+      <span class="key"><span class="dot lan"></span>Internal network / gateway</span>
+      <span class="key"><span class="dot loop"></span>Host loopback only (127.0.0.1)</span>
+      <span class="key"><span class="dot closed"></span>Container network only</span>
+      <span class="key"><span class="dot ext"></span>Partner-hosted, another IP</span>
+    </div>
+  </header>
+
+  <div class="topology">
+
+    <div class="zone">
+      <div class="zone-head">
+        <h3 class="zone-name">Public internet</h3>
+        <span class="zone-note">Citizens, partners, VHW handsets</span>
+      </div>
+      <div class="nodes">
+        <div class="node open">
+          <div class="node-name">Citizens / partners</div>
+          <div class="node-desc">Browser traffic to the public web interface.</div>
+          <div class="ports"><span class="port open">443 HTTPS</span><span class="port open">80 &rarr; redirect</span></div>
+        </div>
+        <div class="node open">
+          <div class="node-name">NEC Android app</div>
+          <div class="node-desc">VHW handsets: FHIR sync, Keycloak login, dispense upload.</div>
+          <div class="ports"><span class="port open">443 HTTPS</span></div>
+        </div>
+        <div class="node open">
+          <div class="node-name">Admin / operators</div>
+          <div class="node-desc">SSH into the NEC host for deploy and maintenance.</div>
+          <div class="ports"><span class="port open">22 SSH</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">public access &darr;</div>
+
+    <div class="zone">
+      <div class="zone-head">
+        <h3 class="zone-name">Edge &mdash; API gateway / firewall</h3>
+        <span class="zone-note">nginx + certbot + ufw on the NEC host</span>
+      </div>
+      <div class="nodes">
+        <div class="node open">
+          <div class="node-name">nginx reverse proxy</div>
+          <div class="node-desc">TLS termination; virtual hosts fan out to the internal service ports below. Nothing else needs to be internet-facing.</div>
+          <div class="ports"><span class="port open">80</span><span class="port open">443</span></div>
+        </div>
+        <div class="node open">
+          <div class="node-name">ufw firewall</div>
+          <div class="node-desc">Hardened profile allows only SSH, HTTP and HTTPS inbound. Outbound 443 for ACME certificate renewal.</div>
+          <div class="ports"><span class="port open">22</span><span class="port open">80</span><span class="port open">443</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">proxied to internal services &darr;</div>
+
+    <div class="zone">
+      <div class="zone-head">
+        <h3 class="zone-name">Lesotho internal network &mdash; NEC middleware</h3>
+        <span class="zone-note">Bound on the host, reachable behind the gateway</span>
+      </div>
+      <div class="nodes">
+        <div class="node lan">
+          <div class="node-name">OpenHIM &mdash; interoperability layer</div>
+          <div class="node-desc">Every app transaction enters here and is routed to the mediator.</div>
+          <div class="ports"><span class="port lan">5001 client HTTP</span><span class="port loop">5000 client HTTPS</span><span class="port loop">8080 admin API</span><span class="port lan">9285 console</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">NEC mediator</div>
+          <div class="node-desc">Orchestrates data flows &mdash; fan-out to OpenSRP, LMIS and DHIS2; webhooks; notifications.</div>
+          <div class="ports"><span class="port loop">3000 mediator API</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">HAPI FHIR + fhir-proxy</div>
+          <div class="node-desc">Clinical record store the Android app syncs against.</div>
+          <div class="ports"><span class="port lan">8079 proxy</span><span class="port loop">18079 HAPI direct</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">Keycloak</div>
+          <div class="node-desc">Identity provider for app, web and admin logins.</div>
+          <div class="ports"><span class="port lan">8083</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">OpenSRP &mdash; community health</div>
+          <div class="node-desc">Web console plus the legacy OpenSRP server API.</div>
+          <div class="ports"><span class="port lan">9901 web</span><span class="port loop">9900 server</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">LMIS &mdash; logistics</div>
+          <div class="node-desc">OpenLMIS / eLMIS nginx and Reference UI; stock, orders, requisitions.</div>
+          <div class="ports"><span class="port lan">8082</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">DHIS2 &mdash; health reporting</div>
+          <div class="node-desc">Aggregate reporting target for dispense and stock-on-hand data.</div>
+          <div class="ports"><span class="port lan">8081</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">NEC web (bkm-web)</div>
+          <div class="node-desc">Public web interface served at the site root.</div>
+          <div class="ports"><span class="port lan">9902</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">Monitoring</div>
+          <div class="node-desc">Grafana dashboards, Prometheus scraping, Loki log aggregation.</div>
+          <div class="ports"><span class="port lan">3005 Grafana</span><span class="port lan">9290 Prometheus</span><span class="port loop">3100 Loki</span></div>
+        </div>
+        <div class="node lan">
+          <div class="node-name">Notifications</div>
+          <div class="node-desc">SMS / push / email sink for dispense, receipt and low-stock alerts; MailHog captures mail.</div>
+          <div class="ports"><span class="port lan">8025 MailHog UI</span><span class="port loop">8086 sink</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">not reachable off the host &darr;</div>
+
+    <div class="zone">
+      <div class="zone-head">
+        <h3 class="zone-name">Data tier &amp; internal-only services</h3>
+        <span class="zone-note">Container network (health-net / lmis-net) &mdash; no host binding</span>
+      </div>
+      <div class="nodes">
+        <div class="node closed">
+          <div class="node-name">PostgreSQL</div>
+          <div class="node-desc">Beneficiary records, FHIR resources, DHIS2, Keycloak, OpenLMIS schemas.</div>
+          <div class="ports"><span class="port closed">5432</span></div>
+        </div>
+        <div class="node closed">
+          <div class="node-name">MongoDB</div>
+          <div class="node-desc">OpenHIM transaction log and configuration.</div>
+          <div class="ports"><span class="port closed">27017</span></div>
+        </div>
+        <div class="node closed">
+          <div class="node-name">Redis</div>
+          <div class="node-desc">OpenSRP server cache and write queue.</div>
+          <div class="ports"><span class="port closed">6379</span></div>
+        </div>
+        <div class="node closed">
+          <div class="node-name">Exporters &amp; SMTP</div>
+          <div class="node-desc">Scraped by Prometheus; MailHog accepts mail from the notification sink.</div>
+          <div class="ports"><span class="port closed">8080 cAdvisor</span><span class="port closed">9187 pg-exporter</span><span class="port closed">1025 SMTP</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">optional &mdash; outbound to another IP &darr;</div>
+
+    <div class="zone">
+      <div class="zone-head">
+        <h3 class="zone-name">Partner-hosted systems &mdash; another IP</h3>
+        <span class="zone-note">Alternative upstreams; chosen per system, outbound only</span>
+      </div>
+      <div class="nodes">
+        <div class="node ext">
+          <div class="node-name">National eLMIS</div>
+          <div class="node-desc">Partner logistics system in place of the in-stack OpenLMIS.</div>
+          <div class="ports"><span class="port ext">8082 or 443</span></div>
+        </div>
+        <div class="node ext">
+          <div class="node-name">National DHIS2</div>
+          <div class="node-desc">Partner reporting instance in place of the in-stack DHIS2.</div>
+          <div class="ports"><span class="port ext">443 or 8080</span></div>
+        </div>
+        <div class="node ext">
+          <div class="node-name">Partner OpenSRP</div>
+          <div class="node-desc">Partner community-health server in place of the in-stack one.</div>
+          <div class="ports"><span class="port ext">443</span></div>
+        </div>
+        <div class="node ext">
+          <div class="node-name">Partner FHIR server</div>
+          <div class="node-desc">External clinical record store in place of the in-stack HAPI FHIR.</div>
+          <div class="ports"><span class="port ext">443</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <section class="block">
+    <h2>Full port register</h2>
+    <p class="lede">
+      Binding is what the host actually publishes. <code style="font-family:inherit">0.0.0.0</code> means any
+      interface the firewall permits; <code style="font-family:inherit">127.0.0.1</code> means the port answers
+      only on the host itself and must be reached through the gateway or an SSH tunnel.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>Port</th>
+            <th>Service</th>
+            <th>Binding</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="group open"><th colspan="4">Public internet &mdash; the only ports open at the firewall</th></tr>
+          <tr><td class="num">22</td><td class="svc">SSH</td><td class="bind">0.0.0.0</td><td>Operator access; fail2ban protected</td></tr>
+          <tr><td class="num">80</td><td class="svc">nginx HTTP</td><td class="bind">0.0.0.0</td><td>Redirect to HTTPS plus ACME challenge</td></tr>
+          <tr><td class="num">443</td><td class="svc">nginx HTTPS</td><td class="bind">0.0.0.0</td><td>All public traffic; TLS terminated here</td></tr>
+
+          <tr class="group lan"><th colspan="4">Internal network &mdash; published on the host, proxied by the gateway</th></tr>
+          <tr><td class="num">5001</td><td class="svc">OpenHIM client</td><td class="bind">0.0.0.0</td><td>Transaction entry point for the Android app</td></tr>
+          <tr><td class="num">8079</td><td class="svc">fhir-proxy &rarr; HAPI FHIR</td><td class="bind">0.0.0.0</td><td>FHIR R4 sync endpoint for the mobile app</td></tr>
+          <tr><td class="num">8081</td><td class="svc">DHIS2</td><td class="bind">0.0.0.0</td><td>Health reporting web app and API</td></tr>
+          <tr><td class="num">8082</td><td class="svc">OpenLMIS / eLMIS</td><td class="bind">0.0.0.0</td><td>Logistics UI and API (separate compose stack)</td></tr>
+          <tr><td class="num">8083</td><td class="svc">Keycloak</td><td class="bind">0.0.0.0</td><td>OIDC login; served under <code>/auth</code> in production</td></tr>
+          <tr><td class="num">9901</td><td class="svc">OpenSRP web</td><td class="bind">0.0.0.0</td><td>Community health console (FHIR-backed)</td></tr>
+          <tr><td class="num">9902</td><td class="svc">NEC web</td><td class="bind">0.0.0.0</td><td>Public web interface at the site root</td></tr>
+          <tr><td class="num">9285</td><td class="svc">OpenHIM console</td><td class="bind">0.0.0.0</td><td>Transaction monitoring and channel admin</td></tr>
+          <tr><td class="num">3005</td><td class="svc">Grafana</td><td class="bind">0.0.0.0</td><td>Dashboards over Prometheus and Loki</td></tr>
+          <tr><td class="num">9290</td><td class="svc">Prometheus</td><td class="bind">0.0.0.0</td><td>Metrics scraping and query API</td></tr>
+          <tr><td class="num">8025</td><td class="svc">MailHog UI</td><td class="bind">0.0.0.0</td><td>Captured outbound mail (sandbox)</td></tr>
+
+          <tr class="group loop"><th colspan="4">Host loopback only &mdash; never exposed off the machine</th></tr>
+          <tr><td class="num">3000</td><td class="svc">NEC mediator</td><td class="bind">127.0.0.1</td><td>Orchestration API; called via OpenHIM</td></tr>
+          <tr><td class="num">5000</td><td class="svc">OpenHIM client HTTPS</td><td class="bind">127.0.0.1</td><td>TLS variant of 5001</td></tr>
+          <tr><td class="num">8080</td><td class="svc">OpenHIM admin API</td><td class="bind">127.0.0.1</td><td>Console backend; proxied by nginx over HTTPS</td></tr>
+          <tr><td class="num">8086</td><td class="svc">Notification sink</td><td class="bind">127.0.0.1</td><td>SMS / push / email endpoints for the mediator</td></tr>
+          <tr><td class="num">9900</td><td class="svc">OpenSRP server</td><td class="bind">127.0.0.1</td><td>Legacy OpenSRP REST API</td></tr>
+          <tr><td class="num">18079</td><td class="svc">HAPI FHIR direct</td><td class="bind">127.0.0.1</td><td>Bypasses fhir-proxy; admin and seeding use</td></tr>
+          <tr><td class="num">3100</td><td class="svc">Loki</td><td class="bind">127.0.0.1</td><td>Log ingestion from promtail</td></tr>
+
+          <tr class="group closed"><th colspan="4">Container network only &mdash; no host binding at all</th></tr>
+          <tr><td class="num">5432</td><td class="svc">PostgreSQL</td><td class="bind">health-net</td><td>Primary datastore for every service schema</td></tr>
+          <tr><td class="num">27017</td><td class="svc">MongoDB</td><td class="bind">health-net</td><td>OpenHIM transactions and config</td></tr>
+          <tr><td class="num">6379</td><td class="svc">Redis</td><td class="bind">health-net</td><td>OpenSRP server cache / write queue</td></tr>
+          <tr><td class="num">3001</td><td class="svc">Notification sink</td><td class="bind">health-net</td><td>Container port behind host 8086</td></tr>
+          <tr><td class="num">1025</td><td class="svc">MailHog SMTP</td><td class="bind">health-net</td><td>Mail submission from the notification sink</td></tr>
+          <tr><td class="num">9187</td><td class="svc">postgres-exporter</td><td class="bind">health-net</td><td>Database metrics for Prometheus</td></tr>
+          <tr><td class="num">8080</td><td class="svc">cAdvisor</td><td class="bind">health-net</td><td>Container metrics for Prometheus</td></tr>
+          <tr><td class="num">9090</td><td class="svc">Prometheus</td><td class="bind">health-net</td><td>Container port behind host 9290</td></tr>
+          <tr><td class="num">3000</td><td class="svc">Grafana / OpenSRP web</td><td class="bind">health-net</td><td>Container ports behind host 3005 / 9901</td></tr>
+          <tr><td class="num">8080</td><td class="svc">Keycloak / DHIS2 / OpenSRP / HAPI</td><td class="bind">health-net</td><td>Container ports behind host 8083 / 8081 / 9900 / 18079</td></tr>
+          <tr><td class="num">80</td><td class="svc">bkm-web / fhir-proxy / OpenHIM console</td><td class="bind">health-net</td><td>Container ports behind host 9902 / 8079 / 9285</td></tr>
+
+          <tr class="group ext"><th colspan="4">Outbound &mdash; only when a system points at a partner instance</th></tr>
+          <tr><td class="num">443</td><td class="svc">Partner DHIS2 / OpenSRP / FHIR</td><td class="bind">egress</td><td>HTTPS to the partner host on another IP</td></tr>
+          <tr><td class="num">8082</td><td class="svc">National eLMIS</td><td class="bind">egress</td><td>Partner LMIS where it is not TLS-fronted</td></tr>
+          <tr><td class="num">8080</td><td class="svc">Partner DHIS2</td><td class="bind">egress</td><td>Where the partner exposes DHIS2 directly</td></tr>
+          <tr><td class="num">443</td><td class="svc">Let's Encrypt ACME</td><td class="bind">egress</td><td>Certificate issue and renewal (domain deployments)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Gateway routing &mdash; public name to internal port</h2>
+    <p class="lede">
+      With a domain in place, nginx terminates TLS on 443 and forwards to the loopback address of each
+      service, so none of the service ports need to be open at the firewall.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>Public entry</th>
+            <th>Forwards to</th>
+            <th>Service</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="svc">/</td><td class="num">127.0.0.1:9902</td><td>NEC web</td></tr>
+          <tr><td class="svc">/auth/</td><td class="num">127.0.0.1:8083</td><td>Keycloak</td></tr>
+          <tr><td class="svc">/openhim-api/</td><td class="num">127.0.0.1:8080</td><td>OpenHIM admin API (HTTPS upstream)</td></tr>
+          <tr><td class="svc">sync.&hellip;</td><td class="num">127.0.0.1:5001</td><td>OpenHIM client &mdash; app transactions</td></tr>
+          <tr><td class="svc">fhir.&hellip;</td><td class="num">127.0.0.1:8079</td><td>HAPI FHIR via fhir-proxy</td></tr>
+          <tr><td class="svc">opensrp.&hellip;</td><td class="num">127.0.0.1:9901</td><td>OpenSRP web</td></tr>
+          <tr><td class="svc">lmis.&hellip;</td><td class="num">127.0.0.1:8082</td><td>OpenLMIS / eLMIS</td></tr>
+          <tr><td class="svc">dhis2.&hellip;</td><td class="num">127.0.0.1:8081</td><td>DHIS2</td></tr>
+          <tr><td class="svc">openhim.&hellip;</td><td class="num">127.0.0.1:9285</td><td>OpenHIM console</td></tr>
+          <tr><td class="svc">grafana.&hellip;</td><td class="num">127.0.0.1:3005</td><td>Grafana</td></tr>
+          <tr><td class="svc">prometheus.&hellip;</td><td class="num">127.0.0.1:9290</td><td>Prometheus (basic auth)</td></tr>
+          <tr><td class="svc">mailhog.&hellip;</td><td class="num">127.0.0.1:8025</td><td>MailHog (basic auth)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Upstream endpoints &mdash; ours or theirs</h2>
+    <p class="lede">
+      The middleware reaches each component system through one configured base URL, so any of them can
+      be swapped for a partner-hosted instance on another IP without touching the rest of the stack.
+      The repo default points all six at the in-stack containers.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Set by</th>
+            <th>NEC-hosted (in stack)</th>
+            <th>Partner-hosted (another IP)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="svc">Logistics / LMIS</td>
+            <td class="bind">OPENLMIS_AUTH_URL<br>OPENLMIS_MGMT_URL<br>OPENLMIS_REF_URL</td>
+            <td class="bind">http://auth:8080<br>http://stockmanagement:8080<br>http://referencedata:8080</td>
+            <td class="bind">http://&lt;their-ip&gt;:8082<br>or https://&lt;their-host&gt;:443</td>
+          </tr>
+          <tr>
+            <td class="svc">Health reporting</td>
+            <td class="bind">DHIS2_URL</td>
+            <td class="bind">http://dhis2-web:8080</td>
+            <td class="bind">https://&lt;their-host&gt;:443<br>or http://&lt;their-ip&gt;:8080</td>
+          </tr>
+          <tr>
+            <td class="svc">Community health</td>
+            <td class="bind">OPENSRP_URL</td>
+            <td class="bind">http://opensrp-server:8080</td>
+            <td class="bind">https://&lt;their-host&gt;:443</td>
+          </tr>
+          <tr>
+            <td class="svc">Clinical records</td>
+            <td class="bind">HAPI_FHIR_URL</td>
+            <td class="bind">http://hapi-fhir:8080/fhir</td>
+            <td class="bind">https://&lt;their-host&gt;:443/fhir</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="notes">
+    <div>
+      <div class="note-title">Data flow</div>
+      <ul>
+        <li>Citizen or VHW reaches the gateway on 443; nginx forwards to the matching internal port.</li>
+        <li>App transactions land on OpenHIM 5001, which routes to the mediator on 3000.</li>
+        <li>The mediator fans out to OpenSRP, LMIS and DHIS2 and composes the response.</li>
+        <li>Only safe-to-show data returns; the public tier never touches raw records.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="note-title">Deployment variants</div>
+      <ul>
+        <li>Domain server: firewall allows 22, 80, 443 only; every service port stays on loopback.</li>
+        <li>IP-only bring-up with no domain: the service ports listed as internal are opened directly with <code>ufw allow</code>, and traffic is plain HTTP.</li>
+        <li>Sandbox / laptop: the same ports bind on localhost with no firewall in front.</li>
+        <li>Mixed hosting: point any component system at a partner instance on another IP; the in-stack container can then be dropped, freeing its host port.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="note-title">Source of truth</div>
+      <ul>
+        <li><code>docker-compose.yml</code> &mdash; every host binding and container port</li>
+        <li><code>deploy/nginx/bkm.conf</code>, <code>subdomains.conf</code> &mdash; gateway routing</li>
+        <li><code>deploy/setup-server.sh</code>, <code>production-installation.md</code> &mdash; firewall rules</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
