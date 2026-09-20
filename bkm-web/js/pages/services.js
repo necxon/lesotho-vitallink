@@ -50,6 +50,13 @@ var SERVICES = [
     exportLmis: true,
   },
   {
+    id: 'superset', name: 'Superset', color: '#20a7c9',
+    icon: '📊', helpUrl: 'https://superset.apache.org/docs/intro',
+    desc: 'BI dashboards over FHIR, OpenLMIS and DHIS2 — stock, dispensing, data quality',
+    url: 'http://localhost:8089', ping: '/ping/superset/',
+    creds: 'admin / admin (override SUPERSET_ADMIN_PASSWORD before first start)',
+  },
+  {
     id: 'grafana', name: 'Grafana', color: '#e65100',
     icon: '📈', helpUrl: 'https://grafana.com/docs/',
     desc: 'Monitoring dashboards — container metrics, logs (Loki), Prometheus',
