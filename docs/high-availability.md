@@ -15,48 +15,52 @@ Watch it live in the Administrator Portal under `Backends & Failover`
 ## Topology
 
 ```
-        Android app            opensrp-web / mediator        Administrator Portal
-        (phones sync)          (OpenSRP REST calls)          bkm-web :9902
-             |                          |                          |
-             v                          v                          v
-   +--------------------+     +--------------------+     /mediator-api/cluster/status
-   |  fhir-proxy :8079  |     | opensrp-proxy :9904|                |
-   |  connect timeout 3s|     | connect timeout 3s |                v
-   |  retry other node  |     | retry other node   |     +-------------------+
-   |  reload every 30s  |     | reload every 30s   |     |  bkm-mediator     |
-   +---------+----------+     +---------+----------+     |  /cluster/status  |
-             |                          |                +---------+---------+
-      +------+------+            +------+------+                   | probes every
-      v             v            v             v                   | node BY NAME
- +----------+ +-----------+ +----------+ +-------------+ <---------+ (not via LB)
- | hapi-fhir| |hapi-fhir-2| | opensrp- | | opensrp-    |
- | :18079   | | :18080    | | server   | | server-2    |
- | resthook | | resthook  | | :9900    | | :9903       |
- | ON       | | OFF       | | 1.4G cap | | 1.4G cap    |
- +-----+----+ +-----+-----+ +-----+----+ +------+------+
-       |            |             |             |
-       |            |             +------+------+
-       |            |                    |
-       |            |                    v
-       |            |            +---------------+
-       |            |            | opensrp-redis |  <- SPOF: standalone,
-       |            |            | (auth cache)  |     Sentinel not enabled
-       |            |            +-------+-------+
-       +------+-----+                    |
-              |                          |
-              v                          v
-        +-----------------------------------------+
-        |        health-db-postgres  PRIMARY       |
-        |  hapi_fhir dhis2 keycloak opensrp        |
-        |  mediator superset                       |
-        +-------------------+---------------------+
-                            | streaming replication (WAL), cluster-wide
-                            v
-        +-----------------------------------------+
-        |        health-db-standby  HOT STANDBY    |
-        |        :15433  read-only, promote on loss|
-        +-----------------------------------------+
+        Android app  (field phones - external)
+             |
+ - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ :           v                                            VM 1                :
+ :  +--------------------+     +--------------------+     single host        :
+ :  |  fhir-proxy :8079  |     | opensrp-proxy :9904|     all containers     :
+ :  |  connect timeout 3s|     | connect timeout 3s |                        :
+ :  |  retry other node  |     | retry other node   |  +-----------------+   :
+ :  |  reload every 30s  |     | reload every 30s   |  |  bkm-mediator   |   :
+ :  +---------+----------+     +---------+----------+  | /cluster/status |   :
+ :            |                          |             +--------+--------+   :
+ :     +------+------+            +------+------+               | probes     :
+ :     v             v            v             v               | each node  :
+ :+----------+ +-----------+ +----------+ +-------------+ <-----+ BY NAME    :
+ :| hapi-fhir| |hapi-fhir-2| | opensrp- | | opensrp-    |                    :
+ :| :18079   | | :18080    | | server   | | server-2    |                    :
+ :| resthook | | resthook  | | :9900    | | :9903       |                    :
+ :| ON       | | OFF       | | 1.4G cap | | 1.4G cap    |                    :
+ :+-----+----+ +-----+-----+ +-----+----+ +------+------+                    :
+ :      |            |             |             |                          :
+ :      |            |             +------+------+                          :
+ :      |            |                    v                                 :
+ :      |            |            +---------------+                         :
+ :      |            |            | opensrp-redis |  <- SPOF: standalone,   :
+ :      |            |            | (auth cache)  |     Sentinel not on     :
+ :      |            |            +-------+-------+                         :
+ :      +------+-----+                    |                                 :
+ :             v                          v                                 :
+ :     +-----------------------------------------+                          :
+ :     |        health-db-postgres  PRIMARY       |                          :
+ :     |  hapi_fhir dhis2 keycloak opensrp        |                          :
+ :     |  mediator superset                       |                          :
+ :     +-------------------+---------------------+                          :
+ :                         | streaming replication (WAL), cluster-wide       :
+ :                         v                                                 :
+ :     +-----------------------------------------+                          :
+ :     |        health-db-standby  HOT STANDBY    |                          :
+ :     |        :15433  read-only, promote on loss|                          :
+ :     +-----------------------------------------+                          :
+ : - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - :
+        lose this host and every box inside it is lost
 ```
+
+The dashed boundary is the whole point of the picture: every pair above
+survives a container dying, and none of it survives the VM dying. The
+Administrator Portal draws the same boundary live on its Backends page.
 
 | Dies | Effect |
 |---|---|

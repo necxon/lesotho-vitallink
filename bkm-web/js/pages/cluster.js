@@ -99,8 +99,8 @@ function _clusterDiagram(d) {
   var sbyState  = sby.up ? (sby.role === 'standby' ? 'up' : 'warn') : 'down';
 
   var svg = [];
-  svg.push('<svg viewBox="0 0 920 610" width="100%" role="img" ' +
-           'aria-label="Live topology of the redundant backends" ' +
+  svg.push('<svg viewBox="0 0 920 690" width="100%" role="img" ' +
+           'aria-label="Live topology of the redundant backends, all running on one host" ' +
            'style="max-width:920px;font-family:inherit">');
   svg.push('<style>' +
     '.cl-flow{stroke-dasharray:7 7;animation:cl-dash 1.1s linear infinite}' +
@@ -108,8 +108,25 @@ function _clusterDiagram(d) {
     '@media (prefers-reduced-motion: reduce){.cl-flow{animation:none;stroke-dasharray:none}}' +
     '</style>');
 
+  // The host boundary. Every container in this diagram runs inside it, which is
+  // the point: all the redundancy below protects against a process dying, not
+  // against losing this machine. Drawn first so everything paints on top.
+  svg.push('<rect x="10" y="62" width="900" height="606" rx="12" fill="#fbfbfd" ' +
+           'stroke="#546e7a" stroke-width="2" stroke-dasharray="9 6"/>');
+  svg.push('<rect x="26" y="50" width="232" height="24" rx="5" fill="#546e7a"/>');
+  svg.push('<text x="142" y="67" text-anchor="middle" font-size="11.5" ' +
+           'font-weight="700" fill="#fff">VM 1 - single host, all containers</text>');
+  svg.push('<text x="898" y="660" text-anchor="end" font-size="10.5" fill="#78909c">' +
+           'lose this host and every box inside is lost</text>');
+
+  // Phones are the only actor outside the VM, so they sit above the boundary
+  // and everything else is translated down into it.
+  svg.push(_clNode(60, 6, 180, 40, 'Android app', 'field phones - external', 'up'));
+  svg.push(_clLink('M150 46 L150 164', fhirProxy));
+
+  svg.push('<g transform="translate(0,46)">');
+
   // --- links first so boxes paint over the ends -----------------------------
-  svg.push(_clLink('M150 74 L150 118', fhirProxy));                       // phones -> fhir-proxy
   svg.push(_clLink('M455 74 L455 118', osProxy));                         // callers -> opensrp-proxy
   svg.push(_clLink('M775 74 L775 118', 'up'));                            // portal -> mediator
 
@@ -132,7 +149,6 @@ function _clusterDiagram(d) {
   svg.push(_clLink('M480 490 L480 534', pri.up && sby.up && sby.role === 'standby' ? 'up' : 'down'));
 
   // --- boxes ----------------------------------------------------------------
-  svg.push(_clNode(60, 30, 180, 44, 'Android app', 'phones sync FHIR', 'up'));
   svg.push(_clNode(365, 30, 180, 44, 'opensrp-web / mediator', 'OpenSRP REST', 'up'));
   svg.push(_clNode(685, 30, 180, 44, 'Administrator Portal', 'bkm-web :9902', 'up'));
 
@@ -159,6 +175,7 @@ function _clusterDiagram(d) {
   svg.push('<text x="612" y="466" font-size="10.5" fill="#607d8b">streaming</text>');
   svg.push('<text x="612" y="480" font-size="10.5" fill="#607d8b">replication</text>');
   svg.push('<text x="612" y="252" font-size="10.5" fill="#607d8b">probes</text>');
+  svg.push('</g>');
   svg.push('</svg>');
 
   var legend =
@@ -167,7 +184,13 @@ function _clusterDiagram(d) {
     '<span style="color:' + _CL.down + '">&#9632;</span> broken &nbsp; ' +
     '<span style="color:' + _CL.idle + '">&#9632;</span> not monitored &nbsp;&middot;&nbsp; ' +
     'A link animates only when both ends are up. Prove it for real with ' +
-    '<code>make ha-drill</code>.</small></p>';
+    '<code>make ha-drill</code>.' +
+    '</small></p>' +
+    '<p style="margin:4px 0 0"><small>The dashed boundary is the host. Everything ' +
+    'inside it shares one machine, so the pairs above survive a container dying but ' +
+    'not the VM dying. Host redundancy needs 3 VMs on separate hypervisors - two ' +
+    'cannot safely auto-promote the database, and three on one physical box is still ' +
+    'one failure from total loss.</small></p>';
 
   return '<div style="overflow-x:auto;margin-bottom:18px">' + svg.join('') + '</div>' + legend;
 }
