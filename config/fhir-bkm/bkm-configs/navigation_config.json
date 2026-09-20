@@ -298,7 +298,10 @@
         "reference": "ic_inventory"
       },
       "showCount": false,
-      "roles": ["FIELD_WORKER", "FACILITY_WORKER"],
+      "roles": [
+        "FIELD_WORKER",
+        "FACILITY_WORKER"
+      ],
       "actions": [
         {
           "trigger": "ON_CLICK",
@@ -316,7 +319,9 @@
         "reference": "ic_inventory"
       },
       "showCount": true,
-      "roles": ["FACILITY_WORKER"],
+      "roles": [
+        "FACILITY_WORKER"
+      ],
       "actions": [
         {
           "trigger": "ON_CLICK",
@@ -339,12 +344,269 @@
       },
       "showCount": false,
       "visible": true,
-      "roles": ["FACILITY_WORKER"],
+      "roles": [
+        "FACILITY_WORKER"
+      ],
       "actions": [
         {
           "trigger": "ON_CLICK",
           "workflow": "LAUNCH_REGISTER",
           "id": "stockOrderRegister"
+        }
+      ]
+    },
+    {
+      "id": "ancRegister",
+      "display": "ANC",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_pregnant"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "ancRegister"
+        }
+      ]
+    },
+    {
+      "id": "pncRegister",
+      "display": "PNC",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_post_partum_mother"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "pncRegister"
+        }
+      ]
+    },
+    {
+      "id": "fpRegister",
+      "display": "Family Planning",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_family_planning"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "fpRegister"
+        }
+      ]
+    },
+    {
+      "id": "iysRegister",
+      "display": "Child Health",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_children"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "iysRegister"
+        }
+      ]
+    },
+    {
+      "id": "hivRegister",
+      "display": "HIV",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_hiv"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "hivRegister"
+        }
+      ]
+    },
+    {
+      "id": "tbRegister",
+      "display": "TB",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_tb"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "tbRegister"
+        }
+      ]
+    },
+    {
+      "id": "hypertensionRegister",
+      "display": "Hypertension",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_elderly"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "hypertensionRegister"
+        }
+      ]
+    },
+    {
+      "id": "diabetesRegister",
+      "display": "Diabetes",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_needle"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "diabetesRegister"
+        }
+      ]
+    },
+    {
+      "id": "mentalHealthRegister",
+      "display": "Mental Health",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_profile"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "mentalHealthRegister"
+        }
+      ]
+    },
+    {
+      "id": "asthmaRegister",
+      "display": "Asthma",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_hospital"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "asthmaRegister"
+        }
+      ]
+    },
+    {
+      "id": "cancerRegister",
+      "display": "Cancer",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_hospital"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "cancerRegister"
+        }
+      ]
+    },
+    {
+      "id": "epilepsyRegister",
+      "display": "Epilepsy",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_profile"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "epilepsyRegister"
+        }
+      ]
+    },
+    {
+      "id": "strokeRegister",
+      "display": "Stroke",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_elderly"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "strokeRegister"
+        }
+      ]
+    },
+    {
+      "id": "paralysisRegister",
+      "display": "Paralysis",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_elderly"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "paralysisRegister"
+        }
+      ]
+    },
+    {
+      "id": "cmntdRegister",
+      "display": "CM - NTD",
+      "icon": "",
+      "menuIconConfig": {
+        "type": "local",
+        "reference": "ic_sick_child"
+      },
+      "showCount": false,
+      "actions": [
+        {
+          "trigger": "ON_CLICK",
+          "workflow": "LAUNCH_REGISTER",
+          "id": "cmntdRegister"
         }
       ]
     },
