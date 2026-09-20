@@ -13,6 +13,8 @@
 'use strict';
 
 var _clusterTimer = null;
+// Which tab is open, so the 15s refresh does not snap the reader back to Status.
+var _clusterTab = 'cluster-data';
 
 function _clusterDot(ok, warn) {
   var color = ok ? '#2e7d32' : (warn ? '#ef6c00' : '#c62828');
@@ -116,8 +118,26 @@ function _clusterDiagram(d) {
   svg.push('<rect x="26" y="50" width="232" height="24" rx="5" fill="#546e7a"/>');
   svg.push('<text x="142" y="67" text-anchor="middle" font-size="11.5" ' +
            'font-weight="700" fill="#fff">VM 1 - single host, all containers</text>');
-  svg.push('<text x="898" y="660" text-anchor="end" font-size="10.5" fill="#78909c">' +
-           'lose this host and every box inside is lost</text>');
+  svg.push('<text x="24" y="682" font-size="10.5" fill="#78909c">' +
+           'lose this host and every box inside it is lost</text>');
+
+  // What is NOT deployed, drawn faintly. A diagram that only shows what exists
+  // makes a single host look like a complete design; showing the gap is the
+  // point of putting a boundary on it at all.
+  svg.push('<g opacity="0.42">');
+  svg.push('<rect x="640" y="600" width="128" height="62" rx="10" fill="none" ' +
+           'stroke="#90a4ae" stroke-width="1.6" stroke-dasharray="5 5"/>');
+  svg.push('<text x="704" y="624" text-anchor="middle" font-size="11" font-weight="600" ' +
+           'fill="#78909c">VM 2</text>');
+  svg.push('<text x="704" y="640" text-anchor="middle" font-size="9.5" fill="#90a4ae">not deployed</text>');
+  svg.push('<text x="704" y="653" text-anchor="middle" font-size="9.5" fill="#90a4ae">survives host loss</text>');
+  svg.push('<rect x="780" y="600" width="128" height="62" rx="10" fill="none" ' +
+           'stroke="#90a4ae" stroke-width="1.6" stroke-dasharray="5 5"/>');
+  svg.push('<text x="844" y="624" text-anchor="middle" font-size="11" font-weight="600" ' +
+           'fill="#78909c">Site B + witness</text>');
+  svg.push('<text x="844" y="640" text-anchor="middle" font-size="9.5" fill="#90a4ae">not deployed</text>');
+  svg.push('<text x="844" y="653" text-anchor="middle" font-size="9.5" fill="#90a4ae">survives site loss</text>');
+  svg.push('</g>');
 
   // Phones are the only actor outside the VM, so they sit above the boundary
   // and everything else is translated down into it.
@@ -246,6 +266,11 @@ function renderCluster(el) {
 
     el.innerHTML =
       '<h2>Backends</h2>' +
+      '<div class="page-tabs">' +
+        '<button class="page-tab active" data-tab="cluster-data">Status</button>' +
+        '<button class="page-tab" data-tab="cluster-help">? Help</button>' +
+      '</div>' +
+      '<div id="cluster-data">' +
       _clusterBanner(d.health) +
       _clusterDiagram(d) +
       '<h3>FHIR backends</h3>' +
@@ -273,7 +298,26 @@ function renderCluster(el) {
           'failover is resolved.</small></p>'
         : '') +
       '<p><small>Checked ' + new Date(d.checkedAt).toLocaleTimeString() + '. Refreshes every 15s. ' +
-      'Failover drill and promotion steps: <code>docs/high-availability.md</code>.</small></p>';
+      'Failover drill and promotion steps: <code>docs/high-availability.md</code>.</small></p>' +
+      '</div>' +
+      '<div id="cluster-help" class="help-panel" hidden>' + clusterHelpHTML() + '</div>';
+
+    // Re-bound on every repaint because the 15s refresh replaces this markup.
+    // activeTab is read back from the DOM first so a refresh does not yank the
+    // user out of the help panel mid-read.
+    el.querySelectorAll('.page-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        el.querySelectorAll('.page-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        var target = tab.getAttribute('data-tab');
+        _clusterTab = target;
+        document.getElementById('cluster-data').hidden = (target !== 'cluster-data');
+        document.getElementById('cluster-help').hidden = (target !== 'cluster-help');
+      });
+    });
+    if (_clusterTab === 'cluster-help') {
+      el.querySelector('[data-tab="cluster-help"]').click();
+    }
   }
 
   function tick() {
