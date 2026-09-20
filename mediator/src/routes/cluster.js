@@ -29,6 +29,15 @@ const FHIR_NODES = (process.env.CLUSTER_FHIR_NODES ||
     return { name: entry.slice(0, idx), url: entry.slice(idx + 1) };
   });
 
+const OPENSRP_NODES = (process.env.CLUSTER_OPENSRP_NODES ||
+  'opensrp-server:http://opensrp-server:8080/opensrp/,opensrp-server-2:http://opensrp-server-2:8080/opensrp/')
+  .split(',')
+  .filter(Boolean)
+  .map((entry) => {
+    const idx = entry.indexOf(':');
+    return { name: entry.slice(0, idx), url: entry.slice(idx + 1) };
+  });
+
 const PG_USER = process.env.DB_USER || 'admin';
 const PG_PASS = process.env.DB_PASS || 'password123';
 const PRIMARY_HOST = process.env.DB_HOST || 'db-postgres';
@@ -50,6 +59,22 @@ function poolFor(host) {
       logger.warn(`cluster: pg pool error on ${host}: ${err.message}`));
   }
   return pools[host];
+}
+
+async function probeHttp(node) {
+  const started = Date.now();
+  try {
+    const r = await axios.get(node.url, { timeout: 6000 });
+    return { name: node.name, up: r.status === 200, status: r.status, responseMs: Date.now() - started };
+  } catch (e) {
+    return {
+      name: node.name,
+      up: false,
+      status: e.response ? e.response.status : null,
+      responseMs: Date.now() - started,
+      error: e.code || e.message,
+    };
+  }
 }
 
 async function probeFhir(node) {
@@ -130,21 +155,29 @@ async function standbyState() {
 }
 
 router.get('/status', async (req, res) => {
-  const [fhir, primary, standby] = await Promise.all([
+  const [fhir, opensrp, primary, standby] = await Promise.all([
     Promise.all(FHIR_NODES.map(probeFhir)),
+    Promise.all(OPENSRP_NODES.map(probeHttp)),
     primaryState(),
     standbyState(),
   ]);
 
   const fhirUp = fhir.filter((n) => n.up).length;
+  const opensrpUp = opensrp.filter((n) => n.up).length;
+
+  // "down" is reserved for losing a whole tier or the primary database.
+  // Losing one node of a pair is "degraded": still serving, but the next
+  // failure is an outage.
   let health = 'healthy';
   if (fhirUp === 0 || !primary.up) health = 'down';
-  else if (fhirUp < fhir.length || !standby.up || standby.role !== 'standby') health = 'degraded';
+  else if (fhirUp < fhir.length || opensrpUp < opensrp.length ||
+           !standby.up || standby.role !== 'standby') health = 'degraded';
 
   res.json({
     health,
     checkedAt: new Date().toISOString(),
     fhir: { total: fhir.length, up: fhirUp, nodes: fhir },
+    opensrp: { total: opensrp.length, up: opensrpUp, nodes: opensrp },
     database: { primary, standby },
   });
 });

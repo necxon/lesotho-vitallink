@@ -45,6 +45,18 @@ function renderCluster(el) {
         '</tr>';
     }).join('');
 
+    // The OpenSRP tier is optional in the payload so an older mediator that
+    // predates it still renders the page instead of throwing.
+    var osRows = (d.opensrp && d.opensrp.nodes ? d.opensrp.nodes : []).map(function(n) {
+      return '<tr>' +
+        '<td>' + _clusterDot(n.up) + '<code>' + n.name + '</code></td>' +
+        '<td>' + (n.up ? 'Serving' : 'DOWN') + '</td>' +
+        '<td>' + (n.status || '—') + '</td>' +
+        '<td>' + n.responseMs + ' ms</td>' +
+        '<td>' + (n.up ? '' : (n.error || '')) + '</td>' +
+        '</tr>';
+    }).join('');
+
     var p = d.database.primary;
     var s = d.database.standby;
 
@@ -78,6 +90,13 @@ function renderCluster(el) {
       '<table role="grid"><thead><tr><th>Node</th><th>State</th><th>HTTP</th><th>Response</th><th>Version</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table>' +
       failoverNote +
+      (osRows
+        ? '<h3>OpenSRP backends</h3>' +
+          '<p><small>Fronted by <code>opensrp-proxy</code>, same failover behaviour as the FHIR tier. ' +
+          'Active-active is safe here because the auth cache lives in Redis, not in the JVM.</small></p>' +
+          '<table role="grid"><thead><tr><th>Node</th><th>State</th><th>HTTP</th><th>Response</th><th></th></tr></thead>' +
+          '<tbody>' + osRows + '</tbody></table>'
+        : '') +
       '<h3>Database</h3>' +
       '<p><small>Streaming replication covers the whole cluster, so DHIS2, Keycloak, OpenSRP, the mediator ' +
       'and Superset are protected too, not just FHIR. The standby is read-only until promoted.</small></p>' +

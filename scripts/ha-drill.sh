@@ -14,6 +14,7 @@
 set -uo pipefail
 
 PROXY=${PROXY:-http://localhost:8079}
+OSPROXY=${OSPROXY:-http://localhost:9904}
 MEDIATOR=${MEDIATOR:-http://localhost:3000}
 REQUESTS=${REQUESTS:-15}
 QUICK=${QUICK:-0}
@@ -106,6 +107,44 @@ drill_node() {
 
 drill_node hapi-fhir   1 2
 drill_node hapi-fhir-2 2 1
+
+# --- 2b. OpenSRP tier --------------------------------------------------------
+echo
+echo "[2b] Kill opensrp-server, keep calling opensrp-proxy"
+o1=$(code "$OSPROXY/backend/1/health" 8)
+o2=$(code "$OSPROXY/backend/2/health" 8)
+if [ "$o1$o2" != "200200" ]; then
+  info "OpenSRP nodes not both healthy (b1=$o1 b2=$o2) - skipping this section"
+else
+  docker kill opensrp-server >/dev/null 2>&1
+  osok=0; oslost=0
+  for _ in $(seq 1 "$REQUESTS"); do
+    c=$(code "$OSPROXY/opensrp/" 20)
+    if [ "$c" = "200" ]; then osok=$((osok+1)); else oslost=$((oslost+1)); fi
+  done
+  info "$osok/$REQUESTS succeeded while opensrp-server was down"
+  if [ "$oslost" -le 1 ]; then
+    ok "OpenSRP traffic survived losing a node ($oslost lost)"
+  else
+    bad "$oslost OpenSRP requests failed (expected at most 1)"
+  fi
+
+  docker start opensrp-server >/dev/null 2>&1
+  if [ "$QUICK" = "1" ]; then
+    info "QUICK mode: not waiting for opensrp-server to rejoin"
+  else
+    info "waiting for opensrp-server to rejoin..."
+    for _ in $(seq 1 40); do
+      [ "$(code "$OSPROXY/backend/1/health" 8)" = "200" ] && break
+      sleep 5
+    done
+    if [ "$(code "$OSPROXY/backend/1/health" 8)" = "200" ]; then
+      ok "opensrp-server rejoined the pool"
+    else
+      bad "opensrp-server did not come back"
+    fi
+  fi
+fi
 
 # --- 3. database replication -------------------------------------------------
 echo

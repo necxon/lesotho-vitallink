@@ -1,8 +1,13 @@
 # High availability: redundant backends and database standby
 
-The sandbox runs two FHIR backends behind `fhir-proxy` and a streaming standby of
-the database. Phones keep syncing when a backend dies, and the data survives
-losing the primary database.
+The sandbox runs two FHIR backends behind `fhir-proxy`, two OpenSRP backends
+behind `opensrp-proxy`, and a streaming standby of the database. Phones keep
+syncing when a backend dies, and the data survives losing the primary database.
+
+Everything here protects against a process or container dying. It does NOT
+protect against losing the host: all of it runs on one machine. Host redundancy
+needs 3 VMs (quorum for automatic database failover), on separate hypervisors -
+three VMs on one physical host is still one failure from total loss.
 
 Watch it live in the Administrator Portal under `Backends & Failover`
 (`#/cluster`), which reads the mediator's `/cluster/status`.
@@ -10,45 +15,54 @@ Watch it live in the Administrator Portal under `Backends & Failover`
 ## Topology
 
 ```
-                    Android app                Administrator Portal
-                    (phones sync)              bkm-web :9902
-                         |                            |
-                         |                            | #/cluster
-                         v                            v
-              +----------------------+        /mediator-api/cluster/status
-              |  fhir-proxy  :8079   |                |
-              |  - load balancer -   |                v
-              |  connect timeout 3s  |        +-------------------+
-              |  retry -> other node |        |  bkm-mediator     |
-              |  reload every 30s    |        |  /cluster/status  |
-              +----------+-----------+        +---------+---------+
-                         |                              | probes each
-            +------------+------------+                 | node BY NAME
-            v                         v                 | (not via LB)
-    +---------------+         +---------------+ <-------+
-    |  hapi-fhir    |         |  hapi-fhir-2  |
-    |  :18079       |         |  :18080       |
-    |  resthook ON  |         |  resthook OFF |  <- or subscriptions fire twice
-    +-------+-------+         +-------+-------+
-            +------------+------------+
-                         v
-            +-------------------------+
-            |  health-db-postgres     |  PRIMARY
-            |  hapi_fhir, dhis2,      |
-            |  keycloak, opensrp,     |
-            |  mediator, superset     |
-            +-----------+-------------+
-                        | streaming replication (WAL), cluster-wide
-                        v
-            +-------------------------+
-            |  health-db-standby      |  HOT STANDBY
-            |  :15433  read-only      |  promote on primary loss
-            +-------------------------+
+        Android app            opensrp-web / mediator        Administrator Portal
+        (phones sync)          (OpenSRP REST calls)          bkm-web :9902
+             |                          |                          |
+             v                          v                          v
+   +--------------------+     +--------------------+     /mediator-api/cluster/status
+   |  fhir-proxy :8079  |     | opensrp-proxy :9904|                |
+   |  connect timeout 3s|     | connect timeout 3s |                v
+   |  retry other node  |     | retry other node   |     +-------------------+
+   |  reload every 30s  |     | reload every 30s   |     |  bkm-mediator     |
+   +---------+----------+     +---------+----------+     |  /cluster/status  |
+             |                          |                +---------+---------+
+      +------+------+            +------+------+                   | probes every
+      v             v            v             v                   | node BY NAME
+ +----------+ +-----------+ +----------+ +-------------+ <---------+ (not via LB)
+ | hapi-fhir| |hapi-fhir-2| | opensrp- | | opensrp-    |
+ | :18079   | | :18080    | | server   | | server-2    |
+ | resthook | | resthook  | | :9900    | | :9903       |
+ | ON       | | OFF       | | 1.4G cap | | 1.4G cap    |
+ +-----+----+ +-----+-----+ +-----+----+ +------+------+
+       |            |             |             |
+       |            |             +------+------+
+       |            |                    |
+       |            |                    v
+       |            |            +---------------+
+       |            |            | opensrp-redis |  <- SPOF: standalone,
+       |            |            | (auth cache)  |     Sentinel not enabled
+       |            |            +-------+-------+
+       +------+-----+                    |
+              |                          |
+              v                          v
+        +-----------------------------------------+
+        |        health-db-postgres  PRIMARY       |
+        |  hapi_fhir dhis2 keycloak opensrp        |
+        |  mediator superset                       |
+        +-------------------+---------------------+
+                            | streaming replication (WAL), cluster-wide
+                            v
+        +-----------------------------------------+
+        |        health-db-standby  HOT STANDBY    |
+        |        :15433  read-only, promote on loss|
+        +-----------------------------------------+
 ```
 
 | Dies | Effect |
 |---|---|
-| `hapi-fhir` or `hapi-fhir-2` | Automatic. 15/15 requests still served, ~3s worst-case retry |
+| `hapi-fhir` or `hapi-fhir-2` | Automatic. 12/12 requests still served, ~3s worst-case retry |
+| `opensrp-server` or `-2` | Automatic, same mechanism via `opensrp-proxy`. 12/12 served |
+| `opensrp-redis` | OpenSRP auth cache lost - both nodes affected. Not yet redundant |
 | `health-db-postgres` | Manual promote of the standby, then repoint services |
 | `fhir-proxy` | Outage - single load balancer, not redundant |
 | `bkm-mediator` | Fan-out and the Backends page stop; phone sync keeps working |
@@ -62,10 +76,11 @@ next step than a third backend.
 | Component | Redundant | Notes |
 |---|---|---|
 | hapi-fhir | Yes - 2 nodes | `hapi-fhir` and `hapi-fhir-2`, same database, automatic failover |
+| opensrp-server | Yes - 2 nodes | `opensrp-server` and `-2` behind `opensrp-proxy`. Active-active is safe because the auth cache is in Redis, not the JVM |
 | db-postgres | Yes - hot standby | `db-postgres-standby`, streaming, read-only until promoted |
 | fhir-proxy | No | It is the load balancer. One instance on one host. |
 | bkm-mediator | No | Leader-locked. Two instances would double the fan-out to DHIS2 and OpenLMIS. |
-| opensrp-server | No | Not on the app's sync path - phones talk to fhir-proxy, not to it. |
+| opensrp-redis | No | `redis.architecture=standalone` with no sentinels. The config supports Sentinel; enabling it is the fix. |
 
 ## FHIR backend failover
 
@@ -89,8 +104,8 @@ replication is really applying changes rather than merely being connected. It
 also checks the standby still refuses writes, since one that accepts them has
 been promoted and is no longer a replica.
 
-Current result: 14 checks, 0 failures, 15/15 requests served with a backend
-down.
+Current result: 16 checks, 0 failures, 12/12 requests served on both the FHIR
+and OpenSRP tiers with a node down.
 
 The drill is worth running rather than trusting the design. The first run found
 that killing a backend lost two requests, because a killed container does not
@@ -173,6 +188,25 @@ curl -s -o /dev/null -w "b2=%{http_code}\n" http://localhost:8079/backend/2/heal
 
 docker compose up -d hapi-fhir               # ~90s to boot
 ```
+
+## Active-active vs active-standby
+
+Not one choice - it depends on whether a node holds authoritative state.
+
+| Tier | Model | Why |
+|---|---|---|
+| hapi-fhir, opensrp-server, bkm-web, the proxies | Active-active | No local state. Any node serves any request. |
+| Postgres | Active-standby | Postgres has one writable primary. "Active-active" would mean multi-master, which it does not do natively. |
+| bkm-mediator | Active-standby | Leader-locked; two active instances double the fan-out. |
+| opensrp-redis | Active-standby (once Sentinel is on) | `opensrp.properties` already has `redis.master` and `redis.sentinels` fields. |
+
+### Memory
+
+An uncapped JVM expands to fill the host: `opensrp-server` alone sat at 2.3GB.
+Both OpenSRP nodes are capped with `CATALINA_OPTS=-Xmx1024m` plus
+`mem_limit: 1400m`, and the pair now uses ~1.4GB in total - less than the single
+uncapped node did. `mem_limit` without a matching `-Xmx` does not help: the JVM
+still grows and the container gets OOM-killed instead.
 
 ## Adding a third backend
 

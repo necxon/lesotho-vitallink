@@ -185,7 +185,7 @@ services:
       - OPENHIM_URL=https://openhim-core:8080
       - OPENHIM_USER=root@openhim.org
       - OPENHIM_PASS=${OPENHIM_PASS:-password}
-      - OPENSRP_URL=http://opensrp-server:8080
+      - OPENSRP_URL=http://opensrp-proxy:80
       - OPENSRP_CLIENT_ID=bkm-mediator
       - OPENSRP_CLIENT_SECRET=mediator-secret
       - KEYCLOAK_URL=http://keycloak:8080/auth
@@ -213,6 +213,7 @@ services:
       # Backends page (/cluster/status): FHIR nodes to probe and the standby DB.
       - CLUSTER_FHIR_NODES=hapi-fhir:http://hapi-fhir:8080/fhir,hapi-fhir-2:http://hapi-fhir-2:8080/fhir
       - STANDBY_DB_HOST=db-postgres-standby
+      - CLUSTER_OPENSRP_NODES=opensrp-server:http://opensrp-server:8080/opensrp/,opensrp-server-2:http://opensrp-server-2:8080/opensrp/
       # Single-seat portal lock: true = one web user at a time (default),
       # false = allow concurrent users.
       - SESSION_SINGLE_SEAT=true
@@ -371,6 +372,12 @@ services:
     container_name: opensrp-server
     ports:
       - "127.0.0.1:9900:8080"
+    environment:
+      # Capped so two nodes fit on one host. An uncapped JVM grows to fill the
+      # machine (this one sat at 2.3GB), and mem_limit without a matching -Xmx
+      # just gets the container OOM-killed instead of making the heap behave.
+      - CATALINA_OPTS=-Xms256m -Xmx1024m
+    mem_limit: 1400m
     volumes:
       - ./config/opensrp/context.xml:/usr/local/tomcat/conf/context.xml:ro
       - ./config/opensrp/keycloak.json:/usr/local/tomcat/webapps/opensrp/WEB-INF/keycloak.json:ro
@@ -382,6 +389,55 @@ services:
         condition: service_started
       opensrp-redis:
         condition: service_started
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # Second OpenSRP node. Same Postgres and same Redis, so either can serve any
+  # request: the auth cache lives in Redis (opensrp.properties) rather than in
+  # the JVM, which is what makes active-active safe here.
+  opensrp-server-2:
+    image: opensrp/opensrp-server-web:latest
+    container_name: opensrp-server-2
+    ports:
+      - "127.0.0.1:9903:8080"
+    environment:
+      - CATALINA_OPTS=-Xms256m -Xmx1024m
+    mem_limit: 1400m
+    volumes:
+      - ./config/opensrp/context.xml:/usr/local/tomcat/conf/context.xml:ro
+      - ./config/opensrp/keycloak.json:/usr/local/tomcat/webapps/opensrp/WEB-INF/keycloak.json:ro
+      - ./config/opensrp/opensrp.properties:/usr/local/tomcat/webapps/opensrp/WEB-INF/classes/opensrp.properties:ro
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      opensrp-redis:
+        condition: service_started
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # Load balancer for the OpenSRP nodes, mirroring what fhir-proxy does for
+  # HAPI. Callers (the mediator, opensrp-web) address this instead of a node
+  # directly, so a dead node is routed around rather than configured around.
+  opensrp-proxy:
+    image: nginx:alpine
+    container_name: opensrp-proxy
+    ports:
+      - "127.0.0.1:9904:80"
+    volumes:
+      - ./config/opensrp-proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while :; do sleep 30; nginx -s reload 2>/dev/null || true; done &
+        exec nginx -g 'daemon off;'
+    depends_on:
+      - opensrp-server
+      - opensrp-server-2
     networks:
       - health-net
     restart: unless-stopped
