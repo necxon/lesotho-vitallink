@@ -25,6 +25,7 @@ app.use('/lmis-notifications',         require('./routes/lmisNotifications').rou
 app.use('/config',                     require('./routes/config'));
 app.use('/session',                    require('./routes/session'));
 app.use('/db-export',                  require('./routes/dbExport'));
+app.use('/cluster',                    require('./routes/cluster'));
 
 // Proxy all FHIR deletes through to HAPI FHIR (catch-all below swallows DELETE otherwise).
 app.delete('/fhir/:resourceType/:id', async (req, res) => {

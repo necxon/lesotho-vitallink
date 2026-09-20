@@ -22,6 +22,35 @@ services:
       - ./config/initdb:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
 
+  # Hot standby of health-db-postgres. Streaming replication covers the whole
+  # cluster, so hapi_fhir, dhis2, keycloak, opensrp, mediator and superset are
+  # all protected, not just the FHIR database.
+  #
+  # Read-only until promoted. To fail over:
+  #   docker exec health-db-standby pg_ctl promote -D /var/lib/postgresql/data
+  # then repoint the services at this host. See docs/high-availability.md.
+  db-postgres-standby:
+    image: postgis/postgis:14-3.2
+    container_name: health-db-standby
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - PRIMARY_HOST=db-postgres
+      - REPL_USER=replicator
+      - REPL_PASSWORD=${REPL_PASSWORD:-replicator}
+    entrypoint: ["/bin/bash", "/usr/local/bin/standby-entrypoint.sh"]
+    user: postgres
+    volumes:
+      - postgres-standby-data:/var/lib/postgresql/data
+      - ./config/postgres/standby-entrypoint.sh:/usr/local/bin/standby-entrypoint.sh:ro
+    ports:
+      - "127.0.0.1:15433:5432"
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+    restart: unless-stopped
+
   db-mongo:
     image: mongo:4.4
     container_name: openhim-mongo
@@ -181,6 +210,9 @@ services:
       - DHIS2_DE_STOCK_RECEIVED=StckRcvdAL1
       - DHIS2_DE_STOCK_ON_HAND=StockOnHnd1
       - HAPI_FHIR_URL=http://hapi-fhir:8080/fhir
+      # Backends page (/cluster/status): FHIR nodes to probe and the standby DB.
+      - CLUSTER_FHIR_NODES=hapi-fhir:http://hapi-fhir:8080/fhir,hapi-fhir-2:http://hapi-fhir-2:8080/fhir
+      - STANDBY_DB_HOST=db-postgres-standby
       # Single-seat portal lock: true = one web user at a time (default),
       # false = allow concurrent users.
       - SESSION_SINGLE_SEAT=true
@@ -368,8 +400,21 @@ services:
       - ./config/fhir-proxy/practitioner_details.json:/etc/nginx/practitioner_details.json:ro
       - ./config/fhir-proxy/practitioner_details_thabo.json:/etc/nginx/practitioner_details_thabo.json:ro
       - ./config/fhir-proxy/practitioner_details_palesa.json:/etc/nginx/practitioner_details_palesa.json:ro
+    # nginx open source resolves `upstream` server names once, at config load,
+    # and caches the IP for the life of the process. When a HAPI container is
+    # recreated it comes back on a new IP and the load balancer keeps posting to
+    # the old one, so a healthy backend looks dead. A graceful reload re-resolves
+    # them; doing it on a timer means a recreated backend heals itself within
+    # 30s instead of needing someone to notice and run nginx -s reload.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while :; do sleep 30; nginx -s reload 2>/dev/null || true; done &
+        exec nginx -g 'daemon off;'
     depends_on:
       - hapi-fhir
+      - hapi-fhir-2
     networks:
       - health-net
     restart: unless-stopped
@@ -392,6 +437,38 @@ services:
       - spring.datasource.driverClassName=org.postgresql.Driver
       - spring.jpa.properties.hibernate.dialect=ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
       - hapi.fhir.subscription.resthook_enabled=true
+      - hapi.fhir.subscription.websocket_enabled=false
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+    restart: unless-stopped
+
+  # Second HAPI backend for failover. Same database, so both nodes serve the
+  # same data and fhir-proxy can route around either one dying.
+  #
+  # resthook subscriptions are DISABLED here on purpose: HAPI's subscription
+  # delivery is per-instance, so two nodes with it enabled deliver every
+  # subscription twice. Node 1 owns that background work; this node serves
+  # reads and writes only.
+  hapi-fhir-2:
+    image: hapiproject/hapi:v7.2.0
+    container_name: hapi-fhir-2
+    ports:
+      - "127.0.0.1:18080:8080"
+    environment:
+      - hapi.fhir.fhir_version=R4
+      - hapi.fhir.server_address=http://0.0.0.0:8079/fhir/
+      - hapi.fhir.allow_cascade_delete=true
+      - hapi.fhir.enforce_referential_integrity_on_delete=false
+      - hapi.fhir.enforce_referential_integrity_on_write=false
+      - spring.datasource.url=jdbc:postgresql://db-postgres:5432/hapi_fhir
+      - spring.datasource.username=admin
+      - spring.datasource.password=${PG_PASSWORD:-password123}
+      - spring.datasource.driverClassName=org.postgresql.Driver
+      - spring.jpa.properties.hibernate.dialect=ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+      - hapi.fhir.subscription.resthook_enabled=false
       - hapi.fhir.subscription.websocket_enabled=false
     depends_on:
       db-postgres:
@@ -533,6 +610,7 @@ networks:
 
 volumes:
   postgres-data:
+  postgres-standby-data:
   mongo-data:
   prometheus-data:
   grafana-data:

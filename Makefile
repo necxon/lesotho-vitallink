@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards
+.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -137,6 +137,21 @@ superset-up:
 	docker compose up -d --build superset
 	@echo "Waiting for Superset to finish its first-run bootstrap (db upgrade + init)..."
 	@bash -c 'for i in $$(seq 1 90); do curl -sf -o /dev/null http://localhost:8089/health && exit 0; sleep 5; done; echo "Superset did not become healthy"; exit 1'
+
+## Failover drill: kill each FHIR backend in turn while traffic flows, then
+## verify the database standby is really replaying writes. Exits non-zero on any
+## failure, so it can gate a deploy. Takes ~4 min (backends need ~90s to boot).
+ha-drill:
+	bash scripts/ha-drill.sh
+
+## Same drill without waiting for backends to rejoin (~40s). Faster, but it
+## leaves nodes mid-boot, so the final status check may read "degraded".
+ha-drill-quick:
+	QUICK=1 bash scripts/ha-drill.sh
+
+## Live cluster status as JSON (what the portal's Backends page renders).
+ha-status:
+	@curl -s http://localhost:3000/cluster/status
 
 ## Run mediator unit tests (no Docker required)
 test:

@@ -14,6 +14,10 @@ the compose overrides, the seed command and the browse URLs.
 
 ## Overview
 
+The stack includes two FHIR backends with automatic failover, a streaming
+database standby and optional Superset dashboards. Sections 8 and 9 cover those;
+sections 1-7 bring up the core system.
+
 The deployment is two Docker Compose stacks plus optional host config:
 
 - Main stack: this repo (docker-compose.yml) - OpenHIM, Keycloak, DHIS2,
@@ -238,6 +242,59 @@ curl -s -d "grant_type=password&client_id=admin-cli&username=admin&password=admi
 make check-openlmis
 ```
 
+## 8. Redundancy (optional but recommended)
+
+The stack ships a second FHIR backend and a hot standby of the database. Both
+are ordinary compose services, so they come up with everything else - there is
+nothing extra to install. See `docs/high-availability.md` for the full runbook.
+
+What you get: `fhir-proxy` load balances across `hapi-fhir` and `hapi-fhir-2`
+and fails over automatically, and `db-postgres-standby` streams the whole
+cluster (hapi_fhir, dhis2, keycloak, opensrp, mediator, superset) so the data
+survives losing the primary.
+
+The standby needs a replication role on the primary. This is idempotent:
+
+```bash
+# 1. replication role on the primary (idempotent - ignore "already exists")
+docker exec health-db-postgres psql -U admin -d postgres \
+  -c "CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD 'replicator';" || true
+
+# 2. allow replication connections from the docker network
+docker exec health-db-postgres sh -c "grep -q 'replication replicator' /var/lib/postgresql/data/pg_hba.conf || echo 'host replication replicator all md5' >> /var/lib/postgresql/data/pg_hba.conf"
+
+# 3. apply without a restart, then start the standby
+docker exec health-db-postgres psql -U admin -d postgres -c "SELECT pg_reload_conf();"
+docker compose up -d db-postgres-standby     # first start takes a base backup
+```
+
+Change that password from `replicator` on any real deployment: set
+`REPL_PASSWORD` in `.env` and use the same value in the `CREATE ROLE` above.
+
+Then prove it works before relying on it:
+
+```bash
+make ha-drill        # kills each backend in turn, verifies replication; ~4 min
+make ha-status       # live cluster JSON
+```
+
+The drill exits non-zero if anything fails. Expect `passed: 14  failed: 0`.
+Watch the same state in the portal under `Backends & Failover`.
+
+## 9. Superset analytics (optional)
+
+Dashboards over FHIR, OpenLMIS and DHIS2. Needs the `superset` database, which
+`config/initdb/02-create-databases.sql` creates on a fresh volume; on an
+existing one create it by hand first:
+
+```bash
+docker exec health-db-postgres psql -U admin -d postgres -c "CREATE DATABASE superset;"
+make superset        # build, apply the views, provision the dashboards
+```
+
+Superset then answers on port 8089 (admin / admin - change it). Full details in
+`docs/superset-analytics.md`.
+
 ## Troubleshooting (hit during the 2026-07-02 bring-up)
 
 - Docker "permission denied ... /var/run/docker.sock": user not in docker group,
@@ -248,6 +305,16 @@ make check-openlmis
   .env is not `password123`. Fix .env, then `docker compose up -d` to recreate.
 - Seed exits immediately with "line 20: log: command not found": stale lock from
   an interrupted run. `rm -f /tmp/lesotho-seed.lock` and re-run.
+- A healthy FHIR backend shows as down after a container is recreated: nginx
+  resolved the upstream name once at config load and cached the old IP.
+  `fhir-proxy` reloads itself every 30s to re-resolve, so wait that out or run
+  `docker exec fhir-proxy nginx -s reload`.
+- `ports are not available ... 127.0.0.1:5433`: on Windows that port sits in the
+  reserved WinNAT range. The standby is mapped to 15433 for this reason; pick
+  another free port if 15433 is taken too.
+- Superset fails to start with `ModuleNotFoundError: psycopg2`: it is being run
+  from the upstream image instead of the local build. Use
+  `docker compose up -d --build superset`.
 - Seed shows every HAPI resource as "-> 404" and dies in the purge step: the
   fhir-proxy is routing to a stale HAPI IP (it uses a static upstream resolved
   once at start). This happens after recreating hapi-fhir. Fix:

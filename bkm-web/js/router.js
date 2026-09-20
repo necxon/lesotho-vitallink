@@ -82,6 +82,7 @@ function route() {
   //else if (hash.indexOf('#/tasks') === 0)          renderTasks(el);
   else if (hash.indexOf('#/fhir') === 0)           renderFHIR(el);
   else if (hash.indexOf('#/openlmis') === 0)       renderOpenLMIS(el);
+  else if (hash.indexOf('#/cluster') === 0)        renderCluster(el);
   else if (hash.indexOf('#/services') === 0)       renderServices(el);
   else if (hash.indexOf('#/tests') === 0)          renderTests(el);
   else if (hash.indexOf('#/settings') === 0)       renderSettings(el);
