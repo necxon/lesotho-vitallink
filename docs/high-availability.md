@@ -193,6 +193,78 @@ curl -s -o /dev/null -w "b2=%{http_code}\n" http://localhost:8079/backend/2/heal
 docker compose up -d hapi-fhir               # ~90s to boot
 ```
 
+## Deployment topologies
+
+Everything documented above runs on one host. These are the steps beyond it.
+
+| # | Topology | Survives | Database failover | VMs |
+|---|---|---|---|---|
+| 0 | One host (today) | a container dying | n/a | 1 |
+| 1 | Two VMs, one site | losing a host | manual promote | 2 |
+| 2 | Two VMs + witness | losing a host | automatic, safe | 2 + 1 small |
+| 3 | Two sites + witness | losing a site | automatic, safe | 4 + 1 small |
+
+### Why two VMs is the floor, and why three is the number
+
+Two is the minimum that survives losing a host: one VM cannot.
+
+But two cannot safely promote the database automatically. Neither node can tell
+"the other is dead" from "the link between us is cut", so both may promote, both
+accept writes, and the databases diverge - split brain, which is worse than the
+outage it was trying to avoid. With two VMs, promotion stays a human decision.
+
+A third voter fixes that, and it does not need to be a third full VM. A witness
+running etcd (or a Patroni witness) is enough: 1 vCPU and 1-2 GB. Whichever side
+can still see the witness holds quorum and promotes; the isolated side stands
+down. So "three VMs" is really two workers plus a tiebreaker.
+
+### Across sites
+
+This is the topology that matches "lose one site and keep running":
+
+```
+   SITE A                          SITE B                      SITE C
+ +------------------+           +------------------+        +-----------+
+ | VM A1  app tier  |           | VM B1  app tier  |        | witness   |
+ | VM A2  db PRIMARY| =========> | VM B2  db STANDBY|        | etcd only |
+ +------------------+   async    +------------------+        | 1 vCPU    |
+          ^            streaming          ^                  +-----------+
+          |            replication        |                        ^
+          +------------------+------------+------------------------+
+                             |  quorum decides who promotes
+                   fhir.lesotho-bkm.xyz  (DNS, 60s TTL)
+                             ^
+                             |
+                      field phones
+```
+
+Use asynchronous replication between sites. Synchronous would make every write
+in site A wait for an acknowledgement from site B, so a slow link becomes a slow
+system, and a broken link becomes a stopped one. Async costs you the WAL still
+in flight at the moment of failure - seconds - which is the right trade here.
+
+Expect an RPO of seconds and an RTO of minutes: promote the standby, then wait
+for DNS to move.
+
+### The constraint that decides the design: the phones
+
+`scripts/patch_apk.py` byte-patches the server URL into the DEX, and only with
+same-length replacements. Every installed APK therefore has
+`https://fhir.lesotho-bkm.xyz/fhir/` compiled into it. During an outage you
+cannot re-point the phones - you would be asking every VHW to sideload a new
+build.
+
+So site failover has to keep the same hostname and move the DNS record. Give
+`fhir.lesotho-bkm.xyz` and `lesotho-bkm.xyz` a 60s TTL well before you need it;
+a record still cached at 24 hours turns a 5-minute failover into a day-long
+outage.
+
+Two things work in your favour. The app is offline-first, so phones queue their
+work and sync when the name resolves again - a failover window is a delay, not
+lost data. And Keycloak lives in the same replicated cluster, so tokens keep
+working after promotion rather than every user being logged out at the worst
+moment.
+
 ## Active-active vs active-standby
 
 Not one choice - it depends on whether a node holds authoritative state.
