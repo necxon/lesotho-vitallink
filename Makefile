@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty
+.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -96,6 +96,47 @@ fix-nginx:
 ## Re-run seed only (useful after a full "make restart" if nginx stubs need refreshing)
 reseed:
 	SKIP_WAIT=1 bash scripts/seed.sh
+
+## Apply every analytics schema Superset reports on. Safe to re-run: each
+## script drops and rebuilds its own `analytics` schema.
+superset-views: superset-views-fhir superset-views-lmis superset-views-dhis2
+
+## FHIR analytics views + the read-only superset_ro role (database hapi_fhir).
+superset-views-fhir:
+	docker exec -i health-db-postgres psql -U admin -d hapi_fhir -v ON_ERROR_STOP=1 < scripts/sql/fhir_analytics.sql > /dev/null
+	docker exec -i health-db-postgres psql -U admin -d hapi_fhir -v ON_ERROR_STOP=1 < scripts/sql/fhir_reports.sql > /dev/null
+	docker exec -i health-db-postgres psql -U admin -d hapi_fhir -v ON_ERROR_STOP=1 < scripts/sql/superset_role.sql > /dev/null
+	@echo "analytics views + superset_ro role applied to hapi_fhir."
+
+## OpenLMIS analytics views (database open_lmis, in the ref-distro container).
+## Read-only: it only creates its own schema, it never touches a Flyway schema.
+superset-views-lmis:
+	docker exec -i openlmis-ref-distro-db-1 psql -U postgres -d open_lmis -v ON_ERROR_STOP=1 < scripts/sql/openlmis_analytics.sql > /dev/null
+	docker exec -i openlmis-ref-distro-db-1 psql -U postgres -d open_lmis -v ON_ERROR_STOP=1 < scripts/sql/openlmis_reports.sql > /dev/null
+	docker exec -i openlmis-ref-distro-db-1 psql -U postgres -d open_lmis -v ON_ERROR_STOP=1 < scripts/sql/openlmis_superset_role.sql > /dev/null
+	@echo "analytics views + superset_ro role applied to open_lmis."
+
+## DHIS2 analytics views (database dhis2, on health-db-postgres).
+superset-views-dhis2:
+	docker exec -i health-db-postgres psql -U admin -d dhis2 -v ON_ERROR_STOP=1 < scripts/sql/dhis2_analytics.sql > /dev/null
+	docker exec -i health-db-postgres psql -U admin -d dhis2 -v ON_ERROR_STOP=1 < scripts/sql/dhis2_reports.sql > /dev/null
+	docker exec -i health-db-postgres psql -U admin -d dhis2 -v ON_ERROR_STOP=1 < scripts/sql/dhis2_superset_role.sql > /dev/null
+	@echo "analytics views + superset_ro role applied to dhis2."
+
+## Create/refresh the Superset datasets, charts and dashboards only.
+## Run after editing scripts/seed_superset.py — existing chart URLs are kept.
+superset-dashboards:
+	docker exec -i bkm-superset python3 - < scripts/seed_superset.py
+
+## Full Superset bring-up: build the image, wait for it, apply the views, then
+## provision every dashboard. Idempotent — this is the one target to re-run.
+superset: superset-up superset-views superset-dashboards
+	@echo "Superset ready: http://localhost:8089 (admin / admin)"
+
+superset-up:
+	docker compose up -d --build superset
+	@echo "Waiting for Superset to finish its first-run bootstrap (db upgrade + init)..."
+	@bash -c 'for i in $$(seq 1 90); do curl -sf -o /dev/null http://localhost:8089/health && exit 0; sleep 5; done; echo "Superset did not become healthy"; exit 1'
 
 ## Run mediator unit tests (no Docker required)
 test:

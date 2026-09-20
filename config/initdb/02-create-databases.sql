@@ -10,6 +10,7 @@ CREATE DATABASE openlmis_stockmanagement;
 CREATE DATABASE openlmis_notification;
 CREATE DATABASE hapi_fhir;
 CREATE DATABASE mediator;
+CREATE DATABASE superset;
 
 -- Enable extensions in referencedata DB:
 --   postgis   → geometry column on the facilities table

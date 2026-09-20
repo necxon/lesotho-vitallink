@@ -482,6 +482,48 @@ services:
       - health-net
     restart: unless-stopped
 
+  # --- SUPERSET (FHIR analytics / BI) ---
+  # Reads the analytics.* views in the hapi_fhir database (see scripts/sql/).
+  # Metadata lives in the `superset` database on db-postgres, so dashboards
+  # survive a container rebuild without a dedicated volume.
+  # Bootstrap + dashboards: make superset
+  superset:
+    build: ./config/superset
+    image: lesotho-vitallink-superset
+    container_name: bkm-superset
+    ports:
+      - "0.0.0.0:8089:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY:-lesotho-sandbox-superset-key-change-me}
+      - PG_PASSWORD=${PG_PASSWORD:-password123}
+      - SUPERSET_LOAD_EXAMPLES=no
+      # Only applied on FIRST start (create-admin is a no-op once the user exists).
+      # To change it later: docker exec bkm-superset superset fab reset-password \
+      #   --username admin --password <new>
+      - SUPERSET_ADMIN_PASSWORD=${SUPERSET_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./config/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    # The image entrypoint expects root for pip installs; we only need the app.
+    user: "superset"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        superset db upgrade
+        superset fab create-admin --username admin --firstname Admin --lastname User \
+          --email admin@lesotho.health --password "$${SUPERSET_ADMIN_PASSWORD:-admin}" || true
+        superset init
+        exec gunicorn --bind 0.0.0.0:8088 --workers 4 --worker-class gthread \
+          --threads 4 --timeout 120 'superset.app:create_app()'
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    networks:
+      - health-net
+      - lmis-net  # reach the OpenLMIS database (host `db`) for its dashboards
+    restart: unless-stopped
+
 networks:
   health-net:
     external: true
