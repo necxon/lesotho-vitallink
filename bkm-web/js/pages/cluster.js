@@ -215,6 +215,85 @@ function _clusterDiagram(d) {
   return '<div style="overflow-x:auto;margin-bottom:18px">' + svg.join('') + '</div>' + legend;
 }
 
+/*
+ * The promote control.
+ *
+ * Shown only when it could legitimately be used - the primary unreachable and
+ * the standby still following. The rest of the time it is a disabled
+ * explanation, because an always-live red button next to a database is an
+ * invitation, and this action cannot be undone.
+ *
+ * Confirmation is a TYPED word, not an OK/Cancel dialog. During an incident
+ * people click through dialogs; typing PROMOTE takes a deliberate moment. The
+ * real protection is still server side: /cluster/promote-standby refuses while
+ * the primary answers, whatever this page sends.
+ */
+function _clusterPromoteBox(d) {
+  var pri = d.database.primary;
+  var sby = d.database.standby;
+  var armed = !pri.up && sby.up && sby.role === 'standby';
+
+  if (!armed) {
+    var why = pri.up
+      ? 'The primary is still serving, so there is nothing to promote. Promoting now would ' +
+        'leave two writable databases diverging.'
+      : (!sby.up ? 'The standby is unreachable.' : 'This server has already been promoted - rebuild a replica instead.');
+    return '<details style="margin-top:10px"><summary><small>Promote the standby</small></summary>' +
+           '<p><small>' + why + '</small></p>' +
+           '<p><small>Available only while the primary is unreachable. To promote against a live ' +
+           'primary you must do it deliberately on the box:<br>' +
+           '<code>docker exec health-db-standby pg_ctl promote -D /var/lib/postgresql/data</code>' +
+           '</small></p></details>';
+  }
+
+  return '<div style="border:2px solid #c62828;background:#fdf1f1;padding:12px 16px;margin-top:12px">' +
+    '<strong style="color:#c62828">The primary is unreachable</strong>' +
+    '<p><small>Promoting makes this replica writable and it stops following the old primary. ' +
+    'It cannot be undone: if the old primary comes back, the two diverge. Do this only when the ' +
+    'primary is genuinely gone, not merely slow. Afterwards you are running with no replica, and ' +
+    'services still point at the old primary until repointed.</small></p>' +
+    '<label><small>Type <code>PROMOTE</code> to enable the button</small>' +
+    '<input id="cl-confirm" type="text" autocomplete="off" placeholder="PROMOTE" ' +
+    'style="max-width:220px"></label>' +
+    '<button id="cl-promote" disabled onclick="promoteStandby()" ' +
+    'style="background:#c62828;border-color:#c62828">Promote standby</button>' +
+    '<p id="cl-promote-out"><small></small></p>' +
+    '</div>';
+}
+
+function promoteStandby() {
+  var out = document.getElementById('cl-promote-out');
+  var btn = document.getElementById('cl-promote');
+  if (document.getElementById('cl-confirm').value !== 'PROMOTE') return;
+  btn.disabled = true;
+  btn.textContent = 'Promoting…';
+  out.innerHTML = '<small>Waiting for the server to leave recovery…</small>';
+
+  mediatorFetch('cluster/promote-standby', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'PROMOTE' }),
+  })
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+    .then(function(res) {
+      if (res.ok && res.j.ok) {
+        out.innerHTML = '<small style="color:#2e7d32"><strong>Promoted.</strong> ' + res.j.note + '</small>';
+      } else {
+        // A refusal is the guard working, so it is reported as guidance rather
+        // than as a failure of the page.
+        btn.disabled = false;
+        btn.textContent = 'Promote standby';
+        out.innerHTML = '<small style="color:#ef6c00"><strong>Refused: ' +
+          (res.j.error || 'unknown') + '.</strong> ' + (res.j.detail || '') + '</small>';
+      }
+    })
+    .catch(function(e) {
+      btn.disabled = false;
+      btn.textContent = 'Promote standby';
+      out.innerHTML = '<small style="color:#c62828">Could not reach the mediator: ' + e.message + '</small>';
+    });
+}
+
 function renderCluster(el) {
   el.innerHTML = '<h2>Backends</h2><p aria-busy="true">Checking cluster…</p>';
 
@@ -292,6 +371,7 @@ function renderCluster(el) {
       'and Superset are protected too, not just FHIR. The standby is read-only until promoted.</small></p>' +
       '<table role="grid"><thead><tr><th>Server</th><th>Role</th><th>Replication</th></tr></thead>' +
       '<tbody>' + dbRows + '</tbody></table>' +
+      _clusterPromoteBox(d) +
       (standbyWarn
         ? '<p><small style="color:#ef6c00"><strong>The standby has been promoted.</strong> It is no longer ' +
           'following the primary, so the two are diverging. Rebuild it from a fresh base backup once the ' +
@@ -315,6 +395,15 @@ function renderCluster(el) {
         document.getElementById('cluster-help').hidden = (target !== 'cluster-help');
       });
     });
+    // Typed confirmation gate. Re-bound each repaint because the 15s refresh
+    // replaces this markup.
+    var confirmBox = document.getElementById('cl-confirm');
+    if (confirmBox) {
+      confirmBox.addEventListener('input', function() {
+        document.getElementById('cl-promote').disabled = (confirmBox.value !== 'PROMOTE');
+      });
+    }
+
     if (_clusterTab === 'cluster-help') {
       el.querySelector('[data-tab="cluster-help"]').click();
     }

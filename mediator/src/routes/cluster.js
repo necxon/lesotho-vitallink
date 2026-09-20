@@ -182,4 +182,76 @@ router.get('/status', async (req, res) => {
   });
 });
 
+/*
+ * POST /cluster/promote-standby — turn the replica into a primary.
+ *
+ * Guarded deliberately hard. Promotion is not undoable: the moment the standby
+ * leaves recovery it stops following the primary, and if the primary is still
+ * alive both sides accept writes and diverge. That is split brain, and it is
+ * worse than the outage it was meant to solve.
+ *
+ * So the dangerous case is not offered at all. If the mediator can still reach
+ * the primary, this endpoint refuses, whatever the caller says. A confirmation
+ * dialog only asks a human to be careful, and during an incident people click
+ * through; a server-side check does not. Promoting while the primary is up
+ * stays a deliberate manual act with the documented pg_ctl command, which is
+ * exactly the friction it deserves.
+ */
+router.post('/promote-standby', async (req, res) => {
+  const body = req.body || {};
+
+  if (body.confirm !== 'PROMOTE') {
+    return res.status(400).json({
+      ok: false,
+      error: 'confirmation required',
+      detail: 'Send {"confirm":"PROMOTE"} to proceed.',
+    });
+  }
+
+  // 1. The primary must be genuinely unreachable, not merely slow.
+  const primary = await primaryState();
+  if (primary.up) {
+    logger.warn('cluster: promote refused - the primary is still reachable');
+    return res.status(409).json({
+      ok: false,
+      error: 'primary is still serving',
+      detail: 'Promoting now would leave two writable databases diverging. ' +
+              'If the primary really must be abandoned, do it deliberately: ' +
+              'docker exec health-db-standby pg_ctl promote -D /var/lib/postgresql/data',
+    });
+  }
+
+  // 2. And the standby must still be a standby.
+  const standby = await standbyState();
+  if (!standby.up) {
+    return res.status(503).json({ ok: false, error: 'standby is unreachable', detail: standby.error });
+  }
+  if (standby.role !== 'standby') {
+    return res.status(409).json({
+      ok: false,
+      error: 'already promoted',
+      detail: 'This server has already left recovery. Rebuild a replica instead.',
+    });
+  }
+
+  try {
+    logger.warn('cluster: PROMOTING the standby - the primary is unreachable');
+    // wait=true so the call returns once the server has actually left recovery,
+    // rather than reporting success on a promotion still in progress.
+    await poolFor(STANDBY_HOST).query('SELECT pg_promote(true, 60)');
+    const after = await standbyState();
+    logger.warn(`cluster: promotion finished, role is now ${after.role}`);
+    return res.json({
+      ok: true,
+      role: after.role,
+      note: 'Promoted. Services still point at the old primary - repoint them ' +
+            '(db-postgres -> db-postgres-standby) and restart. You are now running ' +
+            'without a replica: rebuild one. See docs/high-availability.md.',
+    });
+  } catch (e) {
+    logger.error(`cluster: promotion failed: ${e.message}`);
+    return res.status(500).json({ ok: false, error: 'promotion failed', detail: e.message });
+  }
+});
+
 module.exports = router;

@@ -146,6 +146,22 @@ Only when the primary is genuinely gone. A promoted standby stops following the
 primary, and if the primary comes back the two diverge - you then have two
 databases that disagree, which is worse than the outage.
 
+The Administrator Portal has a Promote button on the Backends page, but it only
+appears while the primary is unreachable. The endpoint behind it
+(`POST /cluster/promote-standby`) refuses whenever the primary still answers,
+whatever the page sends, and requires a typed `PROMOTE` confirmation rather than
+an OK/Cancel dialog - during an incident people click through dialogs. Promoting
+against a LIVE primary is deliberately not offered in the UI at all; it stays the
+manual `pg_ctl` command below, which is the friction it deserves.
+
+Tested end to end, including the restore: guards refuse without confirmation,
+with a wrong confirmation, and with the correct confirmation while the primary is
+up; with the primary genuinely stopped the promotion returns 200, the server
+leaves recovery and accepts writes; a second attempt is refused as already
+promoted.
+
+By hand:
+
 ```bash
 # 1. confirm the primary really is down, not just slow
 docker exec health-db-postgres pg_isready -U admin
