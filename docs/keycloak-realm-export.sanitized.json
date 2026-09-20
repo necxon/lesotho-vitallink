@@ -25,12 +25,12 @@
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "redirectUris": [
-        "http://184.168.122.221:9901/*",
+        "http://0.0.0.0:9901/*",
         "http://localhost:9901/*",
         "https://opensrp.lesotho-bkm.xyz/*"
       ],
       "webOrigins": [
-        "http://184.168.122.221:9901",
+        "http://0.0.0.0:9901",
         "http://localhost:9901",
         "https://opensrp.lesotho-bkm.xyz"
       ]
@@ -56,16 +56,16 @@
         "http://localhost:9902/*",
         "http://localhost:9902/",
         "http://localhost:9902",
-        "http://184.168.122.221:9902/*",
-        "http://184.168.122.221:9902/",
-        "http://184.168.122.221:9902",
+        "http://0.0.0.0:9902/*",
+        "http://0.0.0.0:9902/",
+        "http://0.0.0.0:9902",
         "https://lesotho-bkm.xyz/*",
         "https://lesotho-bkm.xyz/",
         "https://lesotho-bkm.xyz"
       ],
       "webOrigins": [
         "http://localhost:9902",
-        "http://184.168.122.221:9902",
+        "http://0.0.0.0:9902",
         "https://lesotho-bkm.xyz"
       ]
     },

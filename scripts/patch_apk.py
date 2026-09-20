@@ -33,16 +33,18 @@ DEX_FILE = "classes10.dex"
 # not a substring — so the full URL incl. path must be given. Variable lengths are OK
 # (ULEB128 size prefix is rewritten). Listing every plausible current value is safe;
 # missing ones are skipped with a warning.
+# The 0.0.0.0 entries are placeholders: set them to the server IP the APK was
+# actually built against, or they simply never match and are skipped.
 PATCHES = [
     # FHIR base URL (full string in classes10.dex)
     (b"http://localhost:8079/fhir/",        b"https://fhir.lesotho-bkm.xyz/fhir/"),
     (b"http://10.0.2.2:8079/fhir/",         b"https://fhir.lesotho-bkm.xyz/fhir/"),
-    (b"http://184.168.122.221:8079/fhir/",  b"https://fhir.lesotho-bkm.xyz/fhir/"),
+    (b"http://0.0.0.0:8079/fhir/",          b"https://fhir.lesotho-bkm.xyz/fhir/"),
 
     # Keycloak OAuth base URL (full string in classes10.dex; KC now under /auth)
     (b"http://localhost:8083/realms/opensrp/",        b"https://lesotho-bkm.xyz/auth/realms/opensrp/"),
     (b"http://10.0.2.2:8083/realms/opensrp/",         b"https://lesotho-bkm.xyz/auth/realms/opensrp/"),
-    (b"http://184.168.122.221:8083/realms/opensrp/",  b"https://lesotho-bkm.xyz/auth/realms/opensrp/"),
+    (b"http://0.0.0.0:8083/realms/opensrp/",          b"https://lesotho-bkm.xyz/auth/realms/opensrp/"),
 ]
 # ──────────────────────────────────────────────────────────────────────────────
 

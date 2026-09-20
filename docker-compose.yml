@@ -382,7 +382,7 @@ services:
       - "127.0.0.1:18079:8080"
     environment:
       - hapi.fhir.fhir_version=R4
-      - hapi.fhir.server_address=http://184.168.122.221:8079/fhir/
+      - hapi.fhir.server_address=http://0.0.0.0:8079/fhir/
       - hapi.fhir.allow_cascade_delete=true
       - hapi.fhir.enforce_referential_integrity_on_delete=false
       - hapi.fhir.enforce_referential_integrity_on_write=false

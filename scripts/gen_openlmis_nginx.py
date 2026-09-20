@@ -588,7 +588,7 @@ map $http_host $allowlisted_ip {
     "openlmis-nginx" 0;
     "~^openlmis" 0;
     "~lesotho-bkm" 0;
-    "184.168.122.221" 0;
+    "0.0.0.0" 0;
     "~^184\\.168\\.122\\.221" 0;
 }
 
