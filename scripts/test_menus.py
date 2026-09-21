@@ -79,10 +79,14 @@ def exists(fhir, ref):
         with urllib.request.urlopen(req, timeout=30) as r:
             return 200 <= r.status < 300
     except urllib.error.HTTPError as e:
-        if e.code == 404:
+        # 404 never existed; 410 Gone means it was deleted. Both mean the phone
+        # cannot fetch it, which is all this check cares about. An earlier
+        # version raised on 410 and took the whole run down the moment somebody
+        # deleted a resource - exactly when the report is most needed.
+        if e.code in (404, 410):
             return False
-        # Anything else (410 gone, 500, auth) is not a clean "missing", so say
-        # so rather than silently calling it absent.
+        # Anything else (500, auth) is not a clean "missing", so say so rather
+        # than silently calling it absent.
         raise RuntimeError(f"{ref} returned HTTP {e.code}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"{ref} unreachable: {e.reason}")

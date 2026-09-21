@@ -58,7 +58,9 @@ def exists(fhir, resource_type, rid):
         with urllib.request.urlopen(req, timeout=30) as r:
             return 200 <= r.status < 300
     except urllib.error.HTTPError as e:
-        if e.code == 404:
+        # 410 Gone means deleted. Treated the same as never-existed, so a
+        # deleted placeholder is re-seeded rather than crashing the run.
+        if e.code in (404, 410):
             return False
         raise
 
