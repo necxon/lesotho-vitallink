@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs
+.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs demo-data demo-data-purge
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -228,6 +228,14 @@ import-lhc-forms:
 ## Build the five signed-off dashboard category views (run after superset-dashboards)
 superset-categories:
 	docker exec -i bkm-superset python3 - < scripts/superset_categories.py
+
+## Generate synthetic demo activity so dashboards and reports have data
+demo-data:
+	python scripts/seed_demo_data.py --apply
+
+## Remove every resource tagged demo-data
+demo-data-purge:
+	python scripts/seed_demo_data.py --purge
 
 ## Run every operational report now, ignoring schedule (output: ./reports-out)
 reports-run:

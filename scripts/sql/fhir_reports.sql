@@ -87,6 +87,14 @@ GROUP BY 1, 2;
 -- --- Workforce ----------------------------------------------------------------
 
 -- One row per VHW/health worker with their workload.
+-- Caseload per practitioner.
+--
+-- Dispensing is aggregated in a subquery rather than joined row-by-row. Joining
+-- households, household members and dispenses together multiplies the dispense
+-- rows by (households x members), and while count(DISTINCT) survives that,
+-- sum(quantity) does not: a worker with 4 households, 11 patients and 176 units
+-- dispensed reported 7744. The counts looked right, which is what made it hard
+-- to spot - it only appears once a practitioner has both patients AND dispenses.
 CREATE OR REPLACE VIEW analytics.rpt_vhw_caseload AS
 SELECT pr.practitioner_id,
        pr.full_name        AS practitioner_name,
@@ -94,15 +102,20 @@ SELECT pr.practitioner_id,
        coalesce(pr.district, 'Unknown') AS district,
        count(DISTINCT h.household_id) AS households,
        count(DISTINCT hm.member_ref)  AS patients,
-       count(DISTINCT d.dispense_id)  AS dispenses,
-       coalesce(sum(d.quantity), 0)   AS units_dispensed
+       coalesce(max(d.dispenses), 0)       AS dispenses,
+       coalesce(max(d.units_dispensed), 0) AS units_dispensed
 FROM analytics.dim_practitioner pr
 LEFT JOIN analytics.dim_household h
        ON h.managing_practitioner_ref = pr.practitioner_ref
 LEFT JOIN analytics.bridge_household_member hm
        ON hm.managing_practitioner_ref = pr.practitioner_ref
-LEFT JOIN analytics.fact_dispense d
-       ON d.performer_ref = pr.practitioner_ref
+LEFT JOIN (
+       SELECT performer_ref,
+              count(*)                   AS dispenses,
+              coalesce(sum(quantity), 0) AS units_dispensed
+       FROM analytics.fact_dispense
+       GROUP BY performer_ref
+     ) d ON d.performer_ref = pr.practitioner_ref
 GROUP BY 1, 2, 3, 4;
 
 -- Who is posted where, in which role.
