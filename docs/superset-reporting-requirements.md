@@ -27,6 +27,23 @@ dashboards, not a change to their design.
 
 Each KPI in the matrix is therefore marked with whether it is populated today.
 
+## Build status
+
+The five category views below are built and live in Superset:
+
+```
+make superset-categories        # after make superset-dashboards
+```
+
+They reuse the 127 charts that `seed_superset.py` already provisions rather
+than duplicating them, so the original source-oriented dashboards keep working
+and no chart URL changes. 66 charts are placed across the five views.
+
+Verified by calling each chart's data endpoint: the FHIR and DHIS2 charts
+return rows; the OpenLMIS charts return HTTP 400 because that stack is
+currently stopped. That is the expected behaviour, not a defect in the
+dashboards - see the matrix below for which indicators depend on it.
+
 ## Design principle
 
 Ten dashboards is more than any one person uses. The five categories below are
