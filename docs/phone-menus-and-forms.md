@@ -216,33 +216,40 @@ Binaries are served as their raw content, and the translation files are Java
 `.properties`, not JSON. An earlier version of the script decoded every response
 and reported six perfectly healthy resources as missing.
 
-### Current state
+### Placeholders for forms that were never supplied
 
-The six clinical questionnaires the Composition published but never uploaded
-have been seeded as placeholders:
+The Composition publishes clinical questionnaires whose production content has
+never been supplied to this project. Left alone, the phone downloads a manifest
+pointing at resources it cannot fetch.
 
 ```
-make seed-questionnaires          # show what is missing
-python scripts/seed_clinical_questionnaires.py --apply
+make seed-questionnaires                                  # show what is missing
+python scripts/seed_clinical_questionnaires.py --apply    # create placeholders
 ```
 
-They are placeholders, not forms. Each is a single display item saying so, and
-each is `status: draft` so it stands out from the real `active` forms in the
-portal's Status column. Seeding them makes the config internally consistent -
-the phone stops requesting resources that 404 - but a health worker who reaches
-one sees placeholder text, not a usable form.
+A placeholder is a single display item saying so, with `status: draft` so it
+stands out from the real `active` forms in the portal's Status column. Seeding
+makes the config internally consistent; it does not make the forms usable. A
+health worker who reaches one sees placeholder text.
+
+The script derives its list from the live Composition rather than a hardcoded
+array, so it stays correct as the config changes, and it is safe to re-run.
 
 The real content is not in this repository and is not publicly available. A
 GitHub code search for these ids returns only this repo and one
 opensrp/fhircore documentation page; the definitions live on the BKM
 implementer's own FHIR server. `scripts/seed.sh` used to seed 24 such stubs
 (commit 5ee10ab) and that block was later removed, which is how the dangling
-references appeared. The new script derives its list from the live Composition
-rather than a hardcoded array, so it cannot drift the same way.
+references appeared in the first place.
 
 Note the stubs carry no `targetStructureMap` extension. The maps those forms
 would reference are themselves missing, so attaching them would swap one
 dangling reference for another, and a placeholder has nothing to extract.
+
+Placeholders are filler, so deleting them is a reasonable choice - but the
+Composition still publishes those ids afterwards, and the references dangle
+again. If they are not wanted, remove the corresponding sections from the
+Composition rather than only deleting the resources.
 
 ### Real forms from the NLM library
 
@@ -279,22 +286,23 @@ Status column separates real content from filler at a glance.
 There is no standalone 15-item PHQ form definition at NLM; `lhc-69723-5` is the
 full 63-item PHQ, which contains the PHQ-15 somatic section.
 
-#### Still outstanding
+#### What is outstanding
 
-Four failures remain, all StructureMaps the Composition publishes that are not
-on the server:
+`make test-menus` is the authoritative answer at any moment; this is only the
+shape of what it tends to report.
 
-```
-Sick Child Registration        StructureMap/737a86d6-...
-Sick Child Follow Up Visit     StructureMap/737a86d6-...   (same map)
-Child Counter Referral         StructureMap/528a8603-...
-Pregnancy Outcome              StructureMap/f78e1da0-...
-```
-
-No questionnaire on the server references any of them - they are orphaned
-Composition entries. Removing those four sections is therefore the cleaner fix
-than seeding stub extraction logic, which would be inert anyway. That is a
-config decision, so it has been left alone.
+- **Questionnaires the Composition publishes that are absent.** Either seed
+  placeholders or drop the sections.
+- **StructureMaps the Composition publishes that are absent.** At the time of
+  writing four sections point at three maps (`737a86d6` twice, `528a8603`,
+  `f78e1da0`) that no questionnaire on the server references. They are orphaned
+  Composition entries, so deleting the sections is cleaner than seeding stub
+  extraction logic that would be inert anyway.
+- **Menu items pointing at registers the Composition does not publish.** These
+  are the worst kind, because they look completely normal in the portal and
+  fail as a button that does nothing when tapped in a village. Adding a menu
+  item through the portal without a matching register config produces exactly
+  this, so run `make test-menus` after editing the menu.
 
 ### Checking that forms really render
 
