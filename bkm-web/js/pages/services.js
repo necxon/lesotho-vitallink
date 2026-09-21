@@ -465,7 +465,9 @@ function renderServices(el) {
             (s.exportKeycloak ? '<button class="btn btn-outline btn-sm kc-export-btn" style="margin-left:6px">Export realm</button>' : '') +
             (s.exportKeycloak ? '<label class="btn btn-outline btn-sm" style="margin-left:6px;cursor:pointer">Import realm<input type="file" accept=".json" class="kc-import-input" style="display:none"></label>' : '') +
             (s.exportLmis ? '<button class="btn btn-outline btn-sm lmis-export-btn" style="margin-left:6px">Export data</button>' : '') +
-            (s.exportPostgres ? '<button class="btn btn-outline btn-sm pg-export-btn" style="margin-left:6px">Export SQL</button>' : '') +
+            (s.exportPostgres ? '<button class="btn btn-outline btn-sm pg-export-btn" style="margin-left:6px" ' +
+              'title="Mediator order/dispatch tables only - this is NOT a database backup. ' +
+              'For that see Backup &amp; Recovery.">Export mediator tables</button>' : '') +
             (!s.noOpen ? '<code class="svc-url">' + esc(url) + '</code>' : '<code class="svc-url">localhost:5432</code>') +
           '</div>' +
         '</div>'

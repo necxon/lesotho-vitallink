@@ -168,9 +168,66 @@ function _qVal(q, col) {
   return '';
 }
 
+/*
+ * Forms the app expects but that are not on the server.
+ *
+ * The Composition is the manifest the phone downloads: every questionnaire it
+ * publishes, the app will try to fetch. One that was never uploaded is invisible
+ * here otherwise - this list only ever showed what DOES exist, so six missing
+ * clinical forms looked exactly like six forms nobody had asked for.
+ *
+ * Compared by id against the list already fetched rather than probing each one,
+ * so this costs a single extra request.
+ */
+function _qMissingBanner(qs, composition) {
+  if (!composition) return '';
+  var have = {};
+  qs.forEach(function(q) { have[q.id] = true; });
+
+  var missing = [];
+  (composition.section || []).forEach(function(sec) {
+    if (sec.title !== 'Questionnaires') return;
+    (sec.section || []).forEach(function(sub) {
+      var focus = sub.focus || {};
+      var ref = focus.reference || '';
+      var id = ref.split('/').pop();
+      if (!id || have[id]) return;
+      missing.push({
+        name: (focus.identifier && focus.identifier.value) || sub.title || id,
+        ref: ref,
+      });
+    });
+  });
+
+  if (!missing.length) return '';
+
+  return '<div style="border-left:4px solid #ef6c00;background:#fff8f0;padding:12px 16px;margin-bottom:16px">' +
+    '<strong style="color:#ef6c00">' + missing.length + ' form(s) the app expects are not on this server</strong>' +
+    '<p style="margin:6px 0 0"><small>The app config publishes these to every phone, but they were never ' +
+    'uploaded, so the phone downloads a menu pointing at forms it cannot fetch. They cannot be listed ' +
+    'below, because they do not exist here.</small></p>' +
+    '<ul style="margin:8px 0 0 18px;font-size:12px;color:#4a5768">' +
+      missing.map(function(m) {
+        return '<li><strong>' + esc(m.name) + '</strong> &mdash; <code>' + esc(m.ref) + '</code></li>';
+      }).join('') +
+    '</ul>' +
+    '<p style="margin:8px 0 0"><small>Either import the missing forms, or remove them from the app ' +
+    'config so the phone stops asking for them. <code>make test-menus</code> reports the same thing ' +
+    'on the server.</small></p>' +
+    '</div>';
+}
+
 function renderQuestionnaires(el) {
   loading(el);
-  fhir('Questionnaire?_count=100&_sort=-_lastUpdated').then(function(b) {
+  Promise.all([
+    fhir('Questionnaire?_count=100&_sort=-_lastUpdated'),
+    // Optional: the page is still useful without it, so a failure here must not
+    // take the whole list down.
+    fhir('Composition?identifier=app&_count=1').catch(function() { return null; }),
+  ]).then(function(results) {
+    var b = results[0];
+    var compBundle = results[1];
+    var composition = compBundle && entries(compBundle)[0];
     var qs = entries(b);
     el.innerHTML =
       '<div class="page-header">' +
@@ -184,11 +241,21 @@ function renderQuestionnaires(el) {
       '</div>' +
       '<div class="page-tabs">' +
         '<button class="page-tab active" data-tab="q-data">Phone Menus</button>' +
+        '<button class="page-tab" data-tab="q-nav">App Nav</button>' +
         '<button class="page-tab" data-tab="q-help">? Help</button>' +
       '</div>' +
       '<div id="q-data">' +
-        '<details style="margin-bottom:12px">' +
-          '<summary style="cursor:pointer;font-weight:600;padding:8px 0;user-select:none">Phone Menus (' + qs.length + ') ▶</summary>' +
+        _qMissingBanner(qs, composition) +
+        // Open by default: this is the page's main content, not an aside, and
+        // making people click to see the list they came for is a step for
+        // nothing. The toggle stays so a long list can still be folded away.
+        //
+        // No manual arrow here. This <details> is not inside an <article>, so
+        // the rule in style.css that hides the native disclosure marker does
+        // not apply to it - a literal arrow in the label rendered a second one
+        // next to the browser's own, pointing the wrong way once open.
+        '<details open style="margin-bottom:12px">' +
+          '<summary style="cursor:pointer;font-weight:600;padding:8px 0;user-select:none">Phone Menus (' + qs.length + ')</summary>' +
           (function() {
             var sorted = sortedRows(qs, _qSort, _qVal);
             if (!sorted.length) return '<p>No phone menus yet. Click &ldquo;+ New Phone Menu&rdquo; to create one.</p>';
@@ -214,9 +281,33 @@ function renderQuestionnaires(el) {
           })() +
         '</details>' +
       '</div>' +
-      '<div id="q-help" class="help-panel" hidden>' + questionnairesHelpHTML() + '</div>';
+      // The app's side menu, on the same page as the forms it launches. A menu
+      // item points at one of the questionnaires listed in the first tab, so
+      // keeping them apart meant editing two pages to make one change.
+      '<div id="q-nav" hidden></div>' +
+      '<div id="q-help" class="help-panel" hidden>' + questionnairesHelpHTML() + navigationHelpHTML() + '</div>';
 
     wirePageTabs(el);
+
+    // Mounted on first open rather than up front: it costs another two round
+    // trips, and most visits to this page never touch the menu.
+    var navMounted = false;
+    function mountNavOnce() {
+      if (navMounted) return;
+      navMounted = true;
+      mountNavPanel(document.getElementById('q-nav'));
+    }
+    var navTab = null;
+    el.querySelectorAll('.page-tab').forEach(function(tab) {
+      if (tab.getAttribute('data-tab') !== 'q-nav') return;
+      navTab = tab;
+      tab.addEventListener('click', mountNavOnce);
+    });
+
+    // #/questionnaires/nav opens straight onto the menu. That is where
+    // #/navigation now lands, so an old bookmark still arrives at the menu
+    // rather than at the forms list.
+    if (navTab && /#\/questionnaires\/nav/.test(location.hash)) navTab.click();
 
     wireSortHeaders(el, _qSort, function() { renderQuestionnaires(el); });
 
@@ -375,35 +466,78 @@ function openQEditor(q, parentEl) {
 
 // ── Questionnaire form renderer ───────────────────────────────────────────────
 
+/*
+ * Fill / preview a Questionnaire, rendered by LHC-Forms.
+ *
+ * This is the "what does the health worker actually see" view. LHC-Forms
+ * implements enableWhen, itemControl, calculated expressions, repeats and
+ * initial values; the hand-rolled renderer this replaced implemented none of
+ * them and drew every item unconditionally, so a form the phone shows as five
+ * questions rendered here as twenty.
+ *
+ * It models the phone rather than being it - the phone runs the Android FHIR
+ * SDK's SDC renderer, a different implementation of the same specification. It
+ * is close enough to catch the mistakes that matter (a question that never
+ * appears, a skip that does not fire) and honest about not being identical.
+ */
 function renderQFill(el, id) {
   loading(el);
   fhir('Questionnaire/' + esc(id)).then(function(q) {
     el.innerHTML =
       '<a href="#/questionnaires" class="back">← Phone Menus</a>' +
       '<article class="q-form">' +
-        '<header><h2>' + esc(q.title || q.id) + '</h2></header>' +
+        '<header><h2>' + esc(q.title || q.id) + '</h2>' +
+          '<small>Rendered with LHC-Forms, which applies the same conditional logic the ' +
+          'phone does. Questions appear and disappear as you answer.</small>' +
+        '</header>' +
         '<div class="form-row"><label>Subject (optional — e.g. Patient/patient-001)</label>' +
           '<input id="q-subject" placeholder="Patient/id or leave blank">' +
         '</div>' +
-        renderQItems(q.item || []) +
+        '<div id="lforms-container"><p><small>Loading the form renderer…</small></p></div>' +
         '<div class="q-actions">' +
           '<a href="#/questionnaires" class="btn btn-outline">Cancel</a>' +
-          '<button class="btn btn-primary" id="q-submit">Submit</button>' +
+          '<button class="btn btn-primary" id="q-submit" disabled>Submit</button>' +
         '</div>' +
+        '<p id="q-msg"></p>' +
       '</article>';
+
+    lformsRender(q, 'lforms-container').then(function() {
+      document.getElementById('q-submit').disabled = false;
+    }).catch(function(e) {
+      // A form that will not render is itself the finding, so say which form
+      // and why rather than leaving an empty panel.
+      document.getElementById('lforms-container').innerHTML =
+        '<div style="border-left:4px solid #c62828;background:#fafafa;padding:12px 16px">' +
+        '<strong style="color:#c62828">This questionnaire did not render</strong>' +
+        '<p><small>' + esc(e.message) + '</small></p>' +
+        '<p><small>Run <code>make test-menus</code> to check every questionnaire at once.</small></p>' +
+        '</div>';
+    });
 
     document.getElementById('q-submit').onclick = function() {
       var btn = document.getElementById('q-submit');
+      var msg = document.getElementById('q-msg');
       btn.disabled = true; btn.textContent = 'Submitting…';
+      msg.innerHTML = '';
+
+      var response;
+      try {
+        response = lformsResponse('lforms-container');
+      } catch (e) {
+        btn.disabled = false; btn.textContent = 'Submit';
+        msg.innerHTML = '<small style="color:#c62828">Could not read the answers: ' + esc(e.message) + '</small>';
+        return;
+      }
+
+      // LHC-Forms fills in the answers; the rest is what makes it a valid
+      // QuestionnaireResponse on this server.
+      response.status = 'completed';
+      response.authored = new Date().toISOString();
+      response.questionnaire = 'Questionnaire/' + q.id;
+
       var subj = document.getElementById('q-subject').value.trim();
-      var response = {
-        resourceType: 'QuestionnaireResponse',
-        questionnaire: 'Questionnaire/' + q.id,
-        status: 'completed',
-        authored: new Date().toISOString(),
-        item: collectQAnswers(q.item || []),
-      };
       if (subj) response.subject = { reference: subj };
+
       fhirPost('QuestionnaireResponse', response).then(function() {
         el.innerHTML =
           '<a href="#/questionnaires" class="back">← Phone Menus</a>' +
@@ -413,85 +547,10 @@ function renderQFill(el, id) {
           '</article>';
       }).catch(function(err) {
         btn.disabled = false; btn.textContent = 'Submit';
-        alert('Error: ' + err.message);
+        msg.innerHTML = '<small style="color:#c62828">' + esc(err.message) + '</small>';
       });
     };
   }).catch(function(e) { errMsg(el, e.message); });
-}
-
-function renderQItems(items) {
-  return (items || []).map(function(item) {
-    var fid = 'qf-' + item.linkId.replace(/[^a-zA-Z0-9]/g, '_');
-    if (item.type === 'group') {
-      return '<div class="q-group">' +
-        '<div class="q-group-title">' + esc(item.text || '') + '</div>' +
-        renderQItems(item.item || []) +
-        '</div>';
-    }
-    if (item.type === 'display') {
-      return '<div class="q-item"><div class="q-display">' + esc(item.text || '') + '</div></div>';
-    }
-    var req = item.required ? '<span class="required">*</span>' : '';
-    return '<div class="q-item" data-linkid="' + esc(item.linkId) + '">' +
-      '<label for="' + fid + '">' + esc(item.text || item.linkId) + req + '</label>' +
-      renderQInput(item, fid) +
-      '</div>';
-  }).join('');
-}
-
-function renderQInput(item, fid) {
-  var t = item.type;
-  if (t === 'boolean') {
-    return '<div class="q-bool"><input type="checkbox" id="' + fid + '"><label for="' + fid + '">Yes</label></div>';
-  }
-  if (t === 'choice' || t === 'open-choice') {
-    var opts = (item.answerOption || []).map(function(opt) {
-      var val  = (opt.valueCoding && (opt.valueCoding.display || opt.valueCoding.code)) || opt.valueString || '';
-      var code = (opt.valueCoding && opt.valueCoding.code) || opt.valueString || val;
-      return '<option value="' + esc(String(code)) + '">' + esc(String(val)) + '</option>';
-    });
-    return '<select id="' + fid + '"><option value="">-- select --</option>' + opts.join('') + '</select>';
-  }
-  if (t === 'text')          return '<textarea id="' + fid + '"></textarea>';
-  if (t === 'integer')       return '<input type="number" step="1" id="' + fid + '">';
-  if (t === 'decimal')       return '<input type="number" step="0.01" id="' + fid + '">';
-  if (t === 'date')          return '<input type="date" id="' + fid + '">';
-  if (t === 'dateTime')      return '<input type="datetime-local" id="' + fid + '">';
-  if (t === 'time')          return '<input type="time" id="' + fid + '">';
-  return '<input type="text" id="' + fid + '">';
-}
-
-function collectQAnswers(items) {
-  var result = [];
-  (items || []).forEach(function(item) {
-    if (item.type === 'display') return;
-    if (item.type === 'group') {
-      result.push({ linkId: item.linkId, text: item.text, item: collectQAnswers(item.item || []) });
-      return;
-    }
-    var fid = 'qf-' + item.linkId.replace(/[^a-zA-Z0-9]/g, '_');
-    var el2 = document.getElementById(fid);
-    if (!el2) return;
-    var answer = null;
-    var t = item.type;
-    if (t === 'boolean') {
-      answer = { valueBoolean: el2.checked };
-    } else if (t === 'integer') {
-      if (el2.value !== '') answer = { valueInteger: parseInt(el2.value, 10) };
-    } else if (t === 'decimal') {
-      if (el2.value !== '') answer = { valueDecimal: parseFloat(el2.value) };
-    } else if (t === 'date') {
-      if (el2.value) answer = { valueDate: el2.value };
-    } else if (t === 'dateTime') {
-      if (el2.value) answer = { valueDateTime: el2.value + ':00' };
-    } else if (t === 'choice' || t === 'open-choice') {
-      if (el2.value) answer = { valueCoding: { code: el2.value } };
-    } else {
-      if (el2.value.trim()) answer = { valueString: el2.value.trim() };
-    }
-    if (answer) result.push({ linkId: item.linkId, text: item.text, answer: [answer] });
-  });
-  return result;
 }
 
 // ── QuestionnaireResponse list ────────────────────────────────────────────────

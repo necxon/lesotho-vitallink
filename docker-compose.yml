@@ -293,12 +293,63 @@ services:
       - ./mediator/data:/data
       - ./mediator/mappings.json:/app/mappings.json:ro
       - ./mediator/src:/app/src:ro
+      # Backup catalogue for the portal: lists archives, streams downloads and
+      # drops the .run-now trigger that bkm-backup watches for.
+      - ./backups:/backups
     depends_on:
       - db-postgres
       - openhim-core
       - opensrp-server
       - keycloak
       - notification-sink
+    networks:
+      - health-net
+      - lmis-net
+    restart: unless-stopped
+
+  # --- BACKUP ---
+  # On a single-server deployment there is no second site to fail over to, so the
+  # backup IS the disaster recovery plan. It runs on a schedule rather than
+  # waiting to be remembered, and the Administrator Portal shows how old the
+  # newest one is, because an unattended backup nobody looks at is how people
+  # find out it has been failing for six weeks.
+  #
+  # No Docker socket and no published port: this container holds credentials for
+  # every database in the deployment, so it is reachable only over the two
+  # internal networks and through the shared ./backups directory.
+  bkm-backup:
+    build: ./backup
+    container_name: bkm-backup
+    environment:
+      - TZ=${TZ:-Africa/Maseru}
+      # Default 02:00 daily, local time. Any five-field cron expression.
+      - BACKUP_CRON=${BACKUP_CRON:-0 2 * * *}
+      # How many archives to keep. Pruning happens only after a new archive has
+      # been verified, so a failing backup cannot delete the last good one.
+      - BACKUP_KEEP=${BACKUP_KEEP:-14}
+      - HEALTH_DB_HOST=db-postgres
+      - HEALTH_DB_USER=admin
+      - HEALTH_DB_PASS=${PG_PASSWORD:-password123}
+      # `db` is the OpenLMIS ref-distro database, resolved on lmis-net. Its data
+      # lives there and NOT in health-db-postgres, which is why the backup needs
+      # a foot in both networks.
+      - LMIS_DB_HOST=db
+      - LMIS_DB_USER=postgres
+      - LMIS_DB_PASS=${OPENLMIS_DB_PASS:-p@ssw0rd}
+      - MONGO_HOST=db-mongo
+      - MONGO_DB=openhim
+      # Compose files, config/ and the mediator mappings. Without these a
+      # restore gives you databases but not a working deployment.
+      - BACKUP_INCLUDE_CONFIG=true
+      # .env holds credentials. Included so the backup is genuinely complete;
+      # set false if archives will be handled less carefully than the server.
+      - BACKUP_INCLUDE_ENV=true
+    volumes:
+      - ./backups:/backups
+      - .:/project:ro
+    depends_on:
+      - db-postgres
+      - db-mongo
     networks:
       - health-net
       - lmis-net

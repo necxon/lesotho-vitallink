@@ -1,0 +1,23 @@
+LHC-Forms (lforms) 44.0.0
+https://lhncbc.github.io/lforms/
+Source: https://registry.npmjs.org/lforms/-/lforms-44.0.0.tgz
+Licence: see https://github.com/lhncbc/lforms (U.S. National Library of Medicine)
+
+Vendored rather than loaded from a CDN because the deployment server may have no
+outbound internet. Loaded lazily by bkm-web/js/lforms-loader.js, not from
+index.html, because the bundle is ~3.8MB.
+
+Files taken from the package, and where they came from inside it:
+
+  lhc-forms.js        dist/lforms/webcomponent/lhc-forms.js
+  styles.css          dist/lforms/webcomponent/styles.css
+  zone.min.js         dist/lforms/webcomponent/assets/lib/zone.min.js
+  lformsFHIR.min.js   dist/lforms/fhir/R4/lformsFHIR.min.js      (R4 only - HAPI is R4)
+  *.png               dist/lforms/webcomponent/                  (referenced by styles.css)
+
+TO UPDATE
+  npm pack lforms@<version>   # or curl the tarball from the registry
+  tar -xzf lforms-<version>.tgz
+  copy the five files above into this directory, keeping these names
+  update this file, then: docker compose build bkm-web && docker compose up -d bkm-web
+  finally re-run: make test-menus

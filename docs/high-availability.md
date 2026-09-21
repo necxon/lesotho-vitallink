@@ -9,6 +9,11 @@ protect against losing the host: all of it runs on one machine. Host redundancy
 needs 3 VMs (quorum for automatic database failover), on separate hypervisors -
 three VMs on one physical host is still one failure from total loss.
 
+Where only one server is available, backups are what covers losing it, and they
+become the whole disaster recovery plan rather than a precaution beside this
+one. See `docs/backup-and-restore.md`: scheduled nightly, visible in the portal
+under `Backup & Recovery`, and downloadable so a copy exists off the machine.
+
 Watch it live in the Administrator Portal under `Backends & Failover`
 (`#/cluster`), which reads the mediator's `/cluster/status`.
 

@@ -31,6 +31,22 @@ function questionnairesHelpHTML() {
       'Imported forms appear in this list and sync to the Android app. Note: a <em>dispense</em> only fans out to OpenLMIS if the form carries a medication + quantity; measurement-only forms (e.g. weight/height) are stored but skip the stock fan-out.</p>' +
     '</div>' +
     '<div class="help-section">' +
+      '<h4>Previewing a form the way the phone shows it</h4>' +
+      '<p><strong>Fill</strong> renders the form with <a href="https://lhncbc.github.io/lforms/" ' +
+      'target="_blank" rel="noopener"><strong>LHC-Forms</strong> &#8599;</a>, the NLM&rsquo;s reference ' +
+      'FHIR Questionnaire renderer &mdash; the same engine behind the Form Builder above. So what ' +
+      'you see here is what the Form Builder shows, and close to what the phone shows.</p>' +
+      '<p>It applies the form&rsquo;s <strong>conditional logic</strong>: questions appear and disappear ' +
+      'as you answer, drop-downs and radio buttons honour their display hints, calculated fields ' +
+      'compute, and repeating groups repeat. The previous preview did none of that &mdash; it drew ' +
+      'every question all the time, so a form the phone shows as 8 questions looked like 22 here.</p>' +
+      '<p>It is a close model, not the phone itself: the app runs the Android FHIR SDK&rsquo;s renderer, ' +
+      'a different implementation of the same specification. Use this to catch the mistakes that ' +
+      'matter &mdash; a question that never appears, a skip that does not fire, an empty drop-down ' +
+      '&mdash; and a real device for final sign-off.</p>' +
+      '<p>To check every form and menu item at once, on the server: <code>make test-menus</code>.</p>' +
+    '</div>' +
+    '<div class="help-section">' +
       '<h4>Question types</h4>' +
       '<table class="help-table"><thead><tr><th>Type</th><th>What it renders on the app</th></tr></thead><tbody>' +
         '<tr><td><code>string</code></td><td>Single-line text input</td></tr>' +

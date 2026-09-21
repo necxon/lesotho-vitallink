@@ -38,7 +38,9 @@ function _ensureNavBlockOpen(id) {
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
-var _FW_BLOCKED_ROUTES = ['#/settings', '#/tests', '#/services'];
+// #/backup is administrator-only: an archive downloaded from it contains every
+// patient record in the deployment.
+var _FW_BLOCKED_ROUTES = ['#/settings', '#/tests', '#/services', '#/backup'];
 
 function route() {
   var hash = location.hash || '#/home';
@@ -76,13 +78,16 @@ function route() {
   else if (hash.indexOf('#/questionnaires/fill/') === 0)   renderQFill(el, hash.replace('#/questionnaires/fill/', ''));
   else if (hash.indexOf('#/questionnaires/responses/') === 0) renderQResponses(el, hash.replace('#/questionnaires/responses/', ''));
   else if (hash.indexOf('#/questionnaires') === 0) renderQuestionnaires(el);
-  else if (hash.indexOf('#/navigation') === 0)     renderNavigation(el);
+  // App Nav merged into Phone Menus. Old bookmarks and any lingering link
+  // land on the tab rather than a duplicate page kept alive for them.
+  else if (hash.indexOf('#/navigation') === 0)     { location.replace('#/questionnaires/nav'); return; }
   else if (hash.indexOf('#/stock') === 0)          renderStock(el);
   //else if (hash.indexOf('#/orders') === 0)         renderOrders(el);
   //else if (hash.indexOf('#/tasks') === 0)          renderTasks(el);
   else if (hash.indexOf('#/fhir') === 0)           renderFHIR(el);
   else if (hash.indexOf('#/openlmis') === 0)       renderOpenLMIS(el);
   else if (hash.indexOf('#/cluster') === 0)        renderCluster(el);
+  else if (hash.indexOf('#/backup') === 0)         renderBackup(el);
   else if (hash.indexOf('#/services') === 0)       renderServices(el);
   else if (hash.indexOf('#/tests') === 0)          renderTests(el);
   else if (hash.indexOf('#/settings') === 0)       renderSettings(el);

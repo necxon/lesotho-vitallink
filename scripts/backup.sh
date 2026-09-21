@@ -1,92 +1,36 @@
 #!/usr/bin/env bash
 # =============================================================================
-# backup.sh — Lesotho sandbox database backup
+# backup.sh - take a backup now, from the host.
 #
-# Dumps all PostgreSQL databases and the OpenHIM MongoDB to a timestamped
-# directory on the local machine.
+#   bash scripts/backup.sh        (or: make backup)
 #
-# Usage:
-#   bash scripts/backup.sh
+# This is a thin wrapper. The engine lives in the bkm-backup container
+# (backup/backup.sh) and is the same code the nightly schedule and the
+# Administrator Portal's "Back up now" button run, so there is one backup
+# implementation and not three that drift apart.
 #
-# Backup location (override with env var):
-#   LESOTHO_BACKUP_DIR  default: $HOME/lesotho-backups
+# It has to run in the container: the databases are on internal Docker networks
+# with no ports published to the host, and the OpenLMIS database is on a
+# different network again. The previous host-side version worked around that
+# with `docker exec` into each database container, and its hardcoded list of
+# databases is how hapi_fhir and keycloak came to be left out of every backup
+# it took.
 #
-# Each run creates:
-#   $LESOTHO_BACKUP_DIR/<YYYYMMDD_HHMMSS>/
-#     dhis2.dump
-#     opensrp.dump
-#     openlmis_auth.dump
-#     openlmis_referencedata.dump
-#     openlmis_requisition.dump
-#     openlmis_stockmanagement.dump
-#     openlmis_notification.dump
-#     openhim_mongo.archive
-#     manifest.txt
+# Archives land in ./backups on this host.
 # =============================================================================
 set -euo pipefail
 
-BACKUP_ROOT="${LESOTHO_BACKUP_DIR:-$HOME/lesotho-backups}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="$BACKUP_ROOT/$TIMESTAMP"
+CONTAINER="${BACKUP_CONTAINER:-bkm-backup}"
 
-PG_CONTAINER="health-db-postgres"
-PG_USER="admin"
-PG_DBS=(
-  dhis2
-  opensrp
-  openlmis_auth
-  openlmis_referencedata
-  openlmis_requisition
-  openlmis_stockmanagement
-  openlmis_notification
-)
+if ! docker inspect --format '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true; then
+  echo "[backup] ERROR: the '$CONTAINER' container is not running." >&2
+  echo "[backup] Start it with:  docker compose up -d $CONTAINER" >&2
+  exit 1
+fi
 
-MONGO_CONTAINER="openhim-mongo"
-MONGO_DB="openhim"
+if [ -n "${LESOTHO_BACKUP_DIR:-}" ]; then
+  echo "[backup] NOTE: LESOTHO_BACKUP_DIR is no longer used. Archives are written"
+  echo "[backup]       to ./backups, which is bind-mounted into the container."
+fi
 
-# ── Preflight ────────────────────────────────────────────────────────────────
-echo "[backup] Checking containers are running ..."
-for ctr in "$PG_CONTAINER" "$MONGO_CONTAINER"; do
-  if ! docker inspect --format '{{.State.Running}}' "$ctr" 2>/dev/null | grep -q true; then
-    echo "[backup] ERROR: container '$ctr' is not running. Start the stack first." >&2
-    exit 1
-  fi
-done
-
-mkdir -p "$BACKUP_DIR"
-echo "[backup] Saving to: $BACKUP_DIR"
-
-# ── PostgreSQL ───────────────────────────────────────────────────────────────
-echo "[backup] Backing up PostgreSQL databases ..."
-for db in "${PG_DBS[@]}"; do
-  echo "[backup]   pg_dump $db ..."
-  docker exec "$PG_CONTAINER" pg_dump -U "$PG_USER" -Fc "$db" > "$BACKUP_DIR/${db}.dump"
-done
-
-# ── MongoDB ──────────────────────────────────────────────────────────────────
-echo "[backup] Backing up MongoDB ($MONGO_DB) ..."
-docker exec "$MONGO_CONTAINER" mongodump \
-  --db "$MONGO_DB" \
-  --archive \
-  --quiet \
-  > "$BACKUP_DIR/openhim_mongo.archive"
-
-# ── Manifest ─────────────────────────────────────────────────────────────────
-{
-  echo "backup_timestamp: $TIMESTAMP"
-  echo "backup_dir: $BACKUP_DIR"
-  echo "postgres_container: $PG_CONTAINER"
-  echo "postgres_user: $PG_USER"
-  echo "postgres_databases: ${PG_DBS[*]}"
-  echo "mongo_container: $MONGO_CONTAINER"
-  echo "mongo_database: $MONGO_DB"
-  echo "files:"
-  for f in "$BACKUP_DIR"/*.dump "$BACKUP_DIR"/*.archive; do
-    size=$(du -sh "$f" 2>/dev/null | cut -f1)
-    echo "  - $(basename "$f") ($size)"
-  done
-} > "$BACKUP_DIR/manifest.txt"
-
-echo ""
-echo "[backup] Done."
-cat "$BACKUP_DIR/manifest.txt"
+exec docker exec "$CONTAINER" /usr/local/bin/backup.sh
