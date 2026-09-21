@@ -133,6 +133,30 @@ Refresh: daily.
 
 ## The five custom operational reports
 
+All five are built and running in the `bkm-reports` container:
+
+```
+make reports-list      # the five reports and their schedules
+make reports-run       # run them all now, ignoring schedule
+make reports-logs      # tail the engine
+```
+
+Output lands in `./reports-out/<date>/` as CSV and is emailed. MailHog is wired
+up as the mail route, so delivery is testable at <http://localhost:8025>
+without a real mail server; point `REPORT_SMTP_HOST` at a relay for production
+and set `REPORT_RECIPIENTS`.
+
+Superset's own Alerts and Reports is not used. It needs a Celery worker, a beat
+scheduler, a broker and a headless browser - three or four more containers on a
+single server that has already exhausted memory once. This engine is one
+container running psql on a cron, the same shape as the backup engine.
+
+A report whose source is unreachable is recorded as skipped, with the reason,
+and no email is sent. An empty CSV and a CSV that could not be produced mean
+very different things to whoever receives it. On the last run the two
+FHIR-backed reports produced files and the three OpenLMIS ones skipped cleanly,
+which is the expected state while that stack is stopped.
+
 Dashboards are for looking. Reports are for sending: scheduled, delivered to a
 named recipient, in a format they can act on or file. Priority is the order to
 build them in.

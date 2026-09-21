@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories
+.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -228,6 +228,18 @@ import-lhc-forms:
 ## Build the five signed-off dashboard category views (run after superset-dashboards)
 superset-categories:
 	docker exec -i bkm-superset python3 - < scripts/superset_categories.py
+
+## Run every operational report now, ignoring schedule (output: ./reports-out)
+reports-run:
+	docker exec bkm-reports /usr/local/bin/run_reports.py --all
+
+## List the operational reports and their schedules
+reports-list:
+	docker exec bkm-reports /usr/local/bin/run_reports.py --list
+
+## Tail the report engine log
+reports-logs:
+	docker compose logs -f bkm-reports
 
 ## Switch to ATP profile: 2 facilities (Clinic A + B), 3 medicines (Oxytocin,
 ## Amoxicillin, Paracetamol) @ 100 SOH each, 6 people (admin + supervisor +

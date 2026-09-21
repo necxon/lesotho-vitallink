@@ -307,6 +307,45 @@ services:
       - lmis-net
     restart: unless-stopped
 
+  # --- OPERATIONAL REPORTS ---
+  # Produces the five reports agreed in docs/superset-reporting-requirements.md
+  # as CSV on a schedule, and emails them.
+  #
+  # Superset's own Alerts and Reports needs a Celery worker, a beat scheduler, a
+  # broker and a headless browser. That is three or four more containers on a
+  # single server; this is one, running psql on a cron - the same shape as
+  # bkm-backup. Superset stays the place people explore data.
+  bkm-reports:
+    build: ./reports
+    container_name: bkm-reports
+    environment:
+      - TZ=${TZ:-Africa/Maseru}
+      # One daily run; run_reports.py decides which reports are due from the
+      # date, so the schedule lives with each report definition.
+      - REPORT_CRON=${REPORT_CRON:-0 6 * * *}
+      - HEALTH_DB_HOST=db-postgres
+      - HEALTH_DB_USER=admin
+      - HEALTH_DB_PASS=${PG_PASSWORD:-password123}
+      - LMIS_DB_HOST=db
+      - LMIS_DB_USER=postgres
+      - LMIS_DB_PASS=${OPENLMIS_DB_PASS:-p@ssw0rd}
+      # MailHog is already in this stack, so reports are delivered and viewable
+      # at :8025 without configuring a real mail server. Point these at a real
+      # relay for production.
+      - SMTP_HOST=${REPORT_SMTP_HOST:-mailhog}
+      - SMTP_PORT=${REPORT_SMTP_PORT:-1025}
+      - REPORT_FROM=${REPORT_FROM:-reports@vitallink.local}
+      - REPORT_RECIPIENTS=${REPORT_RECIPIENTS:-logistics@vitallink.local,me@vitallink.local}
+    volumes:
+      - ./reports-out:/reports
+    depends_on:
+      - db-postgres
+      - mailhog
+    networks:
+      - health-net
+      - lmis-net
+    restart: unless-stopped
+
   # --- BACKUP ---
   # On a single-server deployment there is no second site to fail over to, so the
   # backup IS the disaster recovery plan. It runs on a schedule rather than

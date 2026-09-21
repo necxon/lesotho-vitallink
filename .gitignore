@@ -49,3 +49,6 @@ mediator/logs/
 
 # Backup archives written by bkm-backup (they contain credentials)
 /backups/
+
+# Operational report output (CSV extracts of clinical and stock data)
+/reports-out/
