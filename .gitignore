@@ -46,3 +46,6 @@ mediator/logs/
 /android/vital-link/
 /android/chis-fhircore/
 /android/bkm-chis/
+
+# Backup archives written by bkm-backup (they contain credentials)
+/backups/

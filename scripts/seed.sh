@@ -3337,6 +3337,27 @@ curl -sf -X PUT "http://localhost:8079/fhir/Questionnaire/patient-dispense-medic
     ]
   }' >/dev/null && log "  Questionnaire/patient-dispense-medicine seeded."
 
+# ─── 9j3. Standard NLM LHC-Forms questionnaires ──────────────────────────────
+# Real, published instruments (PHQ-9, PHQ-4, GAD-7, AUDIT-C, vitals, weight and
+# height) so the sandbox has genuine clinical content to demonstrate and test
+# against, not only placeholders.
+#
+# --from-files uploads the FHIR JSON committed under
+# config/fhir-bkm/fhir_content/questionnaire/lhc/. Seeding deliberately does NOT
+# re-fetch from NLM or run the headless-browser conversion: a fresh install must
+# not depend on outbound internet, on a browser being present, or on NLM being
+# up that day. Re-author with `make import-lhc-forms` when the set changes.
+log "Seeding NLM LHC-Forms questionnaires (from committed FHIR JSON) ..."
+PYTHONIOENCODING=utf-8 python3 "$(pwd)/scripts/import_lhc_forms.py" --from-files --apply   || log "  WARNING: LHC-Forms seeding failed (non-fatal)."
+
+# ─── 9j4. Placeholders for questionnaires the Composition publishes ──────────
+# The Composition advertises clinical forms whose production content has never
+# been supplied. Without these the app downloads a manifest pointing at
+# resources that 404. Stubs are status=draft so they read as placeholders next
+# to the real active forms. Must run AFTER 9h, which uploads the Composition.
+log "Seeding placeholders for published-but-missing questionnaires ..."
+PYTHONIOENCODING=utf-8 python3 "$(pwd)/scripts/seed_clinical_questionnaires.py" --apply   || log "  WARNING: placeholder seeding failed (non-fatal)."
+
 # ─── 9k. Seed demo delivery Tasks (always PUT → reset to requested for demos) ──
 # Delete all existing Tasks first so stale tasks from previous profiles are gone.
 log "Deleting all existing FHIR Tasks before seeding..."

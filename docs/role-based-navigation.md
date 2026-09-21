@@ -1,5 +1,14 @@
 # Role-Based App Navigation
 
+> STATUS: design note, not current behaviour.
+>
+> The installed app does NOT support per-role menus. `AppDrawer.kt` filters the
+> side menu on `it.visible` alone, and `NavigationMenuConfig` has no `roles` or
+> `showWidget` field - the app parses config with `ignoreUnknownKeys = true`, so
+> both are silently discarded. Items "restricted" to a role are shown to
+> everyone. See `docs/phone-menus-and-forms.md` for what the app actually does
+> and what implementing this would take.
+
 ## Overview
 
 The BKM Android app (OpenSRP FHIR Core) shows a side-drawer menu to every logged-in user.
@@ -19,7 +28,8 @@ The side drawer is driven by a single **FHIR Binary** resource stored in HAPI FH
 | HAPI FHIR URL | `GET http://localhost:8079/fhir/Binary/d7ce0167-ee6a-4f8f-b644-50b0242513239e` |
 
 The Binary contains a JSON document with a `staticMenu` array — one object per menu item.
-The portal's **App Navigation** page (`#/navigation`) reads and writes this document via HTTP PUT.
+The portal reads and writes this document via HTTP PUT, from the **App Nav** tab on the
+Phone Menus page (`#/questionnaires`). `#/navigation` redirects there.
 
 Example current menu item:
 
@@ -154,7 +164,7 @@ No code changes needed — roles already exist in the realm.
 ### 3. Update the Binary resource
 Edit the `staticMenu` JSON to add `showWidget` conditions to each item.
 This can be done via:
-- The **App Navigation** portal page (`http://localhost:9902/#/navigation`) once the
+- The **App Nav** tab on the Phone Menus page (`http://localhost:9902/#/questionnaires`) once the
   portal's Edit form is extended to include a "Visible to roles" field (see section below), or
 - A direct HTTP PUT to HAPI FHIR (no code change, just a data update)
 

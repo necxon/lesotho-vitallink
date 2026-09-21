@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards
+.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -189,13 +189,41 @@ endif
 logs:
 	docker compose logs -f openhim-core bkm-mediator
 
-## Back up all databases to ~/lesotho-backups/<timestamp>/ (override with LESOTHO_BACKUP_DIR)
+## Back up everything now to ./backups/ (both PostgreSQL servers, OpenHIM Mongo, config)
 backup:
 	bash scripts/backup.sh
 
-## Restore databases from a backup (prompts to choose, or pass BACKUP_DIR=<path>)
+## Restore from an archive (no argument lists them, or pass BACKUP_DIR=<archive-name>)
 restore:
 	bash scripts/restore.sh $(BACKUP_DIR)
+
+## Tail the backup engine log
+backup-logs:
+	docker compose logs -f bkm-backup
+
+## List the archives currently on this server
+backup-list:
+	docker exec bkm-backup /usr/local/bin/restore.sh
+
+## Prove the newest archive actually restores (scratch database, drops it after)
+backup-verify:
+	docker exec bkm-backup /usr/local/bin/verify.sh
+
+## Walk the phone's menus and forms end to end - every menu item must lead somewhere real
+test-menus:
+	python scripts/test_menus.py
+
+## Show what the app menu would look like after removing duplicated registers
+nav-simplify:
+	python scripts/simplify_nav.py
+
+## Placeholders for questionnaires the app config publishes but that are missing
+seed-questionnaires:
+	python scripts/seed_clinical_questionnaires.py
+
+## Import real standard forms (PHQ, GAD-7, AUDIT-C, vitals) from the NLM LHC Forms library
+import-lhc-forms:
+	python scripts/import_lhc_forms.py --apply
 
 ## Switch to ATP profile: 2 facilities (Clinic A + B), 3 medicines (Oxytocin,
 ## Amoxicillin, Paracetamol) @ 100 SOH each, 6 people (admin + supervisor +
