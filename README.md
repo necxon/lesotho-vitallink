@@ -75,11 +75,43 @@ flowchart TD
     class Portal,PG,MQ,Mail,Mon inf
 ```
 
+## Prerequisites
+
+- Docker with Compose v2, git, python3, bash and make
+- A sibling checkout of the OpenLMIS reference distribution
+
+OpenLMIS runs as a second, separate stack from a sibling directory next to this
+repo, so the two must share a parent:
+
+```
+parent/
+  lesotho-vitallink/       # this repo
+  openlmis-ref-distro/     # https://github.com/OpenLMIS/openlmis-ref-distro
+```
+
+You do not need to clone it by hand. `make start` calls `make bootstrap-lmis`,
+which clones the public upstream at a pinned commit and applies the sandbox's
+overlay (port 8082, a static nginx config that bypasses consul-template, and the
+pinned service versions). It is a no-op once the sibling exists, and it never
+modifies a checkout it did not create.
+
+```bash
+make bootstrap-lmis   # optional — `make start` does this for you
+```
+
 ## Quick start
 
 ```bash
 make start   # brings up the OpenLMIS + main stacks and seeds them
 ```
+
+Two behaviours worth knowing before your first run:
+
+- OpenLMIS wipes its own reference data on every container start (the
+  referencedata image runs a Flyway clean). `make restart` and `make restart-lmis`
+  reseed automatically; after a cold boot run `make reseed-if-empty` once.
+- If OpenLMIS returns 502s after a Docker restart, run `make fix-nginx` — Docker
+  DNS is not ready when consul-template renders its config.
 
 See [docs/](docs/) for architecture and setup, and [docs/architecture.md](docs/architecture.md)
 for the full data flow. Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under
