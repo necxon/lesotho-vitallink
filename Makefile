@@ -1,4 +1,4 @@
-.PHONY: up up-lmis seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs demo-data demo-data-purge demo-data-dhis2 demo-data-dhis2-purge
+.PHONY: up up-lmis bootstrap-lmis capture-lmis-overlay seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs demo-data demo-data-purge demo-data-dhis2 demo-data-dhis2-purge
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -36,8 +36,17 @@ local-config:
 up:
 	docker compose up -d
 
+## Clone + set up the sibling OpenLMIS checkout (no-op once it exists)
+bootstrap-lmis:
+	bash scripts/bootstrap_openlmis.sh
+
+## Snapshot this machine's sibling customisations into deploy/openlmis-overlay/
+## Run once on a working machine, then commit the result.
+capture-lmis-overlay:
+	bash scripts/capture_openlmis_overlay.sh
+
 ## Start the full OpenLMIS ref-distro (separate stack, sibling directory)
-up-lmis:
+up-lmis: bootstrap-lmis
 	cd ../openlmis-ref-distro && docker compose up -d
 
 ## Run the seed script against both running stacks (idempotent — safe to re-run)
