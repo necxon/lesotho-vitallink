@@ -34,11 +34,21 @@ if [[ -f "$SIBLING/$MARKER" ]]; then
 fi
 
 # ── Someone else's checkout — don't touch it ─────────────────────────────────
+# Three cases: an empty directory (a half-finished attempt) we can safely take
+# over, a real checkout we leave alone, and a directory with something else in
+# it, where failing loudly beats letting `docker compose` fail cryptically.
 if [[ -d "$SIBLING" ]]; then
-  log "$SIBLING exists but was not set up by this script."
-  log "Leaving it as-is. If it works, carry on; if not, capture your overlay with"
-  log "  bash scripts/capture_openlmis_overlay.sh"
-  exit 0
+  if [[ -z "$(ls -A "$SIBLING" 2>/dev/null)" ]]; then
+    log "$SIBLING is empty — setting it up"
+    rmdir "$SIBLING"
+  elif [[ -f "$SIBLING/docker-compose.yml" ]]; then
+    log "$SIBLING exists but was not set up by this script."
+    log "Leaving it as-is. If it works, carry on; if not, capture your overlay with"
+    log "  bash scripts/capture_openlmis_overlay.sh"
+    exit 0
+  else
+    die "$SIBLING exists but has no docker-compose.yml. Remove it and re-run, or point OPENLMIS_DIR= at a real checkout."
+  fi
 fi
 
 command -v git >/dev/null || die "git is required"
