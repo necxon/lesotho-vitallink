@@ -1,0 +1,191 @@
+diff --git a/config/nginx/login-fix.js b/config/nginx/login-fix.js
+new file mode 100644
+index 0000000..2eb4bd2
+--- /dev/null
++++ b/config/nginx/login-fix.js
+@@ -0,0 +1,21 @@
++(function(){
++  if(window.__idbCleared)return;
++  window.__idbCleared=true;
++  if(window.indexedDB&&indexedDB.databases){
++    indexedDB.databases().then(function(dbs){
++      dbs.forEach(function(db){try{indexedDB.deleteDatabase(db.name);}catch(e){}});
++    });
++  }
++  if("serviceWorker"in navigator){
++    navigator.serviceWorker.getRegistrations().then(function(r){
++      if(r.length>0){
++        Promise.all(r.map(function(sw){return sw.unregister();})).then(function(){
++          if(!sessionStorage.getItem("sw_cleared")){
++            sessionStorage.setItem("sw_cleared","1");
++            window.location.reload(true);
++          }
++        });
++      }
++    });
++  }
++})();
+diff --git a/docker-compose.override.yml b/docker-compose.override.yml
+index 4a4ddb3..6a9263e 100644
+--- a/docker-compose.override.yml
++++ b/docker-compose.override.yml
+@@ -1,7 +1,140 @@
+-#version: "3.3"
+-#services:
+-#
+-#  stockmanagement:
+-#    environment:
+-#      spring_profiles_active: production
++# Lesotho sandbox integration overrides.
++# Applied on top of docker-compose.yml by docker compose automatically.
+ 
++# WHY SPRING_FLYWAY_CLEAN_DISABLED=true is set for all Java services:
++# settings.env sets spring_profiles_active=demo-data which activates a Flyway
++# migration strategy that runs flyway.clean() (drops all schema tables) before
++# migrating on every restart — wiping all seeded data.
++# SPRING_FLYWAY_CLEAN_DISABLED=true tells Flyway to refuse any clean() call,
++# including programmatic ones from the demo-data strategy.  We keep
++# spring_profiles_active=demo-data so Flyway's migration file set is unchanged
++# and schema-history validation succeeds.
++# On first run (empty olmis-db volume) Flyway runs all migrations normally.
++# On subsequent restarts Flyway finds no pending migrations and exits without
++# touching existing data.  make reset still destroys the olmis-db volume.
++
++services:
++  # Bypass consul-template (its Go network stack fails to create UDP sockets after
++  # Docker Desktop / WSL2 restarts).  Instead, run nginx directly with a pre-generated
++  # static config that is bind-mounted from the host.  On container restart the file
++  # is always present — no post-restart seed.sh required for nginx.
++  #
++  # To regenerate the config (e.g. after adding new stubs):
++  #   python lesotho-sandbox/scripts/gen_openlmis_nginx.py >
++  #          config/nginx/openlmis-default.conf
++  #   docker compose up -d --no-deps nginx
++  nginx:
++    entrypoint: ["/bin/sh", "-c", "mkdir -p /var/log/nginx/log && exec nginx -g 'daemon off;'"]
++    volumes:
++      - ./config/nginx/openlmis-lesotho.conf:/etc/consul-template/openlmis.conf:ro
++      - ./config/nginx/openlmis-default.conf:/etc/nginx/conf.d/default.conf:ro
++      - ./config/nginx/login-fix.js:/etc/nginx/login-fix.js
++    restart: unless-stopped
++
++  # ── Disable Flyway clean for all Java microservices ──────────────────────────
++
++  # spring_profiles_active="" removes the demo-data Spring profile.
++  # Without demo-data the @Profile("demo-data") FlywayMigrationStrategy bean is
++  # never created, so flyway.clean() is never called on startup.
++  # SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS=true tells Flyway to silently skip
++  # history entries whose SQL files are no longer on the classpath (i.e. the
++  # demo-data scripts that were applied on first run) — without this Flyway
++  # would throw a validation error and refuse to start.
++  # On a completely fresh olmis-db volume Flyway runs the base migrations only;
++  # seed.sh then populates all required data.  make reset still destroys the
++  # olmis-db volume and gives a fully clean first-run.
++
++  referencedata:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++      # NOTE: referencedata's image hardcodes a cleanMigrationStrategy bean
++      # (Application.java:186) that calls flyway.clean() on EVERY startup,
++      # ungated by profile. Disabling clean via flyway.cleanDisabled makes the
++      # service crash-loop, so it can't be fixed by config — see seed-after-restart.
++    restart: unless-stopped
++
++  auth:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  stockmanagement:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  notification:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  fulfillment:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  requisition:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  report:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  cce:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  buq:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  hapifhir:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  diagnostics:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  dhis2-integration:
++    environment:
++      spring_profiles_active: ""
++      SPRING_FLYWAY_IGNORE_MISSING_MIGRATIONS: "true"
++    restart: unless-stopped
++
++  # ── Infrastructure services ───────────────────────────────────────────────────
++  consul:
++    restart: unless-stopped
++
++  db:
++    restart: unless-stopped
++
++  log:
++    restart: unless-stopped
++
++  redis:
++    restart: unless-stopped
++
++  reference-ui:
++    restart: unless-stopped
++
++  service-configuration:
++    restart: on-failure
+diff --git a/docker-compose.yml b/docker-compose.yml
+index bcaca79..b4535b7 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -13,8 +13,6 @@ services:
+     ports:
+      - "8300:8300"
+      - "8500:8500"
+-     - "8600:8600/tcp"
+-     - "8600:8600/udp"
+     healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:8500/v1/status/leader"]
+       interval: 30s
