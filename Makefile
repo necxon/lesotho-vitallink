@@ -1,4 +1,4 @@
-.PHONY: up up-lmis bootstrap-lmis capture-lmis-overlay seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs demo-data demo-data-purge demo-data-dhis2 demo-data-dhis2-purge
+.PHONY: up up-lmis bootstrap-lmis capture-lmis-overlay seed seed-workers start restart restart-lmis reseed fix-nginx test e2e down down-lmis reset logs backup restore profile-atp profile-bkm phone-clear phone-restart phone-ports phone-clear-on phone-clear-off phone-install phone-setup check-openlmis smoke local-config seed-local reseed-if-empty ha-drill ha-drill-quick ha-status superset superset-up superset-views superset-views-fhir superset-views-lmis superset-views-dhis2 superset-dashboards backup-logs backup-list backup-verify test-menus test-web nav-simplify seed-questionnaires import-lhc-forms superset-categories reports-run reports-list reports-logs demo-data demo-data-purge demo-data-dhis2 demo-data-dhis2-purge
 # Override $(MAKE) — on Windows, GnuWin32 expands it to a path with spaces which bash can't exec
 MAKE := make
 
@@ -221,6 +221,10 @@ backup-verify:
 ## Walk the phone's menus and forms end to end - every menu item must lead somewhere real
 test-menus:
 	python scripts/test_menus.py
+
+## Unit-test the phone-menu builder logic (no server or browser needed)
+test-web:
+	node --test bkm-web/test/*.test.js
 
 ## Show what the app menu would look like after removing duplicated registers
 nav-simplify:
