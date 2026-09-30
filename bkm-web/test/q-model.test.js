@@ -98,3 +98,12 @@ test('dependents finds items whose skip rule targets a linkId', () => {
   assert.deepEqual(m.qDependents(items, 'q1'), ['q2']);
   assert.deepEqual(m.qDependents(items, 'q2'), []);
 });
+
+test('choice backed by a value set is valid without inline options and survives save', () => {
+  const src = [{ linkId: 'q1', text: 'Drug', type: 'choice', answerValueSet: 'http://x/ValueSet/drugs' }];
+  const items = load(src);
+  assert.equal(m.qValidate('T', items).filter((p) => p.level === 'error').length, 0);
+  assert.deepEqual(m.qBuildItems(items), src);
+  items[0].type = 'string';
+  assert.equal(m.qBuildItems(items)[0].answerValueSet, undefined);
+});
