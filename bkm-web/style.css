@@ -1136,3 +1136,5 @@ input[type="time"] {
 /* appTitle is genuinely empty in this deployment, so the drawer header really
    is blank on the device. Say so rather than substituting the appId. */
 .nav-sim-appbar-empty { opacity:.5; font-style:italic; font-weight:400; font-size:12.5px; }
+.qb-note { font-size: 11px; color: #8a6d00; background: #fff8e1; padding: 1px 6px; border-radius: 9px; white-space: nowrap; cursor: help; }
+.qb-row-top .btn[disabled] { opacity: .35; cursor: default; }
