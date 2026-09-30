@@ -73,6 +73,7 @@ function _qToFhir(it) {
   if (it.required && it.type !== 'group' && it.type !== 'display') item.required = true;
   else delete item.required;
 
+  if (it.type !== 'choice') delete item.answerValueSet; // a value set only means something on a choice
   if (it.type === 'choice') {
     var opts = (it.answerOption || []).filter(function(o) { return qOptionLabel(o).trim(); })
       .map(function(o) {
@@ -126,7 +127,7 @@ function qValidate(title, items) {
     }
     if (it.type === 'choice') {
       var labels = (it.answerOption || []).map(function(o) { return qOptionLabel(o).trim(); }).filter(Boolean);
-      if (!labels.length) problems.push({ level: 'error', path: where, msg: where + ' is a choice with no options.' });
+      if (!labels.length && !(it.raw && (it.raw.answerValueSet || it.raw.answerConstraint))) problems.push({ level: 'error', path: where, msg: where + ' is a choice with no options.' });
       var dup = {};
       labels.forEach(function(l) {
         if (dup[l.toLowerCase()]) problems.push({ level: 'warn', path: where, msg: where + ' has the option "' + l + '" twice.' });
