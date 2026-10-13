@@ -4,26 +4,30 @@
 'use strict';
 
 // ── Questionnaire Builder ─────────────────────────────────────────────────────
+// Model logic (load / build / validate / reorder) lives in js/q-model.js so it can
+// be unit tested. This file is only the DOM around it.
 // Inline oninput/onchange handlers update state directly — no re-render on type,
 // so focus is never lost. Re-render only on structural changes (add/del/type-change).
 // Supports 2-level nesting: top-level items + sub-questions inside 'group' items.
 
-var Q_TYPES   = ['group','string','text','integer','decimal','date','dateTime','boolean','choice','display'];
 var _qItems   = [];
-var _qItemSeq = 0;
+var _qSeen    = { max: 0 };
 
-function _qNewItem(pfx) {
-  _qItemSeq++;
-  return { linkId: (pfx || 'q') + _qItemSeq, text: '', type: 'string', required: false, answerOption: [], children: [] };
-}
+function _qNextSeq() { return ++_qSeen.max; }
+function _qNewItem(pfx) { return qNewItem(_qNextSeq(), pfx); }
 function _qGet(ti, ci) {
   return (ci !== '' && ci !== undefined) ? _qItems[ti].children[parseInt(ci)] : _qItems[ti];
 }
+// esc() leaves quotes alone, which is fine in text but breaks value="..." attributes.
+function _qa(s) { return esc(s).replace(/"/g, '&quot;'); }
 
 // Called via inline oninput — never re-renders, preserves focus
 function _qText(el, ti, ci)    { _qGet(ti, ci).text = el.value; }
 function _qReq(el, ti, ci)     { _qGet(ti, ci).required = el.checked; }
-function _qOpt(el, ti, ci, oi) { _qGet(ti, ci).answerOption[oi] = { valueString: el.value }; }
+function _qOpt(el, ti, ci, oi) {
+  var item = _qGet(ti, ci);
+  item.answerOption[oi] = qSetOptionLabel(item.answerOption[oi], el.value);
+}
 
 // Called via onchange/onclick — may re-render
 function _qType(el, ti, ci) {
@@ -33,8 +37,26 @@ function _qType(el, ti, ci) {
   renderQBuilderItems();
 }
 function _qDel(ti, ci) {
-  if (ci !== '') { _qItems[ti].children.splice(parseInt(ci), 1); }
-  else           { _qItems.splice(ti, 1); }
+  var list = ci !== '' ? _qItems[ti].children : _qItems;
+  var idx  = ci !== '' ? parseInt(ci) : ti;
+  var deps = qDependents(_qItems, list[idx].linkId);
+  if (deps.length && !confirm('Question(s) ' + deps.join(', ') + ' have a skip rule that depends on this one. ' +
+    'Deleting it means they will never be shown. Delete anyway?')) return;
+  list.splice(idx, 1);
+  renderQBuilderItems();
+}
+function _qMove(ti, ci, delta) {
+  if (ci !== '') qMove(_qItems[ti].children, parseInt(ci), delta);
+  else           qMove(_qItems, ti, delta);
+  renderQBuilderItems();
+}
+function _qDup(ti, ci) {
+  if (ci !== '') {
+    var kids = _qItems[ti].children;
+    kids.splice(parseInt(ci) + 1, 0, qDuplicate(kids[parseInt(ci)], _qNextSeq, _qItems[ti].linkId));
+  } else {
+    _qItems.splice(ti + 1, 0, qDuplicate(_qItems[ti], _qNextSeq));
+  }
   renderQBuilderItems();
 }
 function _qAddChild(ti) {
@@ -50,11 +72,13 @@ function _qDelOpt(ti, ci, oi) {
   renderQBuilderItems();
 }
 
-function _qRowHtml(item, ti, ci) {
+function _qRowHtml(item, ti, ci, count) {
   var ciStr   = (ci !== undefined && ci >= 0) ? String(ci) : '';
   var isChild = ciStr !== '';
   var isGroup = item.type === 'group';
   var label   = isChild ? ((ti + 1) + '.' + (ci + 1)) : String(ti + 1);
+  var pos     = isChild ? ci : ti;
+  var args    = ti + ',\'' + ciStr + '\'';
 
   var typeOpts = Q_TYPES
     .filter(function(t) { return !isChild || t !== 'group'; })
@@ -66,29 +90,41 @@ function _qRowHtml(item, ti, ci) {
   if (item.type === 'choice') {
     choiceHtml = '<div class="qb-opts">' +
       (item.answerOption || []).map(function(opt, oi) {
-        var v = opt.valueString || (opt.valueCoding && (opt.valueCoding.display || opt.valueCoding.code)) || '';
         return '<div class="qb-opt-row">' +
-          '<input type="text" class="qb-opt" value="' + esc(v) + '" placeholder="Option ' + (oi + 1) + '"' +
-          ' oninput="_qOpt(this,' + ti + ',\'' + ciStr + '\',' + oi + ')">' +
-          '<button type="button" class="btn btn-sm btn-danger" onclick="_qDelOpt(' + ti + ',\'' + ciStr + '\',' + oi + ')">&times;</button>' +
+          '<input type="text" class="qb-opt" value="' + _qa(qOptionLabel(opt)) + '" placeholder="Option ' + (oi + 1) + '"' +
+          ' oninput="_qOpt(this,' + args + ',' + oi + ')">' +
+          '<button type="button" class="btn btn-sm btn-danger" title="Remove option" onclick="_qDelOpt(' + args + ',' + oi + ')">&times;</button>' +
         '</div>';
       }).join('') +
-      '<button type="button" class="btn btn-sm btn-outline" onclick="_qAddOpt(' + ti + ',\'' + ciStr + '\')">+ Add option</button>' +
+      '<button type="button" class="btn btn-sm btn-outline" onclick="_qAddOpt(' + args + ')">+ Add option</button>' +
     '</div>';
   }
+
+  // Skip rules and other fields the builder has no control for are kept on save;
+  // saying so stops people assuming a form with conditions is a plain one.
+  var raw = item.raw || {};
+  var note = raw.enableWhen && raw.enableWhen.length
+    ? '<span class="qb-note" title="Shown only when another answer matches. Kept on save; edit it in the NLM Form Builder.">&#9432; conditional</span>'
+    : '';
 
   return '<div class="qb-row' + (isChild ? ' qb-child' : '') + '">' +
     '<div class="qb-row-top">' +
       '<span class="qb-num' + (isGroup ? ' qb-num-group' : '') + '">' + label + '</span>' +
-      '<input type="text" class="qb-text" value="' + esc(item.text || '') + '"' +
+      '<input type="text" class="qb-text" value="' + _qa(item.text || '') + '"' +
       ' placeholder="' + (isGroup ? 'Section title…' : 'Question text…') + '"' +
-      ' oninput="_qText(this,' + ti + ',\'' + ciStr + '\')">' +
-      '<select class="qb-type" onchange="_qType(this,' + ti + ',\'' + ciStr + '\')">' + typeOpts + '</select>' +
+      ' oninput="_qText(this,' + args + ')">' +
+      '<select class="qb-type" onchange="_qType(this,' + args + ')">' + typeOpts + '</select>' +
       (!isGroup && item.type !== 'display'
         ? '<label class="qb-req-lbl"><input type="checkbox"' + (item.required ? ' checked' : '') +
-          ' onchange="_qReq(this,' + ti + ',\'' + ciStr + '\')"> Req</label>'
+          ' onchange="_qReq(this,' + args + ')"> Req</label>'
         : '') +
-      '<button type="button" class="btn btn-sm btn-danger" onclick="_qDel(' + ti + ',\'' + ciStr + '\')">&times;</button>' +
+      note +
+      '<button type="button" class="btn btn-sm btn-outline" title="Move up"' + (pos === 0 ? ' disabled' : '') +
+        ' onclick="_qMove(' + args + ',-1)">&uarr;</button>' +
+      '<button type="button" class="btn btn-sm btn-outline" title="Move down"' + (pos >= count - 1 ? ' disabled' : '') +
+        ' onclick="_qMove(' + args + ',1)">&darr;</button>' +
+      '<button type="button" class="btn btn-sm btn-outline" title="Duplicate" onclick="_qDup(' + args + ')">&#10697;</button>' +
+      '<button type="button" class="btn btn-sm btn-danger" title="Delete" onclick="_qDel(' + args + ')">&times;</button>' +
     '</div>' +
     choiceHtml +
   '</div>';
@@ -102,10 +138,10 @@ function renderQBuilderItems() {
     return;
   }
   el.innerHTML = _qItems.map(function(item, ti) {
-    var html = _qRowHtml(item, ti, -1);
+    var html = _qRowHtml(item, ti, -1, _qItems.length);
     if (item.type === 'group') {
       html += '<div class="qb-children">' +
-        (item.children || []).map(function(child, ci) { return _qRowHtml(child, ti, ci); }).join('') +
+        (item.children || []).map(function(child, ci) { return _qRowHtml(child, ti, ci, item.children.length); }).join('') +
         '<button type="button" class="btn btn-sm btn-outline" style="margin:6px 0 2px" onclick="_qAddChild(' + ti + ')">+ Add sub-question</button>' +
       '</div>';
     }
@@ -113,46 +149,14 @@ function renderQBuilderItems() {
   }).join('');
 }
 
-function _loadQItems(fhirItems, depth) {
-  return (fhirItems || []).map(function(it) {
-    var num = parseInt((it.linkId || '').replace(/\D/g, '') || '0');
-    if (num > _qItemSeq) _qItemSeq = num;
-    return {
-      linkId:       it.linkId || ('q' + (++_qItemSeq)),
-      text:         it.text    || '',
-      type:         it.type    || 'string',
-      required:     !!it.required,
-      answerOption: (it.answerOption || []).map(function(o) {
-        return { valueString: o.valueString || (o.valueCoding && (o.valueCoding.display || o.valueCoding.code)) || '' };
-      }),
-      children: depth < 1 ? _loadQItems(it.item, 1) : [],
-    };
-  });
-}
+function _loadQItems(fhirItems, depth) { return qLoadItems(fhirItems, depth, _qSeen); }
 
 function buildQuestionnaire(existing) {
   var r = Object.assign({}, existing || {}, { resourceType: 'Questionnaire' });
   r.title       = (document.getElementById('qb-title').value || '').trim();
   r.description = (document.getElementById('qb-desc').value  || '').trim() || undefined;
   r.status      = document.getElementById('qb-status').value;
-  function toFhir(it) {
-    var item = { linkId: it.linkId, text: it.text.trim(), type: it.type };
-    if (it.required) item.required = true;
-    if (it.type === 'choice') {
-      item.answerOption = (it.answerOption || [])
-        .filter(function(o) { return (o.valueString || '').trim(); })
-        .map(function(o) { return { valueString: o.valueString.trim() }; });
-    }
-    if (it.type === 'group' && it.children && it.children.length) {
-      item.item = it.children
-        .filter(function(c) { return c.text.trim() || c.type === 'display'; })
-        .map(toFhir);
-    }
-    return item;
-  }
-  r.item = _qItems
-    .filter(function(it) { return it.text.trim() || it.type === 'display'; })
-    .map(toFhir);
+  r.item        = qBuildItems(_qItems);
   return r;
 }
 
@@ -402,7 +406,7 @@ function openQImport(parentEl) {
 
 function openQEditor(q, parentEl) {
   var isNew = !q;
-  _qItemSeq = 0;
+  _qSeen = { max: 0 };
 
   // Load existing items (with nested children), or seed one blank question for new forms
   var seedItems = (q && q.item && q.item.length) ? q.item : [{ linkId: 'q1', text: '', type: 'string', required: false }];
@@ -416,11 +420,11 @@ function openQEditor(q, parentEl) {
   showModal(isNew ? 'New Phone Menu' : 'Edit: ' + (q.title || q.id),
     '<div class="form-row">' +
       '<label>Form title <span style="color:#c62828">*</span></label>' +
-      '<input id="qb-title" value="' + esc(q && q.title || '') + '" placeholder="e.g. Malaria Screening">' +
+      '<input id="qb-title" value="' + _qa(q && q.title || '') + '" placeholder="e.g. Malaria Screening">' +
     '</div>' +
     '<div class="form-row">' +
       '<label>Description</label>' +
-      '<input id="qb-desc" value="' + esc(q && q.description || '') + '" placeholder="Optional">' +
+      '<input id="qb-desc" value="' + _qa(q && q.description || '') + '" placeholder="Optional">' +
     '</div>' +
     '<div class="form-row">' +
       '<label>Status</label>' +
@@ -451,7 +455,12 @@ function openQEditor(q, parentEl) {
   document.getElementById('form-save').onclick = function() {
     var resource = buildQuestionnaire(q);
     var errEl = document.getElementById('qb-err');
-    if (!resource.title) { errEl.textContent = 'Form title is required.'; return; }
+    var problems = qValidate(resource.title, _qItems);
+    var errors = problems.filter(function(p) { return p.level === 'error'; });
+    if (errors.length) {
+      errEl.innerHTML = errors.map(function(p) { return esc(p.msg); }).join('<br>');
+      return;
+    }
     errEl.textContent = '';
     var btn = document.getElementById('form-save');
     btn.disabled = true; btn.textContent = 'Saving…';
