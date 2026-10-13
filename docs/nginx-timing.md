@@ -1,6 +1,6 @@
 # Finding out whether slowness is the network or the backend
 
-Add to the `http {}` block of the production Nginx (`10.255.100.61`), then reload:
+Add to the `http {}` block of the production Nginx (the reverse proxy in front of the stack), then reload:
 
 ```nginx
 log_format timing '$host $remote_addr "$request" $status $request_time $upstream_response_time';
