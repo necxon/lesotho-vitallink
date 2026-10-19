@@ -529,8 +529,8 @@ function openNewWorkerForm(onSave) {
 
   document.getElementById('nw-cancel').onclick = closeModal;
 
-  // Auto-derive username + email from First/Last name (Neels Lotter -> neels.lotter /
-  // neels.lotter@lesotho-bkm.xyz) until the admin manually edits those fields.
+  // Auto-derive username + email from First/Last name (Jane Doe -> jane.doe /
+  // jane.doe@example.org) until the admin manually edits those fields.
   var _userEdited = false, _emailEdited = false;
   function _syncFromName() {
     var f = sanitizeUsername(document.getElementById('nw-first').value);

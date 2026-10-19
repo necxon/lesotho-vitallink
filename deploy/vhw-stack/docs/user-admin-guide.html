@@ -1,0 +1,184 @@
+<title>VHW User Administration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; profiles table first (the mental model), then numbered procedures (real sequences), then reference. Same family as the VHW support runbooks. */
+:root {
+  --bg: #f4f6f7; --panel: #ffffff; --fg: #16232b; --muted: #5b6b74; --hair: #d5dde1;
+  --accent: #0a7ea4; --accent-soft: #e3f2f8;
+  --app: #2e7d32; --app-soft: #e7f4e8;
+  --web: #6a45a8; --web-soft: #efe8f8;
+  --warn: #a15c00; --warn-soft: #fdf1df;
+  --code-bg: #eef2f4;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --hair: #2a3a43;
+    --accent: #4fb7dc; --accent-soft: #12303d; --app: #6cc070; --app-soft: #173320;
+    --web: #b79be8; --web-soft: #2a2140; --warn: #e8a64a; --warn-soft: #3a2a12; --code-bg: #0b1216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --hair: #2a3a43;
+  --accent: #4fb7dc; --accent-soft: #12303d; --app: #6cc070; --app-soft: #173320;
+  --web: #b79be8; --web-soft: #2a2140; --warn: #e8a64a; --warn-soft: #3a2a12; --code-bg: #0b1216;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 880px; margin-inline: auto; padding-inline: 16px; padding-block: 32px 64px; display: grid; gap: 34px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-size: 1.85rem; line-height: 1.2; margin: 0; font-weight: 600; text-wrap: balance; }
+h2 { font-size: 1.2rem; margin: 0 0 10px; font-weight: 600; text-wrap: balance; }
+h3 { font-size: 1rem; margin: 0; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+.lead { color: var(--muted); }
+section { display: grid; gap: 12px; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.tbl { overflow-x: auto; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.pill.app { background: var(--app-soft); color: var(--app); }
+.pill.web { background: var(--web-soft); color: var(--web); }
+.rules { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.rules li { background: var(--panel); border: 1px solid var(--hair); border-left: 4px solid var(--warn); border-radius: 0 8px 8px 0; padding: 8px 12px; }
+ol.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+ol.steps li::marker { color: var(--accent); font-weight: 600; }
+.card { background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 16px; display: grid; gap: 10px; }
+.note { color: var(--muted); font-size: 13.5px; }
+.check { background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; font-size: 14.5px; }
+b { font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">VHW system · For system administrators</div>
+    <h1>VHW User Administration</h1>
+    <p class="lead">How accounts and access work in the VHW system, and how a system administrator adds, changes and switches off users through the web, without the technical team.</p>
+  </header>
+
+  <section>
+    <h2>The four access profiles</h2>
+    <p>Every person gets exactly one profile. A profile is a set of Keycloak <b>groups</b>; the groups decide what the person can use and do. Give access only through these groups, never by adding single roles to a user.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Profile</th><th>Who</th><th>Uses</th><th>Can do</th><th>Groups</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill app">VHW</span></td><td>Village health workers</td><td>BKM phone app</td><td>Register households and children, record visits and vaccines, for their own care team only</td><td><code>ANDROID_PRACTITIONER</code><br><code>PROVIDER</code></td></tr>
+        <tr><td><span class="pill app">Supervisor</span></td><td>VHW supervisors</td><td>BKM phone app</td><td>As a VHW, for the team they supervise</td><td><code>ANDROID_PRACTITIONER</code><br><code>SUPERVISOR</code></td></tr>
+        <tr><td><span class="pill web">Data manager</span></td><td>District and national MoH staff</td><td>Web portal</td><td>Maintain organisations, villages and assignments, care teams and practitioner records. Can see the user list, cannot create or change accounts</td><td><code>WEB_PRACTITIONER</code><br><code>Portal Data Manager</code></td></tr>
+        <tr><td><span class="pill web">System administrator</span></td><td>Two or three named people</td><td>Web portal and Keycloak</td><td>Everything a data manager can, plus create, change and switch off user accounts and reset passwords</td><td><code>WEB_PRACTITIONER</code><br><code>Super Admin</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Nobody can delete patients, tasks, organisations or locations through the portal: no profile has delete rights. Records that are no longer needed are made inactive instead.</p>
+  </section>
+
+  <section>
+    <h2>Rules that always apply</h2>
+    <ul class="rules">
+      <li><b>One person, one account.</b> Never share a login. Shared accounts make it impossible to see who changed what.</li>
+      <li><b>App or portal, never both.</b> An account in both <code>ANDROID_PRACTITIONER</code> and <code>WEB_PRACTITIONER</code> is refused everywhere. Someone who needs both gets two accounts, for example <code>lerato.mokoena</code> for the app and <code>lerato.portal</code> for the portal.</li>
+      <li><b>Switch off, do not delete.</b> When someone leaves, disable the account. Their history stays readable and the account can be switched on again.</li>
+      <li><b>Give passwords in person or by phone,</b> never by e-mail or in a shared document.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where to do it</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Environment</th><th>Keycloak admin console (accounts)</th><th>Web portal (practitioners, teams)</th></tr></thead>
+      <tbody>
+        <tr><td>Production</td><td class="mono">https://vhw.gov.ls/auth/admin/opensrp/console/</td><td class="mono">https://training.vhw.gov.ls</td></tr>
+        <tr><td>Test</td><td class="mono">https://app.vhw.gov.ls/auth/admin/opensrp/console/</td><td class="mono">https://web.vhw.gov.ls</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Log in with your own system administrator account (realm <b>opensrp</b>). The admin console will soon only open from inside the Ministry network; outside it, ask the technical team. Practise on Test first.</p>
+  </section>
+
+  <section>
+    <h2>Add a portal user (data manager or system administrator)</h2>
+    <div class="card">
+      <p>In the <b>Keycloak admin console</b>, realm <b>opensrp</b>:</p>
+      <ol class="steps">
+        <li><b>Users</b> → <b>Add user</b>. Fill in Username (lower case, for example <code>mpho.sello</code>), First name, Last name and E-mail. Click <b>Create</b>.</li>
+        <li>Tab <b>Credentials</b> → <b>Set password</b>. Type a temporary password and leave <b>Temporary</b> switched <b>on</b>: the person chooses their own at first login. Save.</li>
+        <li>Tab <b>Groups</b> → <b>Join group</b>. Tick <code>WEB_PRACTITIONER</code> and <code>Portal Data Manager</code> (data manager) or <code>WEB_PRACTITIONER</code> and <code>Super Admin</code> (system administrator). Click <b>Join</b>.</li>
+        <li>Check the <b>Groups</b> tab shows exactly those two groups and nothing with <code>ANDROID</code> in it.</li>
+      </ol>
+      <p class="check">Test: the person logs in at the web portal, sets a new password, and can open Organisations and Locations. A data manager sees no way to create users; that is correct.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Add a VHW or supervisor</h2>
+    <p>A phone user needs more than an account: the app also needs a <b>practitioner record</b> and membership of a <b>care team</b>, which decides which households the phone downloads. Use the web portal for this; it creates the account and the practitioner record together. Only system administrators can do it.</p>
+    <div class="card">
+      <h3>1. Create the user (web portal)</h3>
+      <ol class="steps">
+        <li><b>User Management</b> → <b>Add user</b>. Fill in First name, Last name and Username. E-mail may stay empty.</li>
+        <li>Set <b>Mark as practitioner</b> to <b>Yes</b>. For a supervisor also set <b>Mark as supervisor</b> to <b>Yes</b>.</li>
+        <li><b>Application ID</b>: <code>bkm</code>.</li>
+        <li><b>User groups</b>: <code>ANDROID_PRACTITIONER</code> and <code>PROVIDER</code> (VHW) or <code>ANDROID_PRACTITIONER</code> and <code>SUPERVISOR</code> (supervisor). Never <code>WEB_PRACTITIONER</code>. Save.</li>
+        <li>Set the password (<b>Credentials</b>). For phone users the password must <b>not</b> be temporary: the app cannot ask for a new one.</li>
+      </ol>
+      <h3>2. Put the practitioner in a care team (web portal)</h3>
+      <ol class="steps">
+        <li><b>Care Team Management</b> → open the team for the VHW's area → <b>Edit</b>.</li>
+        <li>Add the new practitioner as a participant. Save. Use one team per VHW: adding someone to every team makes the gateway refuse them.</li>
+      </ol>
+      <p class="check">Test: install the BKM app, log in with the new account, sync. The households of that care team appear.</p>
+      <p class="note">Screen names can differ slightly between portal versions. If a field is missing, stop and ask the technical team rather than guessing; a phone user without a practitioner record or care team can log in but sees nothing.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Everyday changes</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Task</th><th>Where</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Reset a password</td><td>Admin console</td><td>Users → the user → Credentials → Reset password. Portal users: Temporary on. Phone users: Temporary off.</td></tr>
+        <tr><td>Someone leaves</td><td>Admin console</td><td>Users → the user → switch <b>Enabled</b> off → Save. Do not delete.</td></tr>
+        <tr><td>Change a profile</td><td>Admin console</td><td>Users → the user → Groups: first <b>Join</b> the new group, then <b>Leave</b> the old one. Keep the rule app or portal, never both.</td></tr>
+        <tr><td>VHW moves to another area</td><td>Web portal</td><td>Care Team Management: remove the practitioner from the old team, add to the new one. The phone downloads the new area at the next sync.</td></tr>
+        <tr><td>Locked out after many tries</td><td>Admin console</td><td>Users → the user → turn off the temporary lock on the details page, or reset the password.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Many users at once</h2>
+    <p>For a whole district, send the technical team a spreadsheet saved as <b>CSV UTF-8 (comma delimited)</b>, without passwords. They create all accounts, practitioner records and care-team memberships in one step and check every row first.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>username</th><th>profile</th><th>firstName</th><th>lastName</th><th>email</th><th>careTeam</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">lerato.mokoena</td><td class="mono">vhw</td><td>Lerato</td><td>Mokoena</td><td></td><td>Holy Family Care Team 2</td></tr>
+        <tr><td class="mono">thabo.lebona</td><td class="mono">supervisor</td><td>Thabo</td><td>Lebona</td><td></td><td>Holy Family Care Team 2</td></tr>
+        <tr><td class="mono">mpho.sello</td><td class="mono">data-manager</td><td>Mpho</td><td>Sello</td><td>admin@example.org</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">profile is one of vhw, supervisor, data-manager or admin. careTeam is required for vhw and supervisor (the team's exact name). Usernames: lower case letters, digits, dot, dash or underscore.</p>
+  </section>
+
+  <section>
+    <h2>Set up once (technical team)</h2>
+    <p>These parts are already in place, or are being put in place by the technical team. A system administrator does not change them, but can check them in the admin console under <b>Groups</b>.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Group</th><th>What it must contain</th></tr></thead>
+      <tbody>
+        <tr><td><code>ANDROID_PRACTITIONER</code></td><td>Role <code>ANDROID_CLIENT</code> only</td></tr>
+        <tr><td><code>WEB_PRACTITIONER</code></td><td>Role <code>WEB_CLIENT</code> only</td></tr>
+        <tr><td><code>PROVIDER</code>, <code>SUPERVISOR</code></td><td>The data roles (GET_, POST_, PUT_, PATCH_ …), <b>without</b> <code>EDIT_KEYCLOAK_USERS</code> and <code>VIEW_KEYCLOAK_USERS</code></td></tr>
+        <tr><td><code>Portal Data Manager</code></td><td>The same data roles as Super Admin plus <code>VIEW_KEYCLOAK_USERS</code> (the portal needs it to show Locations, Teams and Care Teams), <b>without</b> <code>EDIT_KEYCLOAK_USERS</code></td></tr>
+        <tr><td><code>Super Admin</code></td><td>The data roles plus <code>EDIT_KEYCLOAK_USERS</code> and <code>VIEW_KEYCLOAK_USERS</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Status October 2026: done on Test and Preprod; on Production the Portal Data Manager group and the removal of the Keycloak user roles from PROVIDER and SUPERVISOR are scheduled after final testing. Until then, add data managers on Production through the technical team.</p>
+  </section>
+</div>

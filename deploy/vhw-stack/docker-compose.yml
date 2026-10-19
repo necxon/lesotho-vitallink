@@ -1,0 +1,223 @@
+# VHW OpenSRP stack - HAPI FHIR, Keycloak, FHIR gateway and fhir-web in one project.
+#
+# Built to match the working stack on amoh255fhir001 (captured 2026-09-29 with
+# capture_stack.sh): same images and versions, same HAPI settings, same gateway
+# and web configuration. Differences from that stack, all deliberate:
+#   - one compose project instead of three, kept in git
+#   - HAPI and both databases have no public port (HAPI only on 127.0.0.1,
+#     for admin scripts run on this host); the gateway is the only FHIR entry
+#   - the gateway reaches HAPI by service name, not by the host IP
+#   - public hostnames are set once in .env (API_HOST, AUTH_HOST, WEB_HOST)
+#   - working health checks
+#   - the opensrp realm is imported from keycloak/import/ on first start
+#
+#   cp .env.example .env    # fill in every value
+#   docker compose up -d --build
+#   bash scripts/verify.sh
+#
+# Host ports default to the test/production layout; a second stack on one host
+# (the preprod environment, see .env.preprod.example) moves them with *_BIND in .env.
+# The VitalLink web portal (form and menu builder) runs only with
+# COMPOSE_PROFILES=builder, as in the preprod environment.
+
+name: vhw
+
+networks:
+  backend:     # databases, HAPI, Keycloak, gateway
+  frontend:    # services nginx on the proxy host talks to
+
+volumes:
+  hapi_pgdata:
+  keycloak_pgdata:
+
+services:
+  hapi-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${HAPI_DB_NAME}
+      POSTGRES_USER: ${HAPI_DB_USER}
+      POSTGRES_PASSWORD: ${HAPI_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command: >
+      postgres -c max_connections=100 -c shared_buffers=512MB
+               -c effective_cache_size=1536MB -c work_mem=16MB -c maintenance_work_mem=128MB
+    volumes:
+      - hapi_pgdata:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  hapi:
+    image: hapiproject/hapi:${HAPI_VERSION}
+    restart: unless-stopped
+    depends_on:
+      hapi-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://hapi-postgres:5432/${HAPI_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${HAPI_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${HAPI_DB_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/config/application.yaml
+      # Paging links and the CapabilityStatement use this, so it must be the
+      # public API address clients actually reach.
+      HAPI_SERVER_ADDRESS: https://${API_HOST}/fhir
+      HAPI_CORS_ORIGIN: https://${WEB_HOST}
+      JAVA_TOOL_OPTIONS: ${HAPI_JAVA_OPTS}
+    volumes:
+      - ./hapi/application.yaml:/config/application.yaml:ro
+    networks: [backend]
+    ports:
+      - "${HAPI_BIND:-127.0.0.1:8080}:8080"
+    # The image has no shell, curl or HealthCheck class; readiness is checked
+    # by scripts/verify.sh instead of a container health check.
+
+  keycloak-postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${KC_DB_USER}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - keycloak_pgdata:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  keycloak:
+    build:
+      context: ./keycloak
+      args:
+        KEYCLOAK_VERSION: ${KEYCLOAK_VERSION}
+    # Own tag, so building here never replaces the keycloak-optimized image
+    # that earlier containers on the same host run from.
+    image: vhw-keycloak:${KEYCLOAK_VERSION}
+    restart: unless-stopped
+    # --import-realm loads keycloak/import/*.json once, when the realm does not exist yet.
+    command: ["start", "--optimized", "--import-realm"]
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      # Tokens carry iss=https://AUTH_HOST/auth/realms/opensrp whichever host
+      # the client used, so the gateway's TOKEN_ISSUER below must match it.
+      KC_HOSTNAME: ${AUTH_HOST}
+      KC_PROXY: edge
+      KC_HTTP_ENABLED: "true"
+      KC_LOG_LEVEL: INFO
+      KEYCLOAK_ADMIN: ${KC_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    networks: [backend, frontend]
+    ports:
+      - "${KEYCLOAK_BIND:-8082}:8080"
+    healthcheck:
+      # Served under /auth (KC_HTTP_RELATIVE_PATH is baked into the image).
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/localhost/8080
+          printf 'GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          grep -q UP <&3
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 10
+
+  gateway:
+    image: onaio/fhir-gateway-plugin:${GATEWAY_VERSION}
+    restart: unless-stopped
+    # At startup the gateway fetches the realm's signing keys from TOKEN_ISSUER
+    # (through nginx). If the realm is not there yet it cannot validate tokens:
+    # restart the gateway after importing the realm.
+    depends_on:
+      hapi:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    environment:
+      PROXY_TO: http://hapi:8080/fhir
+      TOKEN_ISSUER: https://${AUTH_HOST}/auth/realms/${KEYCLOAK_REALM}
+      BACKEND_TYPE: HAPI
+      RUN_MODE: PROD
+      ACCESS_CHECKER: permission
+      # Both files ship inside the image; the ones on amoh255fhir001 are unmodified.
+      ALLOWED_QUERIES_FILE: resources/hapi_page_url_allowed_queries.json
+      SYNC_FILTER_IGNORE_RESOURCES_FILE: resources/hapi_sync_filter_ignored_queries.json
+    networks: [backend, frontend]
+    ports:
+      - "${GATEWAY_BIND:-8081}:8080"
+
+  fhir-web:
+    image: opensrp/web:${FHIR_WEB_VERSION}
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    volumes:
+      # Same template as production; the image default targets OpenSRP's demo servers
+      # and leaves user management, teams and locations switched off.
+      - ./fhir-web/config.js.tpl:/etc/confd/templates/config.js.tmpl:ro
+    environment:
+      NODE_ENV: production
+      EXPRESS_REACT_BUILD_PATH: /usr/src/web
+      EXPRESS_ALLOW_TOKEN_RENEWAL: "true"
+      EXPRESS_OPENSRP_LOGOUT_URL: "null"
+      WEB_KC_CLIENT_ID: fhir-web
+      EXPRESS_OPENSRP_CLIENT_ID: fhir-web
+      WEB_KC_CLIENT_SECRET: ${WEB_KC_CLIENT_SECRET}
+      EXPRESS_OPENSRP_CLIENT_SECRET: ${WEB_KC_CLIENT_SECRET}
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET}
+      EXPRESS_SESSION_SECRET: ${WEB_SESSION_SECRET}
+      KEYCLOAK_BASE_URL: https://${AUTH_HOST}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      EXPRESS_OPENSRP_AUTHORIZATION_URL: https://${AUTH_HOST}/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth
+      EXPRESS_OPENSRP_ACCESS_TOKEN_URL: https://${AUTH_HOST}/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token
+      EXPRESS_OPENSRP_USER_URL: https://${AUTH_HOST}/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo
+      EXPRESS_KEYCLOAK_LOGOUT_URL: https://${AUTH_HOST}/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout
+      FHIR_WEB_BASE_URL: https://${WEB_HOST}
+      FHIR_API_BASE_URL: https://${WEB_HOST}/fhir
+      EXPRESS_OPENSRP_CALLBACK_URL: https://${WEB_HOST}/oauth/callback/OpenSRP/
+      EXPRESS_FRONTEND_OPENSRP_CALLBACK_URL: https://${WEB_HOST}/fe/oauth/callback/opensrp
+      EXPRESS_SERVER_LOGOUT_URL: https://${WEB_HOST}/logout
+      ROOT_LOCATION: ${ROOT_LOCATION}
+      COMMODITY_LIST: ${COMMODITY_LIST}
+      EXPRESS_CONTENT_SECURITY_POLICY_CONFIG: >-
+        {"connect-src":["'self'","https://${AUTH_HOST}","https://${WEB_HOST}/fhir"],"default-src":["'self'"],"img-src":["'self'","https://github.com/opensrp/","https://*.githubusercontent.com/opensrp/"]}
+    networks: [frontend]
+    ports:
+      - "${WEB_BIND:-3000}:3000"
+
+  # VitalLink web (bkm-web): form and phone-menu builder. Preprod environment only
+  # (COMPOSE_PROFILES=builder). Built from a lesotho-vitallink checkout; its
+  # runtime config (Keycloak and FHIR addresses) is the mounted config.js.
+  bkm-web:
+    profiles: [builder]
+    build: ${BKM_WEB_SRC:-../lesotho-vitallink/bkm-web}
+    image: vhw-bkm-web:preprod
+    restart: unless-stopped
+    volumes:
+      - ${BKM_WEB_CONFIG:-./bkm-web/config.preprod.js}:/usr/share/nginx/html/config.js:ro
+      # The image's nginx file names dev-stack containers that do not exist here.
+      - ./bkm-web/nginx.preprod.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [frontend]
+    ports:
+      - "${BUILDER_BIND:-127.0.0.1:18902}:80"
