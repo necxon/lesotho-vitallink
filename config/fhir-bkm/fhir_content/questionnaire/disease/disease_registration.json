@@ -1,0 +1,399 @@
+{
+  "resourceType": "Questionnaire",
+  "id": "f7004382-ba3d-4f62-a687-6e9d18c09d3a",
+  "language": "en",
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-targetStructureMap",
+      "valueCanonical": "https://fhir.labs.smartregister.org/fhir/StructureMap/ef19b62e-6cbf-43d6-beb5-4c0d9d2c20b8"
+    }
+  ],
+  "version": "0.0.1",
+  "name": "DiseasesRegistrationForm",
+  "title": "Diseases Registration Form",
+  "status": "active",
+  "subjectType": [
+    "Patient"
+  ],
+  "date": "2026-10-18T00:00:00Z",
+  "publisher": "BKM",
+  "description": "Register a person with one or more long-term diseases",
+  "item": [
+    {
+      "linkId": "dd55485e-322a-434e-d37d-235e37dd235c",
+      "type": "choice",
+      "repeats": true,
+      "required": true,
+      "text": "Which diseases does this person have?",
+      "_text": {
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/translation",
+            "extension": [
+              {
+                "url": "lang",
+                "valueCode": "st"
+              },
+              {
+                "url": "content",
+                "valueString": "Ke mafu afe ao motho enoa a nang le ona?"
+              }
+            ]
+          }
+        ]
+      },
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+          "valueCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/ValueSet/questionnaire-item-control",
+                "code": "check-box",
+                "display": "Check-box"
+              }
+            ]
+          }
+        }
+      ],
+      "answerOption": [
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "hiv",
+            "display": "HIV",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "HIV"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "tb",
+            "display": "Tuberculosis (TB)",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lefuba (TB)"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "mental-health",
+            "display": "Mental health",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Bophelo ba kelello"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "diabetes-mellitus",
+            "display": "Diabetes mellitus",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lefu la tsoekere"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "cancer",
+            "display": "Cancer",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Kankere"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "asthma",
+            "display": "Asthma",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Asma"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "stroke",
+            "display": "Stroke",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Stroke"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "hypertension",
+            "display": "Hypertension",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Khatello e phahameng ea madi"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "epilepsy",
+            "display": "Epilepsy",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lefu la ho wa (epilepsy)"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "paralysis",
+            "display": "Paralysis",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Ho holofala"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "liver-disease",
+            "display": "Liver disease",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lefu la sebete"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "goitre",
+            "display": "Goitre",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Goitre"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "kidney-disease",
+            "display": "Kidney disease",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lefu la liphio"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "valueCoding": {
+            "system": "https://smartregister.org/CodeSystem/disease-registration",
+            "code": "leprosy",
+            "display": "Leprosy",
+            "_display": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                  "extension": [
+                    {
+                      "url": "lang",
+                      "valueCode": "st"
+                    },
+                    {
+                      "url": "content",
+                      "valueString": "Lepera"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
