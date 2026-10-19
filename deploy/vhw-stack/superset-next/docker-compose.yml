@@ -1,0 +1,60 @@
+# superset-next: a production-style Superset next to the current one, for testing the
+# replacement of the development install on 192.0.2.236. Runs on the jump host
+# (192.0.2.132) without sudo. See README.md in this folder.
+name: superset-next
+
+x-superset: &superset
+  build:
+    context: .
+    args:
+      SUPERSET_VERSION: ${SUPERSET_VERSION}
+  image: vhw-superset:${SUPERSET_VERSION}
+  env_file: .env
+  environment:
+    SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    DATABASE_HOST: db
+    REDIS_HOST: redis
+  volumes:
+    - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_started }
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_DB}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes: [redis:/data]
+
+  # One-off: bring the metadata database up to this version, re-encrypt the copied
+  # connections with the new key (only when SUPERSET_PREVIOUS_SECRET_KEY is set),
+  # create roles/permissions.
+  init:
+    <<: *superset
+    restart: "no"
+    command: ["sh", "-c", "superset db upgrade && { [ -z \"$$SUPERSET_PREVIOUS_SECRET_KEY\" ] || superset re-encrypt-secrets; } && superset init"]
+    profiles: [init]
+
+  superset:
+    <<: *superset
+    command: ["sh", "-c", "gunicorn --bind 0.0.0.0:8088 --workers 4 --timeout 300 --limit-request-line 0 --limit-request-field_size 0 'superset.app:create_app()'"]
+    ports:
+      - "${SUPERSET_BIND:-192.0.2.132:18088}:8088"
+
+volumes:
+  db:
+  redis:

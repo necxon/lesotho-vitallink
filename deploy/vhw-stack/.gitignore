@@ -1,0 +1,4 @@
+.env
+keycloak/import/*.json
+backups/
+__pycache__/

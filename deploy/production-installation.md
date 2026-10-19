@@ -4,8 +4,8 @@ How to stand up the Lesotho VitalLink stack on a fresh Ubuntu server. This
 covers the IP-only HTTP bring-up (no domain yet). The domain + TLS layer is a
 later step, documented at the end and in deploy/README.md.
 
-Reference box for this guide: user necuser, repo at
-/home/necuser/docker/lesotho-vitallink. This runbook was validated end-to-end
+Reference box for this guide: user deploy-user, repo at
+/home/deploy-user/docker/lesotho-vitallink. This runbook was validated end-to-end
 on that box on 2026-07-02 - the values below are the ones that actually worked.
 
 Throughout this guide 0.0.0.0 stands in for the server's own public IP. It is a
@@ -31,8 +31,8 @@ The deployment is two Docker Compose stacks plus optional host config:
 Directory layout the tooling expects:
 
 ```
-/home/necuser/docker/lesotho-vitallink/     <- this repo
-/home/necuser/docker/openlmis-ref-distro/   <- OpenLMIS ref-distro (sibling)
+/home/deploy-user/docker/lesotho-vitallink/     <- this repo
+/home/deploy-user/docker/openlmis-ref-distro/   <- OpenLMIS ref-distro (sibling)
 ```
 
 ## Prerequisites
@@ -106,7 +106,7 @@ seeded server:
 
 ```bash
 cd ~/docker
-rsync -avz necjp@0.0.0.0:~/docker/openlmis-ref-distro/ ./openlmis-ref-distro/
+rsync -avz deploy-user@0.0.0.0:~/docker/openlmis-ref-distro/ ./openlmis-ref-distro/
 # (or scp -r). Data lives in Docker volumes, not the dir - the seed repopulates it.
 ```
 

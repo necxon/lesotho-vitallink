@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}</style>
+<title>VHW Environment Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide, zoomable network drawing (clients -> nginx -> servers), reference tables below. */
+:root {
+  --bg: #f4f6f7;
+  --panel: #ffffff;
+  --fg: #16232b;
+  --muted: #5b6b74;
+  --line: #9aa9b1;
+  --hair: #d5dde1;
+  --prod: #0a7ea4;       /* BKM logo blue */
+  --prod-soft: #e3f2f8;
+  --test: #c62828;       /* BKM Test icon red */
+  --test-soft: #fbe9e9;
+  --future: #2e7d32;     /* planned green icon */
+  --future-soft: #e7f4e8;
+  --warn: #a15c00;
+  --warn-soft: #fdf1df;
+  --pre: #6a45a8;        /* preprod */
+  --pre-soft: #efe8f8;
+  --orange: #e66c00;     /* BKM Preprod app icon */
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --line: #5f727c; --hair: #2a3a43;
+    --prod: #4fb7dc; --prod-soft: #12303d; --test: #f07070; --test-soft: #3a1c1e;
+    --future: #6cc070; --future-soft: #173320; --warn: #e8a64a; --warn-soft: #3a2a12;
+    --pre: #b79be8; --pre-soft: #2a2140; --orange: #f59a3c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --line: #5f727c; --hair: #2a3a43;
+  --prod: #4fb7dc; --prod-soft: #12303d; --test: #f07070; --test-soft: #3a1c1e;
+  --future: #6cc070; --future-soft: #173320; --warn: #e8a64a; --warn-soft: #3a2a12;
+  --pre: #b79be8; --pre-soft: #2a2140; --orange: #f59a3c;
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+.wrap { padding-inline: 16px; padding-block: 24px 48px; max-width: 1400px; margin-inline: auto; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+h1 { font-size: 1.6rem; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 10px; }
+.sub { color: var(--muted); margin: 0; max-width: 70ch; }
+.mono { font-family: var(--mono); font-size: 0.92em; }
+
+/* controls */
+.bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button, .zoom button {
+  font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--fg);
+  padding: 7px 14px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.zoom { display: inline-flex; gap: 6px; align-items: center; }
+.zoom button { border: 1px solid var(--hair); border-radius: 8px; background: var(--panel); min-width: 38px; }
+.zoom .hint { color: var(--muted); font-size: 13px; }
+button:focus-visible { outline: 2px solid var(--prod); outline-offset: 2px; }
+
+/* the drawing */
+.stage {
+  background: var(--panel); border: 1px solid var(--hair); border-radius: 10px;
+  height: min(78vh, 62vw); min-height: 320px; overflow: hidden; touch-action: none; cursor: grab;
+}
+.stage.dragging { cursor: grabbing; }
+.stage svg { width: 100%; height: 100%; display: block; user-select: none; }
+figure { margin: 0; display: grid; gap: 8px; }
+figcaption { color: var(--muted); font-size: 13.5px; max-width: 90ch; }
+
+svg text { font-family: var(--sans); fill: var(--fg); }
+svg .t-title { font-size: 15px; font-weight: 600; }
+svg .t-name { font-size: 14px; font-weight: 600; }
+svg .t-sub { font-size: 11.5px; fill: var(--muted); font-family: var(--mono); }
+svg .t-col { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; fill: var(--muted); }
+svg .t-edge { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+svg .t-warn { font-size: 11.5px; fill: var(--warn); font-weight: 500; }
+svg .t-badge { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; }
+
+.box { fill: var(--panel); stroke: var(--line); stroke-width: 1.3; }
+a.lnk { cursor: pointer; }
+a.lnk:hover .box, a.lnk:focus-visible .box { fill: var(--prod-soft); stroke-width: 2.2; }
+a.lnk:focus-visible { outline: none; }
+svg .t-go { font-size: 12px; fill: var(--prod); }
+.host { fill: var(--bg); stroke: var(--hair); stroke-width: 1.2; }
+.host.prod { stroke: var(--prod); }
+.host.test { stroke: var(--test); }
+.host.pre { stroke: var(--pre); stroke-dasharray: 8 5; }
+.edge { fill: none; stroke: var(--line); stroke-width: 1.6; }
+.edge.auth { stroke-dasharray: 6 5; }
+.edge.dim, .dim .box, .dim text { opacity: 0.5; }
+.edge.prod { stroke: var(--prod); }
+.edge.test { stroke: var(--test); }
+.edge.future { stroke: var(--future); }
+.edge.pre { stroke: var(--pre); stroke-dasharray: 7 5; }
+.edge.danger { stroke: var(--test); stroke-width: 2.2; stroke-dasharray: 7 5; }
+.arrow { fill: var(--line); }
+.chip-prod { fill: var(--prod); } .chip-test { fill: var(--test); } .chip-future { fill: var(--future); }
+.badge-pre { fill: var(--pre-soft); } .bt-pre { fill: var(--pre); } .chip-pre { fill: var(--pre); }
+.badge-prod { fill: var(--prod-soft); } .badge-test { fill: var(--test-soft); } .badge-warn { fill: var(--warn-soft); }
+.bt-prod { fill: var(--prod); } .bt-test { fill: var(--test); } .bt-warn { fill: var(--warn); }
+
+/* Today / Planned states */
+.state-today .only-plan, .state-plan .only-today { display: none; }
+.h117 > rect.host, .h117 > g:first-of-type { opacity: 0.7; }
+.state-plan .h117 { opacity: 0.4; }
+
+/* tables and notes */
+.cols { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.cols > * { min-width: 0; }
+.tbl { overflow-x: auto; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+th { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.pill.prod { background: var(--prod-soft); color: var(--prod); }
+.pill.test { background: var(--test-soft); color: var(--test); }
+.pill.future { background: var(--future-soft); color: var(--future); }
+.pill.pre { background: var(--pre-soft); color: var(--pre); }
+.pill.other { background: var(--bg); color: var(--muted); border: 1px solid var(--hair); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: baseline; }
+a { color: var(--prod); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+.tbl td.mono a { word-break: break-all; }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="wrap state-today" id="root">
+  <header>
+    <h1>VHW Environment Map</h1>
+    <p class="sub">How the BKM apps, the web portals and DHIS2 reach the servers behind vhw.gov.ls. Today is the state on 6 October 2026, with a check of the production and test addresses on 19 October (all answer as described): production on prod-host including logins (since 1 October), test on test-host, and Superset on analytics-host now fed hourly from production, and a third environment, preprod, running on the jump host jump-host (public names waiting for DNS). Next shows the clean-up still to do.</p>
+  </header>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Show state">
+      <button type="button" id="btn-today" aria-pressed="true">Today</button>
+      <button type="button" id="btn-plan" aria-pressed="false">Next: clean-up</button>
+    </div>
+    <div class="zoom">
+      <button type="button" id="zin" aria-label="Zoom in">+</button>
+      <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
+      <button type="button" id="zfit">Fit</button>
+      <span class="hint">Scroll or pinch to zoom, drag to move</span>
+    </div>
+  </div>
+
+  <figure>
+    <div class="stage" id="stage">
+<svg id="map" viewBox="0 0 1600 1260" role="img" aria-label="Network map: phones and browsers connect through the nginx proxy on proxy-host. vhw.gov.ls and training.vhw.gov.ls route to production on prod-host with logins on login-host; app.vhw.gov.ls and web.vhw.gov.ls route to the test server test-host. Preprod on jump-host is being set up; its hostnames are not live yet.">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker>
+    <marker id="ah-prod" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="chip-prod"/></marker>
+    <marker id="ah-test" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="chip-test"/></marker>
+    <marker id="ah-pre" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="chip-pre"/></marker>
+    <marker id="ah-future" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="chip-future"/></marker>
+  </defs>
+
+  <!-- column headings -->
+  <text x="40" y="36" class="t-col">WHO CONNECTS</text>
+  <text x="360" y="36" class="t-col">PUBLIC HOSTNAMES</text>
+  <text x="800" y="36" class="t-col">SERVERS</text>
+
+  <!-- ===== clients ===== -->
+  <g>
+    <rect x="40" y="104" width="230" height="46" rx="8" class="box"/>
+    <rect x="52" y="116" width="22" height="22" rx="5" class="chip-prod"/>
+    <text x="84" y="124" class="t-name">BKM</text>
+    <text x="84" y="140" class="t-sub">VHW phones · blue icon</text>
+  </g>
+  <g>
+    <rect x="40" y="158" width="230" height="46" rx="8" class="box"/>
+    <rect x="52" y="170" width="22" height="22" rx="5" class="chip-future"/>
+    <text x="84" y="178" class="t-name">BKM 2.2.9</text>
+    <text x="84" y="194" class="t-sub">green icon "LIVE" · pilot</text>
+  </g>
+  <g>
+    <rect x="40" y="212" width="230" height="46" rx="8" class="box"/>
+    <text x="56" y="232" class="t-name">Portal users</text>
+    <text x="56" y="248" class="t-sub">browser · production</text>
+  </g>
+  <g>
+    <rect x="40" y="292" width="230" height="46" rx="8" class="box"/>
+    <rect x="52" y="304" width="22" height="22" rx="5" class="chip-test"/>
+    <text x="84" y="312" class="t-name">BKM Test 2.2.10</text>
+    <text x="84" y="328" class="t-sub">testers · red icon</text>
+  </g>
+  <g>
+    <rect x="40" y="372" width="230" height="46" rx="8" class="box"/>
+    <text x="56" y="392" class="t-name">Portal users</text>
+    <text x="56" y="408" class="t-sub">browser · test</text>
+  </g>
+  <g>
+    <rect x="40" y="452" width="230" height="46" rx="8" class="box"/>
+    <text x="56" y="472" class="t-name">Analysts</text>
+    <text x="56" y="488" class="t-sub">dashboards</text>
+  </g>
+
+  <!-- client edges -->
+  <path d="M270,127 C330,127 330,146 390,146" class="edge prod" marker-end="url(#ah-prod)"/>
+  <path class="edge future" d="M270,181 C330,181 330,160 390,160" marker-end="url(#ah-future)"/>
+  <path d="M270,235 C330,235 330,234 390,234" class="edge" marker-end="url(#ah)"/>
+  <path class="edge test" d="M270,315 C330,315 330,314 390,314" marker-end="url(#ah-test)"/>
+  <path d="M270,395 C330,395 330,394 390,394" class="edge" marker-end="url(#ah)"/>
+  <path d="M270,475 C330,475 330,474 390,474" class="edge" marker-end="url(#ah)"/>
+  <g>
+    <rect x="40" y="676" width="230" height="46" rx="8" class="box"/>
+    <rect x="52" y="688" width="22" height="22" rx="5" style="fill: var(--orange)"/>
+    <text x="84" y="696" class="t-name">Preprod users</text>
+    <text x="84" y="712" class="t-sub">orange app · menu builders</text>
+  </g>
+  <path class="edge pre" d="M270,699 C330,699 330,700 390,700" marker-end="url(#ah-pre)"/>
+
+  <!-- ===== nginx ===== -->
+  <rect x="360" y="70" width="300" height="690" rx="12" class="host"/>
+  <text x="380" y="98" class="t-title">nginx reverse proxy + DHIS2</text>
+  <text x="380" y="116" class="t-sub">proxy-host · ubuntu-dhis2-db-server</text>
+
+  <a href="https://vhw.gov.ls/fhir/" target="_blank" rel="noopener" class="lnk"><title>https://vhw.gov.ls/fhir/</title>
+    <rect x="390" y="130" width="240" height="48" rx="8" class="box" style="stroke: var(--prod)"/>
+    <text x="404" y="151" class="t-name">vhw.gov.ls</text>
+    <text x="404" y="168" class="t-sub">production · app + API</text>
+    <text x="623" y="172" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://training.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://training.vhw.gov.ls</title>
+    <rect x="390" y="210" width="240" height="48" rx="8" class="box" style="stroke: var(--prod)"/>
+    <text x="404" y="231" class="t-name">training.vhw.gov.ls</text>
+    <text x="404" y="248" class="t-sub">production · web portal</text>
+    <text x="623" y="252" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <text x="404" y="274" class="t-warn">rename later → portal.vhw.gov.ls</text>
+  <a href="https://app.vhw.gov.ls/fhir/" target="_blank" rel="noopener" class="lnk"><title>https://app.vhw.gov.ls/fhir/</title>
+    <rect x="390" y="290" width="240" height="48" rx="8" class="box" style="stroke: var(--test)"/>
+    <text x="404" y="311" class="t-name">app.vhw.gov.ls</text>
+    <text x="404" y="328" class="t-sub">test · app + API</text>
+    <text x="623" y="332" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://web.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://web.vhw.gov.ls</title>
+    <rect x="390" y="370" width="240" height="48" rx="8" class="box" style="stroke: var(--test)"/>
+    <text x="404" y="391" class="t-name">web.vhw.gov.ls</text>
+    <text x="404" y="408" class="t-sub">test · web portal</text>
+    <text x="623" y="412" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://bkm.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://bkm.vhw.gov.ls</title>
+    <rect x="390" y="450" width="240" height="48" rx="8" class="box"/>
+    <text x="404" y="471" class="t-name">bkm.vhw.gov.ls</text>
+    <text x="404" y="488" class="t-sub">analytics · Superset</text>
+    <text x="623" y="492" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://vhw.gov.ls/chwml" target="_blank" rel="noopener" class="lnk"><title>https://vhw.gov.ls/chwml</title>
+    <rect x="390" y="516" width="240" height="76" rx="8" class="box" style="stroke: var(--warn)"/>
+    <text x="404" y="536" class="t-name">DHIS2 · CHWML staging</text>
+    <text x="404" y="552" class="t-sub">Community Health Master List</text>
+    <text x="404" y="567" class="t-sub">Tomcat :8080 + Postgres 14</text>
+    <text x="404" y="582" class="t-sub">vhw.gov.ls/chwml</text>
+    <text x="623" y="586" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <text x="380" y="610" class="t-sub">vhw.gov.ls/chwtr → dhis2-host:8082</text>
+  <text x="380" y="626" class="t-sub">HTTPS: Let's Encrypt, all hostnames</text>
+  <a href="https://preprod-builder.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://preprod-builder.vhw.gov.ls</title>
+    <rect x="390" y="664" width="240" height="76" rx="8" class="box" style="stroke: var(--pre); stroke-dasharray: 5 4"/>
+    <text x="404" y="684" class="t-name">preprod-*.vhw.gov.ls</text>
+    <text x="404" y="700" class="t-sub">app · web · builder · grafana</text>
+    <text x="404" y="716" class="t-sub">nginx ready · DNS requested</text>
+    <text x="404" y="731" class="t-sub">config: nginx/vhw-preprod.conf</text>
+    <text x="623" y="734" text-anchor="end" class="t-go">↗</text>
+  </a>
+
+  <!-- ===== production server prod-host ===== -->
+  <rect x="800" y="70" width="380" height="300" rx="12" class="host prod"/>
+  <text x="820" y="98" class="t-title">prod-host</text>
+  <text x="820" y="116" class="t-sub">amoh255fhir001</text>
+  <rect x="1046" y="84" width="118" height="22" rx="11" class="badge-prod"/>
+  <text x="1105" y="99" text-anchor="middle" class="t-badge bt-prod">PRODUCTION</text>
+
+  <a href="https://vhw.gov.ls/fhir/" target="_blank" rel="noopener" class="lnk"><title>https://vhw.gov.ls/fhir/</title>
+    <rect x="820" y="130" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="151" class="t-name">OpenSRP gateway</text>
+    <text x="834" y="168" class="t-sub">vhw.gov.ls</text>
+    <text x="973" y="172" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://training.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://training.vhw.gov.ls</title>
+    <rect x="820" y="210" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="231" class="t-name">Web portal</text>
+    <text x="834" y="248" class="t-sub">training.vhw.gov.ls</text>
+    <text x="973" y="252" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://vhw.gov.ls/auth/admin/" target="_blank" rel="noopener" class="lnk"><title>https://vhw.gov.ls/auth/admin/</title>
+    <rect x="820" y="290" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="311" class="t-name">Keycloak</text>
+    <text x="834" y="328" class="t-sub">vhw.gov.ls/auth</text>
+    <text x="973" y="332" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="http://prod-host:8080/fhir/metadata" target="_blank" rel="noopener" class="lnk"><title>http://prod-host:8080/fhir/metadata</title>
+    <rect x="1010" y="130" width="150" height="48" rx="8" class="box"/>
+    <text x="1024" y="151" class="t-name">HAPI FHIR</text>
+    <text x="1024" y="168" class="t-sub">:8080</text>
+    <text x="1153" y="172" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g>
+    <rect x="1010" y="210" width="150" height="48" rx="8" class="box"/>
+    <text x="1024" y="231" class="t-name">PostgreSQL</text>
+    <text x="1024" y="248" class="t-sub">1,477 patients</text>
+  </g>
+  <text x="1020" y="301" class="t-warn">HAPI :8080 answers</text>
+
+  <path d="M980,154 L1008,154" class="edge" marker-end="url(#ah)"/>
+  <path d="M1085,178 L1085,208" class="edge" marker-end="url(#ah)"/>
+  <text x="1092" y="198" class="t-edge">stores</text>
+
+  <!-- ===== logins login-host ===== -->
+  <g class="h117">
+  <rect x="1220" y="70" width="340" height="250" rx="12" class="host prod"/>
+  <text x="1240" y="98" class="t-title">login-host</text>
+  <rect x="1426" y="84" width="118" height="22" rx="11" class="badge-warn only-today"/>
+  <text x="1485" y="99" text-anchor="middle" class="t-badge bt-warn only-today">FALLBACK</text>
+  <rect x="1426" y="84" width="118" height="22" rx="11" class="badge-warn only-plan"/>
+  <text x="1485" y="99" text-anchor="middle" class="t-badge bt-warn only-plan">RETIRED</text>
+  <g>
+    <rect x="1240" y="126" width="300" height="48" rx="8" class="box"/>
+    <text x="1254" y="147" class="t-name">Keycloak · realm opensrp</text>
+    <text x="1254" y="164" class="t-sub only-plan">switched off</text>
+  </g>
+  <g class="dim">
+    <rect x="1240" y="186" width="300" height="70" rx="8" class="box" style="stroke-dasharray: 5 4"/>
+    <text x="1254" y="207" class="t-name">Older stack, not routed</text>
+    <text x="1254" y="240" class="t-sub">gateway :8081 · portal :3000</text>
+  </g>
+  </g>
+  <!-- gateway checks tokens against 117 -->
+  <path class="edge auth" d="M980,170 L994,170 L994,318 L982,318" marker-end="url(#ah)"/>
+
+  <!-- ===== test server test-host ===== -->
+  <rect x="800" y="410" width="380" height="330" rx="12" class="host test"/>
+  <text x="820" y="438" class="t-title">test-host</text>
+  <text x="820" y="456" class="t-sub">amoh255bkmtrn001 · /opt/vhw-stack · running</text>
+  <rect x="1046" y="424" width="118" height="22" rx="11" class="badge-test"/>
+  <text x="1105" y="439" text-anchor="middle" class="t-badge bt-test">TEST</text>
+
+  <a href="https://app.vhw.gov.ls/fhir/" target="_blank" rel="noopener" class="lnk"><title>https://app.vhw.gov.ls/fhir/</title>
+    <rect x="820" y="470" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="491" class="t-name">OpenSRP gateway</text>
+    <text x="834" y="508" class="t-sub">app.vhw.gov.ls</text>
+    <text x="973" y="512" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://web.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://web.vhw.gov.ls</title>
+    <rect x="820" y="550" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="571" class="t-name">Web portal</text>
+    <text x="834" y="588" class="t-sub">web.vhw.gov.ls</text>
+    <text x="973" y="592" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://app.vhw.gov.ls/auth/admin/" target="_blank" rel="noopener" class="lnk"><title>https://app.vhw.gov.ls/auth/admin/</title>
+    <rect x="820" y="630" width="160" height="48" rx="8" class="box"/>
+    <text x="834" y="651" class="t-name">Keycloak</text>
+    <text x="834" y="668" class="t-sub">app.vhw.gov.ls/auth</text>
+    <text x="973" y="672" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g>
+    <rect x="1010" y="470" width="150" height="48" rx="8" class="box"/>
+    <text x="1024" y="491" class="t-name">HAPI FHIR</text>
+    <text x="1024" y="508" class="t-sub">internal only</text>
+  </g>
+  <g>
+    <rect x="1010" y="550" width="150" height="48" rx="8" class="box"/>
+    <text x="1024" y="571" class="t-name">PostgreSQL</text>
+    <text x="1024" y="588" class="t-sub">copy of production</text>
+  </g>
+  <g>
+    <path d="M980,494 L1008,494" class="edge" marker-end="url(#ah)"/>
+    <path d="M1085,518 L1085,548" class="edge" marker-end="url(#ah)"/>
+    <text x="1092" y="538" class="t-edge">stores</text>
+    <path d="M980,510 L994,510 L994,654 L982,654" class="edge auth" marker-end="url(#ah)"/>
+    <text x="1004" y="640" class="t-edge">checks tokens</text>
+  </g>
+  <text x="820" y="706" class="t-sub">data: production snapshot 30 Sep 12:05</text>
+  <text x="820" y="722" class="t-sub">1,475 patients · verify.sh: all checks passed</text>
+
+  <!-- ===== analytics analytics-host ===== -->
+  <rect x="800" y="768" width="380" height="222" rx="12" class="host"/>
+  <text x="820" y="794" class="t-title">analytics-host</text>
+  <a href="https://bkm.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://bkm.vhw.gov.ls</title>
+    <rect x="820" y="806" width="340" height="62" rx="8" class="box"/>
+    <text x="834" y="827" class="t-name">Apache Superset</text>
+    <text x="1146" y="827" text-anchor="end" class="t-sub">:8088</text>
+    <text x="834" y="844" class="t-sub">https://bkm.vhw.gov.ls · own logins</text>
+    <text x="834" y="859" class="t-sub">reads BKM_Server (Spark :10001)</text>
+    <text x="1153" y="862" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="http://analytics-host:8090" target="_blank" rel="noopener" class="lnk"><title>http://analytics-host:8090</title>
+    <rect x="820" y="878" width="340" height="62" rx="8" class="box" style="stroke: var(--prod)"/>
+    <text x="834" y="899" class="t-name">Data pipeline + Spark</text>
+    <text x="1146" y="899" text-anchor="end" class="t-sub">:8090 · :10001</text>
+    <text x="834" y="916" class="t-sub">fhir-data-pipes · hourly from production</text>
+    <text x="834" y="931" class="t-sub">restarted 6 Oct (stopped since Jan)</text>
+    <text x="1153" y="934" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g class="dim">
+    <rect x="820" y="950" width="340" height="30" rx="8" class="box" style="stroke-dasharray: 5 4"/>
+    <text x="834" y="970" class="t-sub">old HAPI :8091 · 79 patients · not used</text>
+  </g>
+  <!-- pipeline reads production FHIR -->
+  <path d="M1160,909 L1198,909 L1198,146 L1162,146" class="edge prod" marker-end="url(#ah-prod)"/>
+  <text x="1192" y="760" text-anchor="end" class="t-edge">hourly read</text>
+
+  <!-- ===== preprod jump-host (jump host) ===== -->
+  <rect x="800" y="1010" width="760" height="232" rx="12" class="host pre"/>
+  <text x="820" y="1038" class="t-title">jump-host · jump-host-public</text>
+  <rect x="1426" y="1024" width="118" height="22" rx="11" class="badge-pre"/>
+  <text x="1485" y="1039" text-anchor="middle" class="t-badge bt-pre">PREPROD</text>
+  <a href="https://preprod-app.vhw.gov.ls/fhir/" target="_blank" rel="noopener" class="lnk"><title>https://preprod-app.vhw.gov.ls/fhir/</title>
+    <rect x="820" y="1070" width="170" height="56" rx="8" class="box"/>
+    <text x="834" y="1091" class="t-name">OpenSRP gateway</text>
+    <text x="834" y="1107" class="t-sub">preprod-app.vhw.gov.ls</text>
+    <text x="834" y="1120" class="t-sub">:18181</text>
+    <text x="983" y="1120" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://preprod-web.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://preprod-web.vhw.gov.ls</title>
+    <rect x="1005" y="1070" width="170" height="56" rx="8" class="box"/>
+    <text x="1019" y="1091" class="t-name">Web portal</text>
+    <text x="1019" y="1107" class="t-sub">preprod-web.vhw.gov.ls</text>
+    <text x="1019" y="1120" class="t-sub">:18300 · fhir-web</text>
+    <text x="1168" y="1120" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <a href="https://preprod-app.vhw.gov.ls/auth/admin/" target="_blank" rel="noopener" class="lnk"><title>https://preprod-app.vhw.gov.ls/auth/admin/</title>
+    <rect x="1190" y="1070" width="170" height="56" rx="8" class="box"/>
+    <text x="1204" y="1091" class="t-name">Keycloak</text>
+    <text x="1204" y="1107" class="t-sub">preprod-app.vhw.gov.ls</text>
+    <text x="1204" y="1120" class="t-sub">/auth · 511 users</text>
+    <text x="1353" y="1120" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g>
+    <rect x="1375" y="1070" width="170" height="56" rx="8" class="box"/>
+    <text x="1389" y="1091" class="t-name">HAPI FHIR</text>
+    <text x="1389" y="1107" class="t-sub">:18180</text>
+    <text x="1389" y="1120" class="t-sub">this host only</text>
+  </g>
+  <a href="https://preprod-builder.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://preprod-builder.vhw.gov.ls</title>
+    <rect x="820" y="1138" width="170" height="56" rx="8" class="box" style="stroke: var(--pre)"/>
+    <text x="834" y="1159" class="t-name">VitalLink web</text>
+    <text x="834" y="1175" class="t-sub">preprod-builder</text>
+    <text x="834" y="1188" class="t-sub">.vhw.gov.ls · menus</text>
+    <text x="983" y="1188" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g>
+    <rect x="1005" y="1138" width="170" height="56" rx="8" class="box"/>
+    <text x="1019" y="1159" class="t-name">OpenHIM + mediator</text>
+    <text x="1019" y="1175" class="t-sub">kept from VitalLink</text>
+    <text x="1019" y="1188" class="t-sub">to point at preprod</text>
+  </g>
+  <a href="https://preprod-grafana.vhw.gov.ls" target="_blank" rel="noopener" class="lnk"><title>https://preprod-grafana.vhw.gov.ls</title>
+    <rect x="1190" y="1138" width="170" height="56" rx="8" class="box"/>
+    <text x="1204" y="1159" class="t-name">Grafana</text>
+    <text x="1204" y="1175" class="t-sub">preprod-grafana</text>
+    <text x="1204" y="1188" class="t-sub">.vhw.gov.ls · :3005</text>
+    <text x="1353" y="1188" text-anchor="end" class="t-go">↗</text>
+  </a>
+  <g>
+    <rect x="1375" y="1138" width="170" height="56" rx="8" class="box"/>
+    <text x="1389" y="1159" class="t-name">PostgreSQL</text>
+    <text x="1389" y="1175" class="t-sub">copy of production</text>
+    <text x="1389" y="1188" class="t-sub">6 Oct 14:12</text>
+  </g>
+  <text x="820" y="1216" class="t-sub">OpenLMIS stopped 6 Oct (no restart) · old VitalLink HAPI, Keycloak and portal stop once preprod runs</text>
+  <text x="820" y="1232" class="t-warn">running since 6 Oct; links work once DNS and certificates exist</text>
+  <!-- production data copied to preprod -->
+  <path d="M1160,234 L1210,234 L1210,996 L1578,996 L1578,1166 L1548,1166" class="edge pre" marker-end="url(#ah-pre)"/>
+  <text x="1454" y="990" text-anchor="end" class="t-edge">FHIR data copied 6 Oct</text>
+
+  <!-- ===== nginx -> servers ===== -->
+  <!-- vhw.gov.ls -->
+  <path d="M630,142 C720,142 730,146 818,146" class="edge prod" marker-end="url(#ah-prod)"/>
+  <text x="812" y="140" text-anchor="end" class="t-edge">/  /fhir</text>
+  <path class="edge prod" d="M630,166 C740,166 720,326 818,326" marker-end="url(#ah-prod)"/>
+  <text class="t-edge" x="812" y="352" text-anchor="end">vhw.gov.ls /auth</text>
+  <!-- training.vhw.gov.ls -->
+  <path d="M630,222 C720,222 730,234 818,234" class="edge prod" marker-end="url(#ah-prod)"/>
+  <text x="812" y="228" text-anchor="end" class="t-edge">/</text>
+  <path d="M630,234 C725,234 730,166 818,166" class="edge prod" marker-end="url(#ah-prod)"/>
+  <text x="812" y="184" text-anchor="end" class="t-edge">/fhir  /LocationHierarchy</text>
+  <path d="M630,246 C720,246 730,314 818,314" class="edge dim" marker-end="url(#ah)"/>
+  <text x="812" y="308" text-anchor="end" class="t-edge">/auth (left over)</text>
+  <!-- app.vhw.gov.ls -->
+  <path d="M630,302 C730,302 720,488 818,488" class="edge test" marker-end="url(#ah-test)"/>
+  <text x="812" y="482" text-anchor="end" class="t-edge">/  /fhir</text>
+  <path d="M630,326 C730,326 720,648 818,648" class="edge test" marker-end="url(#ah-test)"/>
+  <text x="812" y="642" text-anchor="end" class="t-edge">/auth</text>
+  <!-- web.vhw.gov.ls -->
+  <path d="M630,382 C730,382 720,574 818,574" class="edge test" marker-end="url(#ah-test)"/>
+  <text x="812" y="568" text-anchor="end" class="t-edge">/</text>
+  <path d="M630,394 C730,394 720,506 818,506" class="edge test" marker-end="url(#ah-test)"/>
+  <text x="812" y="524" text-anchor="end" class="t-edge">/fhir  /LocationHierarchy</text>
+  <path d="M630,406 C730,406 720,666 818,666" class="edge test" marker-end="url(#ah-test)"/>
+  <!-- bkm.vhw.gov.ls -->
+  <path d="M630,474 C700,474 700,836 818,836" class="edge" marker-end="url(#ah)"/>
+  <text x="812" y="834" text-anchor="end" class="t-edge">/</text>
+
+  <!-- preprod hostnames (planned) -->
+  <path class="edge pre" d="M630,702 C720,702 700,1098 818,1098" marker-end="url(#ah-pre)"/>
+  <text x="812" y="1092" text-anchor="end" class="t-edge">planned</text>
+
+  <!-- ===== chwtr dhis2-host ===== -->
+  <rect x="1220" y="780" width="340" height="96" rx="12" class="host"/>
+  <text x="1240" y="806" class="t-title">dhis2-host</text>
+  <a href="https://vhw.gov.ls/chwtr" target="_blank" rel="noopener" class="lnk"><title>https://vhw.gov.ls/chwtr</title>
+    <rect x="1240" y="818" width="300" height="44" rx="8" class="box"/>
+    <text x="1254" y="837" class="t-name">DHIS2 · chwtr</text>
+    <text x="1526" y="837" text-anchor="end" class="t-sub">:8082 · vhw.gov.ls/chwtr</text>
+    <text x="1254" y="854" class="t-warn">login redirects to http:// → 404</text>
+    <text x="1533" y="856" text-anchor="end" class="t-go">↗</text>
+  </a>
+
+  <!-- ===== legend ===== -->
+  <rect x="1220" y="410" width="340" height="340" rx="12" class="host"/>
+  <text x="1240" y="438" class="t-title">Reading the map</text>
+  <line x1="1240" y1="466" x2="1290" y2="466" class="edge prod"/>
+  <text x="1302" y="470" class="t-sub" style="fill: var(--fg)">routed to production</text>
+  <line x1="1240" y1="494" x2="1290" y2="494" class="edge test"/>
+  <text x="1302" y="498" class="t-sub" style="fill: var(--fg)">routed to test</text>
+  <line x1="1240" y1="522" x2="1290" y2="522" class="edge auth"/>
+  <text x="1302" y="526" class="t-sub" style="fill: var(--fg)">gateway checks login tokens</text>
+  <line x1="1240" y1="550" x2="1290" y2="550" class="edge future"/>
+  <text x="1302" y="554" class="t-sub" style="fill: var(--fg)">new production app (green)</text>
+  <rect x="1240" y="568" width="50" height="22" rx="6" class="box" style="stroke-dasharray: 5 4; fill: none"/>
+  <text x="1302" y="584" class="t-sub" style="fill: var(--fg)">running but not in use</text>
+  <rect x="1240" y="600" width="50" height="22" rx="6" class="box" style="stroke: var(--warn)"/>
+  <text x="1302" y="616" class="t-sub" style="fill: var(--fg)">DHIS2 (shares the proxy host)</text>
+  <line x1="1240" y1="642" x2="1290" y2="642" class="edge pre"/>
+  <text x="1302" y="646" class="t-sub" style="fill: var(--fg)">preprod (waiting for DNS)</text>
+  <text x="1240" y="680" class="t-sub">Labels on arrows are URL paths.</text>
+  <text x="1240" y="704" class="t-sub">Apps: blue BKM and green BKM use</text>
+  <text x="1240" y="720" class="t-sub">vhw.gov.ls; red BKM Test uses</text>
+  <text x="1240" y="736" class="t-sub">app.vhw.gov.ls.</text>
+</svg>
+    </div>
+    <figcaption>Each hostname is fixed; nginx decides which server answers it. The apps only know a hostname, so logins moved to prod-host by changing one nginx line, with no new app. Switch to Next to see login-host retired. Click a box with ↗ to open it: addresses starting 10.255 work only on the internal network, and the preprod ones once DNS exists.</figcaption>
+  </figure>
+
+  <section>
+    <h2>Addresses</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Environment</th><th>What</th><th>URL</th><th>Server</th><th>Note</th></tr></thead>
+        <tbody>
+            <tr><td><span class="pill prod">production</span></td><td>Web portal</td><td class="mono"><a href="https://training.vhw.gov.ls" target="_blank" rel="noopener">https://training.vhw.gov.ls</a></td><td class="mono">prod-host</td><td class="note">Keycloak login</td></tr>
+            <tr><td><span class="pill prod">production</span></td><td>App server (FHIR, used by blue and green BKM)</td><td class="mono"><a href="https://vhw.gov.ls/fhir/" target="_blank" rel="noopener">https://vhw.gov.ls/fhir/</a></td><td class="mono">prod-host</td><td class="note">the base address answers HAPI-0287 (it is up); real calls need a login token</td></tr>
+            <tr><td><span class="pill prod">production</span></td><td>Login (Keycloak realm opensrp)</td><td class="mono"><a href="https://vhw.gov.ls/auth/realms/opensrp/" target="_blank" rel="noopener">https://vhw.gov.ls/auth/realms/opensrp/</a></td><td class="mono">prod-host (since 1 Oct)</td><td class="note"></td></tr>
+            <tr><td><span class="pill prod">production</span></td><td>Keycloak console for realm opensrp</td><td class="mono"><a href="https://vhw.gov.ls/auth/admin/opensrp/console/" target="_blank" rel="noopener">https://vhw.gov.ls/auth/admin/opensrp/console/</a></td><td class="mono">prod-host</td><td class="note">for superadmin (realm admin and web portal user, created 19 Oct)</td></tr>
+            <tr><td><span class="pill test">test</span></td><td>Web portal</td><td class="mono"><a href="https://web.vhw.gov.ls" target="_blank" rel="noopener">https://web.vhw.gov.ls</a></td><td class="mono">test-host</td><td class="note">Keycloak login</td></tr>
+            <tr><td><span class="pill test">test</span></td><td>App server (FHIR, used by red BKM Test)</td><td class="mono"><a href="https://app.vhw.gov.ls/fhir/" target="_blank" rel="noopener">https://app.vhw.gov.ls/fhir/</a></td><td class="mono">test-host</td><td class="note">the base address answers HAPI-0287 (it is up); real calls need a login token</td></tr>
+            <tr><td><span class="pill test">test</span></td><td>Login (Keycloak realm opensrp)</td><td class="mono"><a href="https://app.vhw.gov.ls/auth/realms/opensrp/" target="_blank" rel="noopener">https://app.vhw.gov.ls/auth/realms/opensrp/</a></td><td class="mono">test-host</td><td class="note"></td></tr>
+            <tr><td><span class="pill test">test</span></td><td>Keycloak admin console</td><td class="mono"><a href="https://app.vhw.gov.ls/auth/admin/" target="_blank" rel="noopener">https://app.vhw.gov.ls/auth/admin/</a></td><td class="mono">test-host</td><td class="note">master-realm admins: admin.user1, admin.user2, admin.user3; the password in /opt/vhw-stack/.env may be out of date</td></tr>
+            <tr><td><span class="pill test">test</span></td><td>Keycloak console for realm opensrp</td><td class="mono"><a href="https://app.vhw.gov.ls/auth/admin/opensrp/console/" target="_blank" rel="noopener">https://app.vhw.gov.ls/auth/admin/opensrp/console/</a></td><td class="mono">test-host</td><td class="note">for superadmin (realm admin and web portal user, created 19 Oct)</td></tr>
+            <tr><td><span class="pill pre">preprod</span></td><td>App server and login</td><td class="mono">https://preprod-app.vhw.gov.ls/fhir/<br>https://preprod-app.vhw.gov.ls/auth/</td><td class="mono">jump-host</td><td class="note">planned · DNS requested</td></tr>
+            <tr><td><span class="pill pre">preprod</span></td><td>Web portal</td><td class="mono"><a href="https://preprod-web.vhw.gov.ls" target="_blank" rel="noopener">https://preprod-web.vhw.gov.ls</a></td><td class="mono">jump-host</td><td class="note">planned · DNS requested</td></tr>
+            <tr><td><span class="pill pre">preprod</span></td><td>VitalLink web (phone menu builder)</td><td class="mono"><a href="https://preprod-builder.vhw.gov.ls" target="_blank" rel="noopener">https://preprod-builder.vhw.gov.ls</a></td><td class="mono">jump-host</td><td class="note">planned · Keycloak client bkm-web</td></tr>
+            <tr><td><span class="pill pre">preprod</span></td><td>Grafana (monitoring)</td><td class="mono"><a href="https://preprod-grafana.vhw.gov.ls" target="_blank" rel="noopener">https://preprod-grafana.vhw.gov.ls</a></td><td class="mono">jump-host:3005</td><td class="note">planned · DNS requested</td></tr>
+            <tr><td><span class="pill other">DHIS2</span></td><td>CHWML staging (Community Health Master List)</td><td class="mono"><a href="https://vhw.gov.ls/chwml" target="_blank" rel="noopener">https://vhw.gov.ls/chwml</a></td><td class="mono">proxy-host</td><td class="note">DHIS2 login</td></tr>
+            <tr><td><span class="pill other">DHIS2</span></td><td>chwtr</td><td class="mono"><a href="https://vhw.gov.ls/chwtr" target="_blank" rel="noopener">https://vhw.gov.ls/chwtr</a></td><td class="mono">dhis2-host</td><td class="note">broken: login redirects to http://</td></tr>
+            <tr><td><span class="pill other">analytics</span></td><td>Superset dashboards</td><td class="mono"><a href="https://bkm.vhw.gov.ls" target="_blank" rel="noopener">https://bkm.vhw.gov.ls</a></td><td class="mono">analytics-host</td><td class="note">own logins, not Keycloak · data: production, hourly</td></tr>
+            <tr><td><span class="pill other">analytics</span></td><td>Data pipeline (fhir-data-pipes)</td><td class="mono"><a href="http://analytics-host:8090" target="_blank" rel="noopener">http://analytics-host:8090</a></td><td class="mono">analytics-host</td><td class="note">internal network only · reads production HAPI on prod-host:8080</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Apps and the URLs built into them</h2>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>App</th><th>FHIR and login</th><th>Server</th></tr></thead>
+          <tbody>
+            <tr><td><span class="dot" style="background: var(--prod)"></span>BKM<br><span class="note">VHWs, today; tested 1 Oct</span></td><td class="mono">https://vhw.gov.ls/fhir/<br>https://vhw.gov.ls/auth/realms/opensrp/</td><td><span class="pill prod">production</span></td></tr>
+            <tr><td><span class="dot" style="background: var(--future)"></span>BKM 2.2.9 (2.2.10 built 19 Oct)<br><span class="note">pilot; Sesotho is the default language from 2.2.10</span></td><td class="mono">https://vhw.gov.ls/fhir/<br>https://vhw.gov.ls/auth/realms/opensrp/</td><td><span class="pill prod">production</span></td></tr>
+            <tr><td><span class="dot" style="background: var(--orange)"></span>BKM Preprod 2.2.7<br><span class="note">training; orange icon</span></td><td class="mono">https://preprod-app.vhw.gov.ls/fhir/<br>https://preprod-app.vhw.gov.ls/auth/realms/opensrp/</td><td><span class="pill pre">preprod</span><br><span class="note">works once DNS exists</span></td></tr>
+            <tr><td><span class="dot" style="background: var(--test)"></span>BKM Test 2.2.10<br><span class="note">testers; built 19 Oct</span></td><td class="mono">https://app.vhw.gov.ls/fhir/<br>https://app.vhw.gov.ls/auth/realms/opensrp/</td><td><span class="pill test">test</span><br><span class="note">tested on a tablet 5 Oct</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">All three can be installed on one phone. Blue and green both write to production, so each VHW uses only one of them. Red is for testing and training only. Keep the original BKM installed; removing it deletes anything not yet synced.</p>
+      <p class="note">Version 2.2.7 (5 Oct): correcting a child's date of birth no longer duplicates vaccines and visits (also offline), due visits stay tappable after a correction, and edit forms open with the latest answers. APKs are in the shared Drive folder; they install as an update over 2.2.x and keep the data.</p>
+    </section>
+
+    <section>
+      <h2>Hostnames on proxy-host</h2>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Hostname</th><th>Role</th><th>Answered by</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">vhw.gov.ls</td><td><span class="pill prod">production</span> app + API</td><td class="mono">prod-host:8081<br>/auth → prod-host:8082<br>/chwml → DHIS2 CHWML staging (this host)<br>/chwtr → DHIS2 on dhis2-host:8082</td></tr>
+            <tr><td class="mono">training.vhw.gov.ls</td><td><span class="pill prod">production</span> portal<br><span class="note">misleading name; rename suggested</span></td><td class="mono">prod-host:3000<br>/fhir → prod-host:8081</td></tr>
+            <tr><td class="mono">app.vhw.gov.ls</td><td><span class="pill test">test</span> app + API</td><td class="mono">test-host:8081<br>/auth → test-host:8082</td></tr>
+            <tr><td class="mono">web.vhw.gov.ls</td><td><span class="pill test">test</span> portal</td><td class="mono">test-host:3000<br>/fhir → test-host:8081</td></tr>
+            <tr><td class="mono">preprod-app.vhw.gov.ls</td><td><span class="pill pre">preprod</span> app + API<br><span class="note">planned</span></td><td class="mono">jump-host:18181<br>/auth → jump-host:18182</td></tr>
+            <tr><td class="mono">preprod-web.vhw.gov.ls</td><td><span class="pill pre">preprod</span> portal<br><span class="note">planned</span></td><td class="mono">jump-host:18300<br>/fhir → jump-host:18181</td></tr>
+            <tr><td class="mono">preprod-builder.vhw.gov.ls</td><td><span class="pill pre">preprod</span> VitalLink web<br><span class="note">planned</span></td><td class="mono">jump-host:18902</td></tr>
+            <tr><td class="mono">preprod-grafana.vhw.gov.ls</td><td><span class="pill pre">preprod</span> Grafana<br><span class="note">planned</span></td><td class="mono">jump-host:3005</td></tr>
+            <tr><td class="mono">bkm.vhw.gov.ls</td><td><span class="pill other">analytics</span> Superset<br><span class="note">own username/password logins, not Keycloak</span></td><td class="mono">analytics-host:8088</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">The proxy host also runs DHIS2: the Lesotho Georeferenced Community Health Master List (CHWML), staging instance, at https://vhw.gov.ls/chwml (Tomcat :8080 and Postgres 14). Changes there are kept to single tested lines, and need root on proxy-host.</p>
+    </section>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>Done (30 September to 6 October)</h2>
+      <ul class="plain">
+        <li>Test stack running on test-host: gateway, portal, Keycloak and HAPI; all checks pass. app.vhw.gov.ls and web.vhw.gov.ls work.</li>
+        <li>Test data: a copy of production taken at 12:05 (1,475 patients). Test and production are separate from then on.</li>
+        <li>Test Keycloak: the 506 users copied from production, with its own signing keys, so test logins never work on production.</li>
+        <li>BKM Test (red) rebuilt for app.vhw.gov.ls and tested. BKM (green) built for production and tested.</li>
+        <li>1 Oct: production logins moved from login-host to prod-host (one nginx line; same users, passwords and signing keys). Blue, green and red apps all tested afterwards. Each phone is asked once to log in again.</li>
+        <li>1 Oct: test portal (web.vhw.gov.ls) fixed: it now uses the same portal settings as production.</li>
+        <li>Named Keycloak admins: kc-admin-prod (production) and kc-admin-test (test).</li>
+        <li>4 Oct: HAPI search paging fixed on test and production (search_prefetch_thresholds 20000,-1). Newly installed phones now download all their data; before, the newest ~500 records were missed.</li>
+        <li>5 Oct: apps 2.2.5 to 2.2.7: no duplicate vaccines after a date-of-birth correction, due tasks stay actionable, edit forms pre-fill the latest answers. The fixes are offered to OpenSRP as pull requests 3856 and 3857.</li>
+        <li>6 Oct: test accounts admin.user1, admin.user2 and admin.user3 (app and Keycloak admin). admin.user1 checked: login and full sync work.</li>
+        <li>6 Oct: OpenLMIS on the jump host (jump-host) stopped and kept from restarting; a backup was taken first. The box becomes preprod: a third environment for training and the phone menu builder.</li>
+        <li>6 Oct: preprod prepared in ~/vhw-preprod (same stack and versions as production, own ports 18180-18902, no sudo needed). Its Keycloak is a copy of test (511 users) with its own signing keys and a new bkm-web client for the builder. Its FHIR data is a copy of production taken at 14:12.</li>
+        <li>6 Oct: preprod running: HAPI (1,477 patients), Keycloak, gateway, portal and VitalLink web. nginx on proxy-host has the preprod-app, preprod-web and preprod-builder routes (checked through the proxy). BKM Preprod app (orange icon) built; the green production app now says LIVE on its icon.</li>
+        <li>19 Oct: the Family Head label now follows a change of household head (test and production; server configuration, no app update needed). App 2.2.10 built: Southern Sotho is the default language.</li>
+        <li>19 Oct: account superadmin created in realm opensrp on test and on production: realm admin, web portal only (WEB_CLIENT), fhir_core_app_id=bkm, groups WEB_PRACTITIONER and Super Admin. It signs in at the realm console above and at the web portal; the password is set at the first sign-in and kept by the account owner, not in this document. Created with tools/mksuper script (dry run first).</li>
+        <li>19 Oct: every public address on production and test checked from the servers themselves (23 checks each, all passed; the public addresses answer in about 25 ms, so slow answers seen from outside are the internet path).</li>
+        <li>19 Oct: the portal Users page works for superadmin on test (the earlier CORS error went away once the account had realm-admin and a fresh sign-in).</li>
+        <li>19 Oct: the web portal's location page failed with 401 because the signed-in Keycloak user had no fhir_core_app_id attribute (the gateway needs fhir_core_app_id=bkm in the token). Portal-only accounts created with fix_portal_user.py never got it.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Still to do</h2>
+      <ul class="plain">
+        <li>Passwords: the master-realm admin has the same password on test and production, and it was typed into a chat. Give the two different passwords and change them. Then update superadmin's password after its first sign-in.</li>
+        <li>Portal accounts: give every enabled user the attribute fhir_core_app_id=bkm (list them with the --missing check) and make fix_portal_user.py set it. Then run the same on production.</li>
+        <li>Preprod: set the portal's Keycloak secret and run the checks; point the mediator at preprod's HAPI and Keycloak; then stop the old VitalLink HAPI, Keycloak and portal on that host. Keep Grafana, OpenHIM and the mediator.</li>
+        <li>Preprod hostnames: DNS for preprod-app, preprod-web, preprod-builder and preprod-grafana.vhw.gov.ls in the public and internal DNS (requested from dns-admin.gov.ls), then Let's Encrypt certificates on proxy-host. Then test the BKM Preprod app.</li>
+        <li>Preprod logins: run the user script with --portal-admin so admin.user1, admin.user2 and admin.user3 can use the app and VitalLink web (menu builder) on preprod.</li>
+        <li>Grafana on the jump host (preprod-grafana.vhw.gov.ls): add the other servers (production, test, Superset) to its monitoring.</li>
+        <li>DHIS2 at https://vhw.gov.ls/chwtr: its login redirects to http://, which returns 404. Fix in nginx on proxy-host: add <span class="mono">proxy_set_header X-Forwarded-Proto $scheme;</span> to the /chwtr block (as /chwml already works).</li>
+        <li>Test accounts: run the user script again for admin.user2 and admin.user3 with --only-default-team (they are still in all care teams, which the gateway rejects), then create the same accounts on production. Portal logins need separate usernames: one account cannot be both an app and a portal user.</li>
+        <li>Superset: import the BKM Child Health dashboard, drop the ~60 old snapshot tables, add an alert when the newest data is more than a day old, and move Superset off its development configuration.</li>
+        <li>Upstream: follow up the OpenSRP review of pull requests 3856 and 3857, and open the ANR fix as a third pull request.</li>
+        <li>Later: a clearer name for the production portal (training.vhw.gov.ls), for example portal.vhw.gov.ls, with the old name redirecting. Needs DNS, a certificate, an nginx block, and the new address in the portal and Keycloak settings. The phone apps are not affected.</li>
+        <li>Later: restricting HAPI port 8080 on prod-host (the Superset pipeline now reads it, so first move the pipeline to the gateway with its own login), and scheduled backups there.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  const root = document.getElementById('root');
+  const bToday = document.getElementById('btn-today');
+  const bPlan = document.getElementById('btn-plan');
+  function setState(s) {
+    root.classList.toggle('state-today', s === 'today');
+    root.classList.toggle('state-plan', s === 'plan');
+    bToday.setAttribute('aria-pressed', String(s === 'today'));
+    bPlan.setAttribute('aria-pressed', String(s === 'plan'));
+    try { localStorage.setItem('vhw-map-state', s); } catch (e) {}
+  }
+  bToday.addEventListener('click', () => setState('today'));
+  bPlan.addEventListener('click', () => setState('plan'));
+  let saved = null;
+  try { saved = localStorage.getItem('vhw-map-state'); } catch (e) {}
+  if (location.hash === '#planned') saved = 'plan';
+  if (saved === 'plan') setState('plan');
+
+  // pan and zoom by moving the viewBox
+  const svg = document.getElementById('map');
+  const stage = document.getElementById('stage');
+  const FULL = { x: 0, y: 0, w: 1600, h: 1260 };
+  let vb = { ...FULL };
+  function apply() { svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+  function toSvg(cx, cy) {
+    const r = svg.getBoundingClientRect();
+    const s = Math.max(vb.w / r.width, vb.h / r.height);
+    const ox = (r.width * s - vb.w) / 2, oy = (r.height * s - vb.h) / 2;
+    return { x: vb.x - ox + (cx - r.left) * s, y: vb.y - oy + (cy - r.top) * s, s };
+  }
+  function zoomAt(factor, cx, cy) {
+    const p = toSvg(cx, cy);
+    const nw = Math.min(FULL.w * 1.5, Math.max(200, vb.w / factor));
+    const k = nw / vb.w;
+    vb = { x: p.x - (p.x - vb.x) * k, y: p.y - (p.y - vb.y) * k, w: nw, h: vb.h * k };
+    apply();
+  }
+  function center() { const r = svg.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+  document.getElementById('zin').addEventListener('click', () => zoomAt(1.4, ...center()));
+  document.getElementById('zout').addEventListener('click', () => zoomAt(1 / 1.4, ...center()));
+  document.getElementById('zfit').addEventListener('click', () => { vb = { ...FULL }; apply(); });
+  stage.addEventListener('wheel', (e) => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
+
+  const pts = new Map();
+  let last = null, pinch = null, down = null, moved = false;
+  // a drag that ends on a box must not open its link
+  stage.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+  stage.addEventListener('pointerdown', (e) => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    down = { x: e.clientX, y: e.clientY }; moved = false;
+    if (pts.size === 1) last = { x: e.clientX, y: e.clientY };
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    if (!moved && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && pts.size === 1) return;
+    if (!moved) { moved = true; stage.classList.add('dragging'); }
+    if (!stage.hasPointerCapture(e.pointerId)) stage.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      zoomAt(d / pinch, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      pinch = d; return;
+    }
+    if (pts.size === 1 && last) {
+      const s = toSvg(0, 0).s;
+      vb.x -= (e.clientX - last.x) * s; vb.y -= (e.clientY - last.y) * s;
+      last = { x: e.clientX, y: e.clientY }; apply();
+    }
+  });
+  function end(e) {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 1) { const [p] = [...pts.values()]; last = { ...p }; }
+    if (pts.size === 0) { last = null; stage.classList.remove('dragging'); }
+  }
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', end);
+  stage.addEventListener('keydown', (e) => {
+    if (e.key === '+' || e.key === '=') zoomAt(1.2, ...center());
+    if (e.key === '-') zoomAt(1 / 1.2, ...center());
+    if (e.key === '0') { vb = { ...FULL }; apply(); }
+  });
+  stage.tabIndex = 0;
+})();
+</script>
+</body>
+</html>

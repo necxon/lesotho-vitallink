@@ -1,0 +1,229 @@
+<title>Superset Pipeline Health Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a flow strip at the top, then numbered check steps (a real sequence), then reference tables. Same family as the VHW Environment Map. */
+:root {
+  --bg: #f4f6f7;
+  --panel: #ffffff;
+  --fg: #16232b;
+  --muted: #5b6b74;
+  --hair: #d5dde1;
+  --accent: #0a7ea4;
+  --accent-soft: #e3f2f8;
+  --ok: #2e7d32;
+  --ok-soft: #e7f4e8;
+  --warn: #a15c00;
+  --warn-soft: #fdf1df;
+  --bad: #c62828;
+  --bad-soft: #fbe9e9;
+  --code-bg: #eef2f4;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --hair: #2a3a43;
+    --accent: #4fb7dc; --accent-soft: #12303d; --ok: #6cc070; --ok-soft: #173320;
+    --warn: #e8a64a; --warn-soft: #3a2a12; --bad: #f07070; --bad-soft: #3a1c1e; --code-bg: #0b1216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ad; --hair: #2a3a43;
+  --accent: #4fb7dc; --accent-soft: #12303d; --ok: #6cc070; --ok-soft: #173320;
+  --warn: #e8a64a; --warn-soft: #3a2a12; --bad: #f07070; --bad-soft: #3a1c1e; --code-bg: #0b1216;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 860px; margin-inline: auto; padding-inline: 16px; padding-block: 32px 64px; display: grid; gap: 34px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-size: 1.85rem; line-height: 1.2; margin: 0; font-weight: 600; text-wrap: balance; }
+h2 { font-size: 1.2rem; margin: 0 0 12px; font-weight: 600; text-wrap: balance; }
+h3 { font-size: 1rem; margin: 0; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); }
+section { display: grid; gap: 12px; }
+code, pre, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); border: 1px solid var(--hair); border-radius: 8px; padding: 12px 14px; margin: 0; overflow-x: auto; line-height: 1.5; }
+a { color: var(--accent); text-underline-offset: 2px; }
+
+/* flow strip */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.node { background: var(--panel); border: 1px solid var(--hair); border-radius: 8px; padding: 10px 12px; flex: 1 1 140px; min-width: 0; display: grid; gap: 2px; }
+.node b { font-weight: 600; font-size: 14px; }
+.node span { color: var(--muted); font-size: 12.5px; font-family: var(--mono); overflow-wrap: anywhere; }
+.arrow { align-self: center; color: var(--muted); font-size: 18px; }
+@media (max-width: 640px) { .arrow { display: none; } }
+
+/* facts */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 14px 16px; }
+.facts dt { color: var(--muted); font-size: 13.5px; }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .facts { grid-template-columns: 1fr; } .facts dd { margin-bottom: 6px; } }
+
+/* steps */
+ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 18px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; }
+ol.steps > li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 600; display: grid; place-items: center; font-size: 14px; }
+.step { display: grid; gap: 8px; min-width: 0; }
+.good { border-left: 3px solid var(--ok); background: var(--ok-soft); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 14.5px; }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+th { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+
+/* timeline */
+.log { display: grid; gap: 14px; }
+.entry { display: grid; grid-template-columns: 92px 1fr; gap: 14px; }
+.entry time { font-family: var(--mono); font-size: 13px; color: var(--muted); padding-top: 2px; }
+.entry ul { margin: 6px 0 0; padding-left: 1.1em; display: grid; gap: 4px; }
+@media (max-width: 520px) { .entry { grid-template-columns: 1fr; gap: 2px; } }
+.note { color: var(--muted); font-size: 13.5px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">VHW support runbook · Analytics</div>
+    <h1>Superset Pipeline Health Check</h1>
+    <p class="lead">How to check that the BKM dashboards in Superset are getting fresh data from production, which log messages are normal, what to do when something is wrong, and what was changed in October 2026.</p>
+  </header>
+
+  <section>
+    <h2>How the data flows</h2>
+    <div class="flow" role="list">
+      <div class="node" role="listitem"><b>Production FHIR</b><span>prod-host:8080</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node" role="listitem"><b>pipeline-controller</b><span>reads every hour<br>writes Parquet files</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node" role="listitem"><b>spark-thriftserver</b><span>SQL over the files<br>:10001</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node" role="listitem"><b>Superset</b><span>database BKM_Server<br>bkm.vhw.gov.ls</span></div>
+    </div>
+    <p class="note">The dashboards never read production directly. If the pipeline stops, Superset keeps working but shows data from the last successful run.</p>
+  </section>
+
+  <section>
+    <h2>Where things are</h2>
+    <dl class="facts">
+      <dt>Server</dt><dd><span class="mono">analytics-host</span> (amoh255bkm001), all pipeline and Superset containers</dd>
+      <dt>Log in</dt><dd>from the jump host: <code>ssh -p 22 deploy-user@analytics-host</code></dd>
+      <dt>Superset</dt><dd><a href="https://bkm.vhw.gov.ls" target="_blank" rel="noopener">https://bkm.vhw.gov.ls</a> · own usernames, not Keycloak</dd>
+      <dt>Pipeline page</dt><dd><span class="mono">http://analytics-host:8090</span> · internal network only</dd>
+      <dt>Schedule</dt><dd>incremental run every hour on the hour; old files purged every hour at :30</dd>
+      <dt>Times</dt><dd>the server shows Lesotho time (SAST), but container logs and the pipeline's "since" times are in UTC: add 2 hours (log <span class="mono">07:00</span> = 09:00 in Lesotho)</dd>
+      <dt>Containers</dt><dd><span class="mono">pipeline-controller</span>, <span class="mono">spark-thriftserver</span>, <span class="mono">superset_app</span>, <span class="mono">superset_worker</span>, <span class="mono">superset_worker_beat</span>, <span class="mono">superset_cache</span>, <span class="mono">superset_websocket</span>, <span class="mono">superset_node</span> (<span class="mono">superset_init</span> runs once and stays stopped)</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Health check (about five minutes)</h2>
+    <p>Every command below only reads. Run them on analytics-host.</p>
+    <ol class="steps">
+      <li><div class="step">
+        <h3>Are the containers up, and have they restarted?</h3>
+<pre>sudo docker ps -a --format '{{.Names}}' | grep -iE "pipeline|spark|superset" | while read c; do
+  sudo docker inspect "$c" --format "{{.Name}}  status={{.State.Status}}  restarts={{.RestartCount}}  OOMKilled={{.State.OOMKilled}}  started={{.State.StartedAt}}"
+done</pre>
+        <div class="good">Healthy: every container <code>running</code> except <code>superset_init</code> (exited, exit 0); <code>restarts=0</code>; <code>OOMKilled=false</code>.</div>
+      </div></li>
+      <li><div class="step">
+        <h3>Did the hourly run happen?</h3>
+<pre>sudo docker logs --since 2h pipeline-controller 2>&amp;1 | grep "Last run was at" | tail -1
+curl -s -m 10 http://127.0.0.1:8090/status; echo</pre>
+        <div class="good">Healthy: "Last run was at" shows today, within the last hour or so; status is <code>IDLE</code> between runs or <code>RUNNING</code> just after the hour.</div>
+      </div></li>
+      <li><div class="step">
+        <h3>Is the data fresh?</h3>
+        <p>In Superset: SQL → SQL Lab. In the Database dropdown (top left) choose <b>BKM_Server</b>, schema <code>default</code>, then run:</p>
+<pre>SELECT count(*) AS tasks, max(meta.lastUpdated) AS newest FROM task;
+SELECT count(*) AS patients FROM patient;</pre>
+        <div class="good">Healthy: <code>newest</code> is the same as the newest change on production (next step). On quiet days nobody syncs, so an older <code>newest</code> is fine as long as production has nothing newer.</div>
+        <p class="note">"PostgreSQL Error: relation "task" does not exist" means another database is selected in the dropdown. The pipeline's tables are only in BKM_Server.</p>
+      </div></li>
+      <li><div class="step">
+        <h3>Does production have anything newer, and can the pipeline reach it?</h3>
+<pre>curl -s -o /dev/null -m 10 -w 'production FHIR: %{http_code}\n' http://prod-host:8080/fhir/metadata
+curl -s "http://prod-host:8080/fhir/Task?_sort=-_lastUpdated&amp;_count=1&amp;_elements=id" | grep -o '"lastUpdated": *"[^"]*"' | tail -1
+curl -s -o /dev/null -w 'paging links from this server: %{http_code}\n' "https://vhw.gov.ls/fhir/Task?_count=1&amp;_summary=count"</pre>
+        <div class="good">Healthy: <code>200</code>; the newest task on production has the same time as <code>newest</code> in step 3, or is less than an hour newer (the next run brings it in); the paging check gives <code>200</code>, not <code>401</code>.</div>
+      </div></li>
+      <li><div class="step">
+        <h3>Memory and disk</h3>
+<pre>free -h; df -h /</pre>
+        <div class="good">Healthy: a few GB "available" memory; disk well below 90%. On 13 Oct: 16 GB available, disk 27%.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Messages that look bad but are normal</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Message</th><th>Where</th><th>Why it appears</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">Flush timed out for thread …</td><td>pipeline-controller</td><td>Printed at INFO level while each run writes its files. Not an error.</td></tr>
+        <tr><td class="mono">Table or view not found: default.bkm_vaccine_tasks</td><td>spark-thriftserver</td><td>Superset looks up a table with the dataset's name when a dataset is opened, edited or re-synced. The BKM datasets are saved SQL queries, not tables, so the lookup fails harmlessly. Charts still work.</td></tr>
+        <tr><td class="mono">TTransportException</td><td>spark-thriftserver</td><td>Superset closing its connection after a query. Not an error.</td></tr>
+        <tr><td class="mono">Last run was at … next run is at …</td><td>pipeline-controller</td><td>The scheduler checking the clock every 30 seconds.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>When something is wrong</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>You see</th><th>Likely cause</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill bad">exited</span> or restarts rising</td><td>container crashed</td><td><code>sudo docker logs --tail 100 &lt;name&gt;</code>, then <code>sudo docker start &lt;name&gt;</code>. Note the error for the technical team.</td></tr>
+        <tr><td><span class="pill bad">OOMKilled=true</span></td><td>out of memory</td><td>Start it again; report to the technical team (memory limits or run frequency need changing).</td></tr>
+        <tr><td><span class="pill warn">last run hours ago</span></td><td>scheduler stuck</td><td><code>sudo docker restart pipeline-controller</code>. The next run picks up everything since the last good run.</td></tr>
+        <tr><td><span class="pill warn">production is newer than Superset by more than an hour</span></td><td>runs fail to fetch or merge</td><td>Look for <span class="mono">HTTP 401</span> or <span class="mono">Exception</span> in <code>sudo docker logs --since 3h pipeline-controller 2&gt;&amp;1 | grep -E "HTTP 401|Exception"</code>. Search for "HTTP 401", not "401": many record ids contain 401.</td></tr>
+        <tr><td><span class="pill warn">charts error, SQL Lab fails</span></td><td>Spark not answering</td><td><code>sudo docker restart spark-thriftserver</code>; dashboards fail for about a minute while it starts.</td></tr>
+        <tr><td><span class="pill bad">HTTP 401 : No Authorization header provided</span> in the pipeline log</td><td>the pipeline follows production's paging links (<span class="mono">https://vhw.gov.ls/fhir</span>), which go through the gateway and need a login</td><td>The proxy rule from 13 Oct must be in place: on proxy-host, <code>sudo grep -n fhir_backend /etc/nginx/sites-enabled/vhw.gov.ls</code> shows three lines. Test from analytics-host: <code>curl -s -o /dev/null -w '%{http_code}\n' "https://vhw.gov.ls/fhir/Task?_count=1&amp;_summary=count"</code> must give 200. Then run one full load: a failed run still moves the "since" point forward, so later incremental runs never fetch what it missed. On analytics-host: <code>curl -s -X POST "http://127.0.0.1:8090/run?runMode=FULL"</code>, then <code>curl -s http://127.0.0.1:8090/status</code> until it says IDLE (a few minutes).</td></tr>
+        <tr><td><span class="pill bad">disk above 90%</span></td><td>files not purged</td><td>Report to the technical team. Do not delete pipeline folders by hand.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Do not change the pipeline settings or delete its data folders without the technical team. A full reload from production is safe and takes a few minutes at today's data size (13 Oct: about 7,400 tasks); Superset keeps showing the previous data until it finishes. The pipeline page (port 8090) only opens inside the network; the <code>curl</code> commands above do the same from the server.</p>
+  </section>
+
+  <section>
+    <h2>What we did</h2>
+    <div class="log">
+      <div class="entry"><time>6 Oct 2026</time><div>
+        <p>The pipeline had stopped in January and was set to read an old database that no longer existed, so the dashboards showed months-old data.</p>
+        <ul>
+          <li>Switched the pipeline to read production FHIR directly (prod-host:8080), incrementally every hour.</li>
+          <li>First full load: 1,477 patients and 7,363 tasks.</li>
+          <li>All containers set to start again by themselves after a reboot or power cut.</li>
+          <li>Prepared the BKM Child Health dashboard (vaccines, routine visits, children) as an import file.</li>
+        </ul>
+      </div></div>
+      <div class="entry"><time>13 Oct 2026</time><div>
+        <p>Reported as "Data pipeline and Spark crashing". Checked:</p>
+        <ul>
+          <li>All containers running, no restarts, none killed for memory.</li>
+          <li>Hourly runs on schedule (last run 06:00 UTC, next 07:00 UTC).</li>
+          <li>The errors in the logs are the normal messages listed above, caused by Superset looking up the BKM dataset names.</li>
+        </ul>
+        <p>Nothing was crashing, but no new data had arrived since 6 October. Cause: each hourly run found the changes on production, then followed production's paging links to <span class="mono">https://vhw.gov.ls/fhir</span>, where the gateway refused it (HTTP 401) because the pipeline has no login. The run still reported "finished", with nothing imported.</p>
+        <ul>
+          <li>Fix (13 Oct, 09:20): on the proxy proxy-host, <span class="mono">/fhir</span> requests from the Superset server only (analytics-host) now go straight to production FHIR on port 8080; everyone else still goes through the gateway and needs a login. This gives the Superset server no access it did not already have.</li>
+          <li>One full load run the same morning (<span class="mono">curl -X POST "http://127.0.0.1:8090/run?runMode=FULL"</span> on analytics-host). Verified in SQL Lab: 7,363 tasks, newest change 12 Oct 14:42, so the missing changes are in.</li>
+          <li>Server time zones set to Lesotho time (SAST) on production, test, Superset and the proxy; all clocks synchronised (<span class="mono">tools/check_server_time.sh</span> from the jump host shows them side by side).</li>
+          <li>Original proxy file kept as <span class="mono">/root/vhw.gov.ls.bak-20261013-0918</span> on proxy-host.</li>
+          <li>Planned proper fix: a read-only service login for the pipeline through the gateway, after which this proxy rule and the open port 8080 can be removed.</li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,59 @@
+# This file is layered ON TOP of the image's built-in application.yaml via
+# SPRING_CONFIG_ADDITIONAL_LOCATION, so you only specify overrides here.
+# Datasource credentials are injected as environment variables in compose
+# (env vars take precedence over this file), so they are intentionally absent.
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 15      # keep < postgres max_connections, leave headroom
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    properties:
+      hibernate.show_sql: false
+      hibernate.format_sql: false
+      # Full-text search (_text / _content). Left OFF for a clean first boot.
+      # To enable Lucene-based search, see the README (needs a writable dir).
+      hibernate.search.enabled: false
+
+hapi:
+  fhir:
+    fhir_version: R4
+    server_address: ${HAPI_SERVER_ADDRESS:http://localhost:8080/fhir}
+
+    # ---- Production hardening of FHIR behaviours ----
+    allow_multiple_delete: false
+    allow_external_references: false
+    allow_placeholder_references: true
+    enforce_referential_integrity_on_write: true
+    enforce_referential_integrity_on_delete: true
+    # $expunge permanently destroys data; keep disabled unless you truly need it.
+    expunge_enabled: false
+    # Cache identical searches briefly to reduce DB load.
+    reuse_cached_search_results_millis: 60000
+    # Default page size / ceiling for searches.
+    default_page_size: 20
+    max_page_size: 200
+    # Load search results in large steps. With the default (13,503,2003,-1) a
+    # client paging through a fresh search (every device sync) loses the next
+    # link after ~2200 results under load, so newly installed devices miss the
+    # most recently updated resources.
+    search_prefetch_thresholds: 20000,-1
+
+    # ---- CORS: restrict to your real front-end origins in production ----
+    cors:
+      # Masked in the 2026-09-29 capture of .146; true is the HAPI image default.
+      allow_credentials: true
+      allowed_origin:
+        - ${HAPI_CORS_ORIGIN:http://localhost:*}
+
+    # ---- Built-in web tester UI. Consider blocking it at the proxy in prod. ----
+    tester:
+      home:
+        name: HAPI FHIR Server
+        server_address: ${HAPI_SERVER_ADDRESS:http://localhost:8080/fhir}
+        refuse_to_fetch_third_party_urls: true
+        fhir_version: R4
