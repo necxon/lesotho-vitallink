@@ -1,3 +1,5 @@
+> This is NEC XON custom work for the Lesotho VHW project. The OpenSRP Android app (BKM) is in a separate repository, necxon/fhircore-bkm. The folder deploy/vhw-stack holds the deployment tools and Superset reports, with server details removed.
+
 # Lesotho Vital-Link
 
 A Docker Compose sandbox that simulates Lesotho's national health-system integration
