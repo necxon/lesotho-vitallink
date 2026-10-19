@@ -4,12 +4,12 @@
 # Run on a fresh Ubuntu server AFTER the Docker stacks are up (make start).
 # Idempotent-ish; review each section before running. Run as a sudo-capable user.
 #
-#   DOMAIN=lesotho-bkm.xyz EMAIL=neelslotter@gmail.com bash deploy/setup-server.sh
+#   DOMAIN=lesotho-bkm.xyz EMAIL=admin@example.org bash deploy/setup-server.sh
 # =============================================================================
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-lesotho-bkm.xyz}"
-EMAIL="${EMAIL:-neelslotter@gmail.com}"
+EMAIL="${EMAIL:?set EMAIL to the contact address for the certificate, e.g. EMAIL=admin@example.org}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "== 1. Packages =="
