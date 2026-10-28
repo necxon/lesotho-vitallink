@@ -33,7 +33,8 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_bkm_dashboard as base  # noqa: E402  (same folder: helpers and the BKM_Server database)
-from bkm_district_sql import METRICS as DISTRICT_METRICS, district_metrics_sql  # noqa: E402
+from bkm_district_sql import (DERIVED as DISTRICT_DERIVED, METRICS as DISTRICT_METRICS,  # noqa: E402
+                              district_disease_sql, district_metrics_sql)
 
 BUNDLE = "bkm_surveillance"
 EBS_Q = "23a71526-de52-4252-8268-e99185b14e3b"        # Questionnaire ids (see the loader script)
@@ -429,31 +430,45 @@ if "--full" not in sys.argv:
     CHARTS, DASHBOARDS = ENC_CHARTS, ENC_DASHBOARDS
 
 # ---- Lesotho map: colour the 10 districts (Superset's bundled lesotho map, ISO codes LS-A ... LS-K) ----
+_MAP_FIGURES = [(col, label) for col, label, *_ in DISTRICT_METRICS] + [(col, label) for col, label, _ in DISTRICT_DERIVED]
 DATASETS["bkm_district_metrics"] = {
     "sql": district_metrics_sql(),
-    "columns": [("iso", "STRING"), ("district", "STRING")] + [(col, "BIGINT") for col, *_ in DISTRICT_METRICS],
+    "columns": [("iso", "STRING"), ("district", "STRING")] + [(col, "BIGINT") for col, *_ in DISTRICT_METRICS]
+               + [(col, "DOUBLE") for col, _, _ in DISTRICT_DERIVED],
+}
+DATASETS["bkm_district_disease"] = {
+    "sql": district_disease_sql(),
+    "columns": [("iso", "STRING"), ("disease", "STRING"), ("people", "BIGINT")],
 }
 
 
-def _map_chart(col, label, scheme):
-    return ("map_" + col, label + " by district", "bkm_district_metrics", "country_map",
-            {"select_country": "lesotho", "entity": "iso", "metric": am(f"MAX({col})", label),
+def _map_chart(col, label, scheme, ds="bkm_district_metrics", metric=None, key=None):
+    return (key or "map_" + col, label + " by district", ds, "country_map",
+            {"select_country": "lesotho", "entity": "iso", "metric": metric or am(f"MAX({col})", label),
              "adhoc_filters": [], "linear_color_scheme": scheme, "number_format": "SMART_NUMBER",
              "show_bubbles": False}, 6, 70)
 
 
-_MAP_SCHEMES = {"people": "blue_white_yellow", "children_u5": "blue_white_yellow", "households": "blue_white_yellow",
-                "overdue_doses": "red_yellow_blue", "ebs_signals": "red_yellow_blue", "followups": "blue_white_yellow",
-                "disease_people": "blue_white_yellow"}
-CHARTS["map"] = [_map_chart(col, label, _MAP_SCHEMES[col]) for col, label, *_ in DISTRICT_METRICS] + [
+# red = something to act on (higher is worse); blue-white-yellow = plain amounts or "higher is better"
+_BAD = "red_yellow_blue"
+_PLAIN = "blue_white_yellow"
+_MAP_SCHEMES = {"overdue_doses": _BAD, "overdue_visits": _BAD, "children_no_vaccine": _BAD,
+                "overdue_per_100_children": _BAD, "ebs_signals": _BAD, "people_per_active_vhw": _BAD}
+CHARTS["map"] = [_map_chart(col, label, _MAP_SCHEMES.get(col, _PLAIN)) for col, label in _MAP_FIGURES] + [
+    _map_chart("disease_pick", "People with the chosen disease", _PLAIN, ds="bkm_district_disease",
+               metric=am("SUM(people)", "People"), key="map_disease_pick"),
     ("map_table", "All figures by district", "bkm_district_metrics", "table",
-     {"query_mode": "raw", "all_columns": ["district"] + [c for c, *_ in DISTRICT_METRICS],
+     {"query_mode": "raw", "all_columns": ["district"] + [c for c, _ in _MAP_FIGURES],
       "order_by_cols": [json.dumps(["district", True])], "adhoc_filters": [], "row_limit": 20,
-      "include_search": False, "page_length": 10, "server_pagination": False}, 12, 50)]
-DASHBOARDS["map"] = {"title": "BKM Lesotho Map", "slug": "bkm-lesotho-map", "dataset": "bkm_district_metrics",
-                     "rows": [["map_people", "map_children_u5"], ["map_households", "map_overdue_doses"],
-                              ["map_ebs_signals", "map_followups"], ["map_disease_people"], ["map_table"]],
-                     "filters": []}
+      "include_search": False, "page_length": 11, "server_pagination": False}, 12, 60)]
+DASHBOARDS["map"] = {
+    "title": "BKM Lesotho Map", "slug": "bkm-lesotho-map", "dataset": "bkm_district_metrics",
+    "rows": [["map_people", "map_children_u5"], ["map_people_65plus", "map_households"],
+             ["map_vaccine_coverage_pct", "map_overdue_per_100_children"], ["map_doses_given", "map_overdue_doses"],
+             ["map_overdue_visits", "map_children_no_vaccine"], ["map_encounters_30d", "map_active_vhws_30d"],
+             ["map_people_per_active_vhw", "map_ebs_signals"], ["map_followups", "map_disease_people"],
+             ["map_disease_pick"], ["map_table"]],
+    "filters": [("disease", "Disease (for the last disease map)", "bkm_district_disease")]}
 
 # ---- data freshness: a number at the top of every dashboard, so a stalled pipeline is visible ----
 # (19 Oct 2026: the pipeline loaded nothing for six days and the dashboards looked merely empty.)
@@ -490,11 +505,13 @@ def dashboard_file(key, d):
                         "meta": {"width": w, "height": h, "chartId": len(pos), "uuid": base.uid("chart:" + k),
                                  "sliceName": title}}
     filters = []
-    for col, name in d["filters"]:
+    for item in d["filters"]:
+        col, name = item[0], item[1]
+        ds_name = item[2] if len(item) > 2 else d["dataset"]  # a filter can target another dataset of the dashboard
         fid = f"NATIVE_FILTER-{key}-{col}"
         filters.append({"id": fid, "name": name, "filterType": "filter_select", "type": "NATIVE_FILTER",
                         "description": "",
-                        "targets": [{"datasetUuid": base.uid("dataset:" + d["dataset"]), "column": {"name": col}}],
+                        "targets": [{"datasetUuid": base.uid("dataset:" + ds_name), "column": {"name": col}}],
                         "controlValues": {"multiSelect": True, "enableEmptyFilter": False,
                                           "defaultToFirstItem": False, "searchAllOptions": False,
                                           "inverseSelection": False},
