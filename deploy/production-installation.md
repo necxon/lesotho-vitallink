@@ -80,7 +80,9 @@ two values are load-bearing and will break the stack if wrong:
   master admin, and seed.sh defaults its own KC admin password to `admin`
   (scripts/seed.sh line ~88). They have to match or the seed's Keycloak steps fail.
 
-Working sandbox .env (harden these before a real public production box):
+Working sandbox .env. These values are public sandbox defaults - anyone who
+reads this repository knows them - so use them only on a closed test box. See the
+warning below the block before using this on a server with real data:
 
 ```bash
 cat > .env <<'EOF'
@@ -93,6 +95,17 @@ OPENLMIS_PASS=password
 SEED_USER_PASSWORD=<choose-a-strong-password>   # facility logins; never commit the real value
 EOF
 ```
+
+Warning - do this before the server holds real patient data or is reachable from
+the internet:
+
+- Change every password in the block above. Never commit the real values.
+- Change the matching hardcoded values too: the Postgres admin password in
+  config/initdb/01-md5-auth.sql, config/dhis.conf and config/opensrp/context.xml,
+  and the Keycloak admin default in scripts/seed.sh. If they are not changed together
+  with .env, the stack stops working (see the two points above).
+- Do not leave the admin consoles (Keycloak, Grafana, OpenHIM, DHIS2, Postgres) open
+  to the internet. Restrict them to your own network or behind a VPN.
 
 Note: running seed.sh directly does NOT load .env (only `make` does, via
 `-include .env`). Pass any needed vars on the command line when calling seed.sh.
@@ -236,7 +249,8 @@ docker compose ps                                          # all Up; DBs healthy
 curl -s -o /dev/null -w "bkm-web:  %{http_code}\n" http://localhost:9902
 curl -s -o /dev/null -w "keycloak: %{http_code}\n" http://localhost:8083/auth/realms/opensrp
 curl -s -o /dev/null -w "hapi:     %{http_code}\n" http://localhost:8079/fhir/metadata
-# auth check - must return an access_token
+# auth check - must return an access_token (password=admin is the sandbox default;
+# use your own KC_ADMIN_PASSWORD on a real server)
 curl -s -d "grant_type=password&client_id=admin-cli&username=admin&password=admin" \
   http://localhost:8083/auth/realms/master/protocol/openid-connect/token | head -c 80
 make check-openlmis
