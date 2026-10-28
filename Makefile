@@ -89,6 +89,7 @@ reseed-if-empty:
 	if [ -z "$$orderables" ] || [ "$$orderables" -eq 0 ] 2>/dev/null; then \
 	  echo "OpenLMIS reference data is empty (orderables=$${orderables:-0}) - auto-reseeding..."; \
 	  KC_ADMIN_PASSWORD=admin bash scripts/seed.sh; \
+	  $(MAKE) --no-print-directory superset-views-lmis || true; \
 	else echo "OpenLMIS reference data present (orderables=$$orderables) - no reseed needed."; fi
 
 ## Fix OpenLMIS nginx after any restart — consul-template renders a broken config
@@ -103,8 +104,11 @@ fix-nginx:
 	@echo "nginx static config applied and reloaded."
 
 ## Re-run seed only (useful after a full "make restart" if nginx stubs need refreshing)
+## The OpenLMIS wipe drops our analytics views as a side effect (they depend on the wiped
+## tables), so put them back. Leading '-': a missing database must not fail the reseed.
 reseed:
 	SKIP_WAIT=1 bash scripts/seed.sh
+	-@$(MAKE) --no-print-directory superset-views-lmis
 
 ## Apply every analytics schema Superset reports on. Safe to re-run: each
 ## script drops and rebuilds its own `analytics` schema.
