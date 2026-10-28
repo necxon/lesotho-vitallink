@@ -715,7 +715,7 @@ services:
     image: lesotho-vitallink-superset
     container_name: bkm-superset
     ports:
-      - "0.0.0.0:8089:8088"
+      - "0.0.0.0:${SUPERSET_PORT:-8089}:8088"
     environment:
       - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY:-lesotho-sandbox-superset-key-change-me}
       - PG_PASSWORD=${PG_PASSWORD:-password123}

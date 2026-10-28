@@ -97,7 +97,7 @@ Maps every requirement and business rule from the BKM–eLMIS Integration SRS to
 | NFR-18 | Must | Aggregated SOH and consumption accurate, reproducible, and traceable | ✅ | `MW` `eLMIS` `DHIS2` | `Dev` | Period-end snapshot (`runPeriodEndSnapshot()`) locks final SOH into DHIS2 after each month closes. Event-driven pushes during the month track live SOH. Both paths emit `aggregation-run` audit logs. |
 | NFR-19 | Must | Aggregation calculations deterministic for same source dataset and period | ✅ | `MW` `DHIS2` | `Dev` | Period-end snapshot runs once per month against a fixed eLMIS dataset for the closed period, producing a deterministic value. `comment = period-end-snapshot` distinguishes it from event-driven pushes. |
 | NFR-20 | Must | Audit logs for aggregation runs (period, timestamp, dataset ID, outcome) | ✅ | `MW` | `Dev` | `pushSohToDHIS2()` emits a structured Winston log object with `event=aggregation-run`, `reportingPeriod` (YYYYMM), `datasetId` (DHIS2 data element UID), `facilityId`, `programId`, `orderableId`, `soh`, `dhis2Status`, `outcome` (success/failed/skipped), and `triggeredBy` (BKM-{id} or Task/{id}). |
-| NFR-21 | **Should** | Identify and report data completeness/quality issues | ❌ | `MW` | `Dev` | Not required — Should priority. Missing mappings log an error but no user-visible quality report generated. |
+| NFR-21 | **Should** | Identify and report data completeness/quality issues | ⚠️ | `MW` `Superset` | `Dev` | Built and tested on the sandbox stack (28 Oct 2026): a `rpt_data_quality` view per source (FHIR 16, OpenLMIS 16, DHIS2 12 checks), broken-reference and reporting-coverage views, the "Data Quality and Platform Health" dashboard and a weekly data quality exception report (CSV by email). Partial because the production VHW Superset only has the "Days since the newest data" check, and the OpenLMIS views must be re-applied after an OpenLMIS reseed (`make superset-views-lmis`; now done automatically by `make reseed`). |
 
 ### 2.2.6 Maintainability and Supportability
 
@@ -178,7 +178,6 @@ Maps every requirement and business rule from the BKM–eLMIS Integration SRS to
 |----|------|
 | UR-06 | Supervisor stock monitoring |
 | NFR-05 | Performance testing of pending stock list |
-| NFR-21 | Data completeness / quality reporting |
 | NFR-25 | Application-level metrics monitoring |
 | NFR-28 | Formal version negotiation across deployments |
 | NFR-29 | Multi-node / scaled deployment validation |
