@@ -16,6 +16,13 @@
     "showLogo": true,
     "enablePin": true
   },
+  "settingsScreenMenuOptions": [
+    "MANUAL_SYNC",
+    "SWITCH_LANGUAGES",
+    "RESET_DATA",
+    "INSIGHTS",
+    "DATABASE_EXPORT"
+  ],
   "deviceToDeviceSync": {
     "resourcesToSync": [
       "Group",
