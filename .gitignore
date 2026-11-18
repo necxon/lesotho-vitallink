@@ -52,3 +52,7 @@ mediator/logs/
 
 # Operational report output (CSV extracts of clinical and stock data)
 /reports-out/
+
+# FHIR backup: server list and backup output stay on the backup host
+deploy/vhw-stack/scripts/fhir_servers.conf
+deploy/vhw-stack/scripts/fhir-backups/
