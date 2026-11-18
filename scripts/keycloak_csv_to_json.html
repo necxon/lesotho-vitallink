@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The page can load nothing and send nothing: no network access at all, so the CSV never leaves this computer. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">
+<title>Keycloak CSV to JSON</title>
+<style>
+  :root { --bg: #fff; --fg: #1d1d1f; --muted: #666; --line: #d9d9de; --panel: #f6f6f8; --ok: #1c7c3a; --bad: #b00020; --accent: #0b5fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #17181b; --fg: #ececf0; --muted: #a0a0aa; --line: #34353b; --panel: #202126; --ok: #4fd37c; --bad: #ff6b81; --accent: #6ea0ff; } }
+  body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 1.5rem 1rem 4rem; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { margin: 0 0 .25rem; }
+  .muted { color: var(--muted); }
+  ol { padding-left: 1.2rem; line-height: 1.6; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+  label { display: block; font-weight: 600; margin: .5rem 0 .2rem; }
+  input[type=text] { width: 100%; max-width: 360px; padding: .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); box-sizing: border-box; }
+  .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 2rem 1rem; text-align: center; cursor: pointer; }
+  #drop.over { border-color: var(--accent); background: var(--panel); }
+  button { padding: .6rem 1.1rem; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: 1rem; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { border: 1px solid var(--line); padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: var(--panel); }
+  tr.bad td { color: var(--bad); }
+  .ok { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .warn { border-left: 4px solid var(--bad); padding: .5rem .8rem; background: var(--panel); margin: .75rem 0; }
+  #tableWrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Keycloak CSV to JSON</h1>
+  <p class="muted">Checks a user CSV and makes a file you can load into Keycloak. Everything happens in this browser tab. Nothing is uploaded or saved.</p>
+
+  <ol>
+    <li>Enter the Keycloak <b>Client ID</b> that holds the roles.</li>
+    <li>Choose your CSV (or drop it below). Fix or remove any rejected rows.</li>
+    <li>Download <b>import.json</b>.</li>
+    <li>In the Keycloak admin console, realm <b id="realmText">opensrp</b>: <i>Realm settings, then Action, then Partial import</i>. Choose the file, tick <b>Users</b>, set <b>If a resource exists</b> to <b>Skip</b>, then Import.</li>
+    <li>Delete <b>import.json</b> afterwards.</li>
+  </ol>
+
+  <div class="panel">
+    <div class="row">
+      <div><label for="client">Client ID (required)</label><input id="client" type="text" autocomplete="off" placeholder="the client's Client ID in Keycloak"></div>
+      <div><label for="realm">Realm</label><input id="realm" type="text" value="opensrp" autocomplete="off"></div>
+      <label style="font-weight:400"><input id="verified" type="checkbox"> Mark e-mail addresses as verified</label>
+    </div>
+    <p class="muted" style="margin:.75rem 0 0">Allowed roles: <b>bkm-user</b> (used when the role is empty) and <b>bkm-supervisor</b>. Any other role rejects that row.</p>
+  </div>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Choose a CSV file">
+    <div><b>Drop a CSV file here</b>, or click to choose one</div>
+    <div class="muted" id="fileName">No file chosen</div>
+    <input id="file" type="file" accept=".csv,text/csv" hidden>
+  </div>
+  <p><button id="template" type="button">Download a template CSV</button></p>
+
+  <div id="result" hidden>
+    <h2>Result</h2>
+    <p id="summary"></p>
+    <div class="warn">The JSON file contains the temporary passwords in clear text. Treat it like a password list and delete it after the upload.</div>
+    <p>
+      <button id="download" class="primary" type="button">Download import.json</button>
+      <button id="downloadBad" type="button" hidden>Download rejected rows (CSV)</button>
+    </p>
+    <div id="tableWrap"></div>
+  </div>
+</main>
+
+<script>
+// Same rules as keycloak_import.py.
+const ALLOWED_ROLES = ['bkm-user', 'bkm-supervisor'];
+const DEFAULT_ROLE = 'bkm-user';
+const REQUIRED_COLUMNS = ['username', 'email'];
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+const $ = id => document.getElementById(id);
+let users = [], rejected = [];
+
+// ---------- CSV parsing (quotes, commas and line breaks inside quotes, CRLF, BOM) ----------
+function parseCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = []; let row = [], cell = '', quoted = false, i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+      else cell += c;
+    } else if (c === '"' && cell === '') quoted = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+    i++;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => !(r.length === 1 && r[0] === '')); // empty lines are skipped
+}
+
+// ---------- checking ----------
+function checkRow(f, seenUsers, seenEmails) {
+  if (!f.username || !f.email) return "missing mandatory 'username' or 'email'";
+  if (!EMAIL_RE.test(f.email)) return `'${f.email}' is not a valid e-mail address`;
+  if (!ALLOWED_ROLES.includes(f.role)) return `role '${f.role}' is not allowed (allowed: ${ALLOWED_ROLES.join(', ')})`;
+  if (seenUsers.has(f.username.toLowerCase())) return `duplicate username '${f.username}' in the CSV`;
+  if (seenEmails.has(f.email.toLowerCase())) return `duplicate e-mail '${f.email}' in the CSV`;
+  return null;
+}
+
+function convert(text, clientId, verified) {
+  const rows = parseCsv(text);
+  if (!rows.length) throw new Error('The file is empty.');
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const missing = REQUIRED_COLUMNS.filter(c => !header.includes(c));
+  if (missing.length) throw new Error(`The CSV is missing required column(s): ${missing.join(', ')}. Found: ${rows[0].join(', ')}`);
+  const col = key => header.indexOf(key);
+  const cell = (r, key) => (col(key) >= 0 ? (r[col(key)] || '').trim() : '');
+  const out = { users: [], rejected: [], all: [] };
+  const seenUsers = new Set(), seenEmails = new Set();
+  rows.slice(1).forEach((r, idx) => {
+    const rowNum = idx + 2;
+    const f = { username: cell(r, 'username'), email: cell(r, 'email'), firstName: cell(r, 'firstname'), lastName: cell(r, 'lastname'),
+                password: cell(r, 'password'), role: cell(r, 'role').toLowerCase() || DEFAULT_ROLE };
+    const reason = checkRow(f, seenUsers, seenEmails);
+    if (reason) { out.rejected.push({ row: rowNum, username: f.username, reason }); out.all.push({ rowNum, f, reason }); return; }
+    seenUsers.add(f.username.toLowerCase()); seenEmails.add(f.email.toLowerCase());
+    const u = { username: f.username, email: f.email, firstName: f.firstName, lastName: f.lastName, enabled: true, emailVerified: verified };
+    if (f.password) u.credentials = [{ type: 'password', value: f.password, temporary: true }]; // forces a change at first login
+    u.clientRoles = { [clientId]: [f.role] };
+    out.users.push(u); out.all.push({ rowNum, f, reason: null });
+  });
+  return out;
+}
+
+// ---------- page ----------
+let lastText = null;
+function run() {
+  if (lastText === null) return;
+  const clientId = $('client').value.trim();
+  $('realmText').textContent = $('realm').value.trim() || 'opensrp';
+  let res;
+  try { res = convert(lastText, clientId || '(client id)', $('verified').checked); }
+  catch (e) { $('result').hidden = false; $('summary').innerHTML = `<span class="bad">${esc(e.message)}</span>`; $('tableWrap').innerHTML = ''; $('download').disabled = true; $('downloadBad').hidden = true; return; }
+  users = res.users; rejected = res.rejected;
+  $('result').hidden = false;
+  $('summary').innerHTML = `<span class="ok">${users.length} valid</span>, <span class="${rejected.length ? 'bad' : ''}">${rejected.length} rejected</span>` +
+    (clientId ? '' : ' <span class="bad">&nbsp;Enter the Client ID to enable the download.</span>');
+  $('download').disabled = !users.length || !clientId;
+  $('downloadBad').hidden = !rejected.length;
+  $('tableWrap').innerHTML = '<table><tr><th>Row</th><th>Username</th><th>E-mail</th><th>Name</th><th>Role</th><th>Password</th><th>Status</th></tr>' +
+    res.all.map(({ rowNum, f, reason }) => `<tr class="${reason ? 'bad' : ''}"><td>${rowNum}</td><td>${esc(f.username)}</td><td>${esc(f.email)}</td>` +
+      `<td>${esc((f.firstName + ' ' + f.lastName).trim())}</td><td>${esc(f.role)}</td><td>${f.password ? '••••••' : '<span class="muted">none: cannot sign in</span>'}</td>` +
+      `<td>${reason ? 'Rejected: ' + esc(reason) : '<span class="ok">OK</span>'}</td></tr>`).join('') + '</table>';
+}
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function save(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const csvCell = v => /[",\r\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+
+$('download').onclick = () => save('import.json', JSON.stringify({ realm: $('realm').value.trim() || 'opensrp', users }, null, 2), 'application/json');
+$('downloadBad').onclick = () => save('keycloak_import_failed.csv', 'row,username,reason\r\n' + rejected.map(r => [r.row, r.username, r.reason].map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv');
+$('template').onclick = () => save('users.csv', 'username,email,firstName,lastName,password,role\r\njane.doe,jane.doe@example.com,Jane,Doe,ChangeMe#1,bkm-user\r\njohn.lead,john.lead@example.com,John,Lead,ChangeMe#2,bkm-supervisor\r\n', 'text/csv');
+
+function load(file) {
+  if (!file) return;
+  $('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => { lastText = String(reader.result); run(); };
+  reader.readAsText(file, 'utf-8');
+}
+$('file').onchange = e => load(e.target.files[0]);
+$('drop').onclick = () => $('file').click();
+$('drop').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('drop').ondragover = e => { e.preventDefault(); $('drop').classList.add('over'); };
+$('drop').ondragleave = () => $('drop').classList.remove('over');
+$('drop').ondrop = e => { e.preventDefault(); $('drop').classList.remove('over'); load(e.dataTransfer.files[0]); };
+['client', 'realm'].forEach(id => $(id).oninput = run);
+$('verified').onchange = run;
+</script>
+</body>
+</html>
