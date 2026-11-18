@@ -58,6 +58,19 @@ class Client:
                 return out
             first += 500
 
+    def active_usernames(self, client_id="opensrp_client_id"):
+        """Usernames with a live Keycloak session on the app client (= logged in on a tablet lately)."""
+        found = self.call(f"{self.kc}/admin/realms/opensrp/clients?clientId={urllib.parse.quote(client_id)}")
+        if not found:
+            return set()
+        out, first = set(), 0
+        while True:
+            page = self.call(f"{self.kc}/admin/realms/opensrp/clients/{found[0]['id']}/user-sessions?first={first}&max=500")
+            out |= {s.get("username", "") for s in page}
+            if len(page) < 500:
+                return out
+            first += 500
+
     def fhir_all(self, query):
         """Every resource of a search, following next links on our own base URL."""
         out, url = [], f"{self.fhir}/{query}"
@@ -250,9 +263,13 @@ def main():
           f"{len(no_pract)} without a Practitioner (portal/admin, or app users never set up)\n")
     print("Broken, by app id:", dict(collections.Counter(p[1] or "(none)" for p in problems)), "\n")
     if problems:
-        print("Broken sync chain (the gateway refuses these users):")
+        live = c.active_usernames()
+        hit = [p for p in problems if p[0].lower() in {u.lower() for u in live}]
+        print(f"Broken sync chain (the gateway refuses these users) - {len(hit)} of them have a live app "
+              f"session now (marked *): those tablets are failing right now:")
         for name, app, teams, why in problems:
-            print(f"  {name:32} {app or '(no app id)':14} {why}")
+            mark = "*" if name.lower() in {u.lower() for u in live} else " "
+            print(f"{mark} {name:32} {app or '(no app id)':14} {why}")
         with open(args.csv, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["username", "app id", "care teams", "problem"])
