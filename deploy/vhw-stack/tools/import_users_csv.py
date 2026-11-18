@@ -143,6 +143,17 @@ class Server:
         found = self.get(f"{self.base}/users?email={urllib.parse.quote(email)}&exact=true")
         return found[0]["username"] if found else None
 
+    def all_teams(self):
+        """Every CareTeam (id, name), read once. CareTeam?name= is not a standard search, so match names here."""
+        if getattr(self, "_all_teams", None) is None:
+            self._all_teams, url = [], f"{self.fhir}/CareTeam?_count=1000&_elements=name"
+            while url:
+                b = self.get(url)
+                self._all_teams += [e["resource"] for e in b.get("entry", []) if "resource" in e]
+                nxt = [l["url"] for l in b.get("link", []) if l.get("relation") == "next"]
+                url = f"{self.fhir}?{nxt[0].split('?', 1)[1]}" if nxt else None
+        return self._all_teams
+
     def team(self, ref):
         """CareTeam id or exact (case-insensitive) name -> (id, name), or an error string."""
         if ref in self.teams:
@@ -152,9 +163,7 @@ class Server:
             t = self.api.call("GET", f"{self.fhir}/CareTeam/{urllib.parse.quote(ref)}")
             result = (t["id"], t.get("name", ""))
         except SystemExit:  # Api.call exits on HTTP errors (404 = not an id)
-            hits = [e["resource"] for e in self.get(
-                f"{self.fhir}/CareTeam?name={urllib.parse.quote(ref)}&_count=50").get("entry", [])
-                if e["resource"].get("name", "").strip().lower() == ref.strip().lower()]
+            hits = [t for t in self.all_teams() if t.get("name", "").strip().lower() == ref.strip().lower()]
             if len(hits) == 1:
                 result = (hits[0]["id"], hits[0].get("name", ""))
             else:

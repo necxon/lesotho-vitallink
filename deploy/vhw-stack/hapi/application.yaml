@@ -27,6 +27,10 @@ hapi:
     # ---- Production hardening of FHIR behaviours ----
     allow_multiple_delete: false
     allow_external_references: false
+    # Old apps (< 2.2.5) send Task.basedOn "CarePlan/CarePlan/<id>"; treating "CarePlan" as a
+    # local base URL stores it as CarePlan/<id> instead of rejecting the upload (HAPI-0507).
+    local_base_urls:
+      - CarePlan
     allow_placeholder_references: true
     enforce_referential_integrity_on_write: true
     enforce_referential_integrity_on_delete: true
