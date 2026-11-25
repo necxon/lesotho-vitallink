@@ -45,7 +45,7 @@ def ref_id(ref, kind):
     return r.split("/", 1)[1].split("/_history")[0] if r.startswith(kind + "/") else None
 
 
-MARKED = re.compile(r"(delete[sd]?|deleted|remove[sd]?|not|old|test|duplicate)", re.I)
+MARKED = re.compile(r"\b(delete[sd]?|deleted|remove[sd]?|not|old|test|duplicate)\b", re.I)
 
 
 def repair_all(fhir, a):
