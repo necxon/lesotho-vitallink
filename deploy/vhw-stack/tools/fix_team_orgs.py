@@ -45,6 +45,9 @@ def ref_id(ref, kind):
     return r.split("/", 1)[1].split("/_history")[0] if r.startswith(kind + "/") else None
 
 
+MARKED = re.compile(r"(delete[sd]?|deleted|remove[sd]?|not|old|test|duplicate)", re.I)
+
+
 def repair_all(fhir, a):
     """Every team with VHWs and an EMPTY managingOrganization gets the one participant organization
     that has a village link. Nothing else is touched; no name guessing."""
@@ -54,9 +57,12 @@ def repair_all(fhir, a):
         oid = ref_id(x.get("organization"), "Organization")
         if oid and x.get("active", True) and any(ref_id(l, "Location") for l in x.get("location", [])):
             linked.add(oid)
-    plan, unclear = [], []
+    plan, unclear, marked = [], [], []
     for t in all_of(fhir, "CareTeam?_count=500&_elements=name,status,managingOrganization,participant"):
         if t.get("managingOrganization") or t.get("status", "active") != "active":
+            continue
+        if MARKED.search(t.get("name", "")):
+            marked.append(t.get("name", ""))  # someone marked it in the name ("... delete", "NOT"): leave it to a person
             continue
         members = [p.get("member") for p in t.get("participant", [])]
         if not any(ref_id(m, "Practitioner") for m in members):
@@ -66,6 +72,8 @@ def repair_all(fhir, a):
         display = next((m.get("display", "") for m in members if ref_id(m, "Organization") == (good or [None])[0]), "")
         (plan if len(good) == 1 else unclear).append((t["id"], t.get("name", ""), good[0] if len(good) == 1 else None, display))
     stamp = f"{datetime.datetime.now():%Y-%m-%d %H:%M}"
+    if marked:
+        say(f"{stamp} {len(marked)} team(s) marked in their name (delete / not / old / test), left alone: " + "; ".join(marked))
     if unclear:
         say(f"{stamp} {len(unclear)} team(s) with VHWs but no organization, and not 1 clear candidate (left alone): "
             + "; ".join(n for _, n, _, _ in unclear))
